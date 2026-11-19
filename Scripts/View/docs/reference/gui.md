@@ -198,6 +198,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 │ │  Layout:   Layout inside [Layered ▼]  Connections [Across… ▼]    Padding [20] │
 │ │  Sort:     [Elements ▼]                                               │ │
 │ │  Options:  ☐ Same width per level     ☐ Columns across containers     │ │
+│ │  Background: [/Views/Backgrounds/Map              ]  ☐ Every box in place │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Flow ────────────────────────────────────────────────────────────────┐ │
 │ │  Order:    Direction [Right ▼]  Cycles [Default ▼]  Ranking [Balanced ▼] │
@@ -223,6 +224,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 - **No Include condition.** A Nesting or Reverse list starts from nothing. With Exclude conditions but no Include condition that is on, a grey note under the table says nothing is nested (or reversed) and that an Include condition is needed. The Mode tooltip states the starting point of its list: a filter keeps all without an Include condition; a feature list picks nothing.
 - **Locks.** Connections falls back to *Between containers* (greyed) when Layout inside is Grid or Pack, or a view size is active ([nesting reference](selection-nesting.md#containers-and-connections-mode)). Width and Height are greyed while Use label width is on; Wrap label at applies only with it.
 - **Empty Nesting / Reverse.** An empty table shows the default condition switched off, as an example; untouched, it is saved as `[]`. Reverse has an empty cell where Nesting has *Nested*, so the two tables line up.
+- **Background.** The path of a view, as folders and name. It is read when the field is left or Enter is pressed, not at every key; a path not in the model reads as none for the counts, and the field's tooltip says so (a run stops on it). The counts include the background view.
 - **Form rows.** Containers, Flow, Elements and Connections share the tab's heading column. Flow, Elements and Connections form one raster over their first label/control pair; Containers › Options is a full 2×2 raster.
 
 **Algorithms** (generated): five styles in a radio table.
@@ -288,6 +290,8 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 | Sort | `sort` | Elements | Ascending order of the boxes in a view with containers. None: as selected. — Elements: by type and name. Containers, then elements: also the containers. All together: one list. | Grid, Pack, Tiles |
 | Same width per level | `alignWidthSameType` | off | Give all boxes of one nesting level the same width. — A container is never narrower than its contents; Use label width: the widest label sets it. | Layered, Tree, Grid, Pack, Tiles |
 | Columns across containers | `columnsAcrossContainers` | off | Line up the columns of the tiles on one grid across the whole view. — Boxes of one level line up along their parent's edge; neighbours stay Distance apart. | Tiles |
+| Background | `backgroundView` | [object Object] | A view the selection fills: its elements are always on the view, in its arrangement of rows and columns. — Path of the view, e.g. /Views/Backgrounds/Map. An element under nothing on it brings its parents; one that reaches it by no path is left out. | Tiles |
+| Every box in place | `backgroundEveryBox` | off | Every box of the background view keeps its place. Off: only a box with boxes inside it on the background view keeps its place; — the others are always on the view, and the layout places them (sorted, compact). | Tiles |
 
 **Flow**
 

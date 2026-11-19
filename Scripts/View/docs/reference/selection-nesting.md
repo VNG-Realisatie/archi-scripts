@@ -123,6 +123,30 @@ Each visual's container is decided anew in every run, by the nesting conditions 
 
 The Create group never modifies the view the selection came from.
 
+## Background view
+
+A preset names a background view by its path in the dialog; it is kept by its identity, so a rename or move keeps it, and a path not in the model stops the run with a message. Tiles only, with a nesting condition on (without one nothing can hang under it, and the console says it has no effect). The view the action runs with names it: *Layout only* follows the background view of the current settings, not the one the view was made with.
+
+**What is on the view** (*New view*, *One view each*):
+1. Every element of the background view, with the nesting relations between them, and its diagram objects (a diagram-block as one).
+2. The selection: start and steps, with the relations they followed.
+3. An element of the selection that does not hang under the background view through those relations brings its nesting parents from the model, up to an element of the background view, with the relations between them: parents only, never their other children. The elements are taken in the order they joined, so an element under an earlier one joins with it and climbs not itself.
+4. An element that reaches the background view by no path is left out: the start that only asks (a domain grouping) is typical. The console names them.
+
+Only these relations are drawn. An element the selection put under one of its own elements does not also go under another element of the background view the model nests it in.
+
+**Arrangement.** The boxes of every container on the background view, and of the view itself, are cut by lines that cross no box: a vertical line first, so the boxes form columns, left to right; else a horizontal line, so they form rows, top to bottom; each part is cut again the same way. A band across its container leaves no vertical cut, so bands become rows, and a column of bands beside another column stays a column. Boxes no line separates form one stack in reading order. No tolerance in pixels decides it, only overlap.
+
+**Places.**
+- A container keeps its arrangement when one of its children on the background view is a frame. The children of the other containers are only there: the layout places them, sorted and compact. With **Every box in place** every container keeps its arrangement.
+- In a kept arrangement the boxes one above the other form a band: as wide as each other, and with nothing beside them as wide as their container, also a box with nothing in it. A diagram object keeps its size. The extra width costs nothing, so the layout gives the boxes of an arrangement their wide shapes too.
+- A child the background view does not hold in a kept arrangement comes last, tiled freely; an arranged box not on the view drops out, and an emptied part with it.
+- An element of the background view is styled as a container (*Style by nesting level*), also with nothing in it.
+
+**Model and background view differ.** The model leads. A child the background view has under another parent goes where the model puts it; a child of a kept arrangement that is not on the background view comes last. Both are warned on the console, with what to move on the background view.
+
+**Expand view, Layout only** lay out the view in the arrangement of the background view, for the containers on it; they add and leave out nothing.
+
 ## Sizing refinements
 
 ### Same width per level
@@ -134,7 +158,9 @@ W[L] = W[L+1] + ring          (ring = left + right container padding)
 ```
 The whole stack is as narrow as it can be while every level is at least as wide as its widest leaf: with equal leaf widths the deepest level is the leaf width; with *Use label width* the widest label of a level sets the stack, so no label is cut.
 
-A **leaf** takes exactly its level width. A **container** treats it as a floor: if its side-by-side content needs more, it stays wider. In Tiles a leaf beside a container takes the width and left edge of the narrowest sibling container in its column (the boxes stacked with it), after *Columns across containers*, so a leaf among containers reads as one of them.
+A **leaf** takes exactly its level width. A **container** treats it as a floor: if its side-by-side content needs more, it stays wider. In Tiles a leaf beside a container takes the width and left edge of the narrowest sibling container in its column (the boxes stacked with it), after *Columns across containers*, so a leaf among containers reads as one of them. A diagram object keeps its size: it neither takes nor sets a level width.
+
+A band of a [background view](#background-view) is widened after *Columns across containers*, as the last step; its width is no minimum for the next layout that fits the container labels, so the grid gets no column for it.
 
 Example: the deepest branch is `B ⊃ B1 ⊃ B1a ⊃ Bx`; the level-0 container `A` holds two boxes side by side, `A1 ⊃ A1a` and the leaf `A2`; `C` is a lone level-0 leaf. Leaf width 200, ring 20:
 
@@ -158,3 +184,5 @@ Puts every leaf column of the tiles on one shared grid, so columns line up top t
 ### Sort
 
 Orders a view with containers (Grid, Pack, Tiles), at every level, always ascending by type and name: *None* keeps the selection order; *Elements* orders the elements and leaves the containers as selected; *Containers, then elements* orders the containers too and puts them first; *All together* puts containers and elements in one list. Where it sorts, it wins over *Selection order*. A view without containers is not sorted: *Selection order* orders it. Algorithms without Sort (directed views) order the elements inside a container by type and name.
+
+In Tiles, of arrangements equally compact the simplest wins, with the fewest changes between side by side and one above the other; then the one with full parts first and the rest last. So a sorted container reads in whole columns or rows, and its shortest column or row is the last.

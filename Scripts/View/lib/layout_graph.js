@@ -19,6 +19,8 @@ const Defs    = require(REPO_ROOT + "View/lib/defs");
 const Nesting = require(REPO_ROOT + "View/lib/nesting");
 /** @type {typeof import("./label_size")} */
 const LabelSize = require(REPO_ROOT + "View/lib/label_size");
+/** @type {typeof import("./arrangement")} */
+const Arrangement = require(REPO_ROOT + "View/lib/arrangement");
 /** @type {typeof import("./engines/engine-utils")} */
 const { expandNodeSizesForEdgeDensity, ORDER_COMPARE } = require(REPO_ROOT + "View/lib/engines/engine-utils");
 const { ALGORITHMS, RELATION_WEIGHT_MAP } = Defs;
@@ -66,8 +68,8 @@ function _orderRootLeaves(nodes, order) {
  * @param {VisualDescription[] | undefined}  visuals
  * @param {VisualConnection[] | undefined}   visualRelations
  * @param {DiagramObject[] | undefined}      diagramConnections    connections of diagram objects (a note's line)
- * @param {{ diagramBlockOf?: Map<string, string>, diagramBlockVisualOf?: Map<string, string>, positions?: Map<string, VisualPosition>, visualElements?: VisualObject[], joinRun?: Map<string, number> }} diagramBlocks
- *   contents of diagram-blocks, the target view's objects and the run each element joined in (ObjectSet)
+ * @param {{ diagramBlockOf?: Map<string, string>, diagramBlockVisualOf?: Map<string, string>, positions?: Map<string, VisualPosition>, visualElements?: VisualObject[], joinRun?: Map<string, number>, arrangements?: Arrangements }} diagramBlocks
+ *   contents of diagram-blocks, the target view's objects, the run each element joined in and the background view's arrangements (ObjectSet)
  * @param {import("./label_size").LabelInput} labels  measuring and fonts for the label heights
  * @returns {LayoutGraph}
  */
@@ -242,7 +244,8 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
   _orderEdges(nodes, edges, params.selectionOrder);
 
   const engineParams = preset.engineParams || {};
-  const fonts = _labelLayouts(nodes, elements, nesting, (diagramBlocks && diagramBlocks.visualElements) || [], preset, labels);
+  const frames = Arrangement.boxesOf(diagramBlocks && diagramBlocks.arrangements);
+  const fonts = _labelLayouts(nodes, elements, nesting, (diagramBlocks && diagramBlocks.visualElements) || [], preset, labels, frames);
   if (params.labelSizing) _sizeToLabels(nodes, fonts, params, engineParams, labels.measure);
   expandNodeSizesForEdgeDensity(nodes, edges, params);   // after label sizing, which would overwrite it
   const { labelHeightAt, widthAt } = _fitLabels(nodes, nesting, fonts, preset, labels.measure);
@@ -285,9 +288,10 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
  * @param {VisualObject[]}    visualElements  the element visuals on the target view
  * @param {MaskedPreset}      preset
  * @param {import("./label_size").LabelInput} labels
+ * @param {Set<string>}       frames  elements of the background view: styled as containers
  * @returns {NodeLabels}
  */
-function _labelLayouts(nodes, elements, nesting, visualElements, preset, labels) {
+function _labelLayouts(nodes, elements, nesting, visualElements, preset, labels, frames) {
   const elementById = new Map(elements.map(e => [e.id, e]));
   /** @type {Map<string, ArchiElement>} */
   const elementOf = new Map();
@@ -300,6 +304,7 @@ function _labelLayouts(nodes, elements, nesting, visualElements, preset, labels)
     elementOf:    id => elementOf.get(id),
     visualOf:     id => { const v = nesting.visualOf[id]; return v ? visualById.get(v) : undefined; },
     nestingLevel: preset.appearance.nestingLevel,
+    frames,
     input:        labels,
   });
   return { layoutOf, isElement: id => elementOf.has(id) };

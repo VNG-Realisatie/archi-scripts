@@ -51,13 +51,13 @@ const overlap = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.
 const right = n => n.x + n.width;
 const bottom = n => n.y + n.height;
 
-function checkTree(g, result, label) {
+function checkTree(g, result, label, widened = new Set()) {
   const by = boxes(result);
   eq(result.nodes.length, g.nodes.length, `${label}: every node placed`);
   for (const n of g.nodes) {
     const b = by[n.id];
     const isContainer = g.nodes.some(c => c.parent === n.id);
-    if (!isContainer) { eq([b.width, b.height], [n.width, n.height], `${label}: leaf ${n.id} keeps its size`); }
+    if (!isContainer && !widened.has(n.id)) { eq([b.width, b.height], [n.width, n.height], `${label}: leaf ${n.id} keeps its size`); }
     const p = n.parent && by[n.parent];
     if (p) ok(b.x >= p.x && b.y >= p.y && right(b) <= right(p) && bottom(b) <= bottom(p), `${label}: ${n.id} inside ${n.parent}`);
   }
@@ -242,6 +242,53 @@ eq(run(graph(4, 7)), run(graph(4, 7)), "same graph, same result");
   ];
   const r = run(g);
   eq(r.edges.map(e => [e.id, e.isStraight, e.bendpoints.length]), [["e1", true, 0], ["e2", false, 0]], "edges: straight line and self-loop; unknown end dropped");
+}
+
+// The arrangement of a background view: the view's rows one above the other whatever their width, a
+// container's columns side by side in the arrangement's order, a stack one above the other; children
+// the arrangement does not hold come last; an arranged child the view does not hold drops out.
+{
+  const g = graph(3, 3);   // G0, G1 (with G1S), G2; G1 holds leaves G1L0…G1L2 and G1S
+  g.arrangements = {
+    "": { cut: "V", parts: ["G2", "G0", "G1"] },
+    G1: { cut: "H", parts: ["G1L2", { cut: "V", parts: ["G1L0", "G1S"] }, "missing"] },
+  };
+  const r = run(g);
+  checkTree(g, r, "arranged", new Set(["G1L0"]));
+  const by = boxes(r);
+  ok(bottom(by.G2) <= by.G0.y && bottom(by.G0) <= by.G1.y, "arranged: root rows one above the other, in order");
+  ok(right(by.G1L2) <= by.G1L0.x, "arranged: G1's columns in the arrangement's order");
+  ok(by.G1S.x === by.G1L0.x && bottom(by.G1L0) <= by.G1S.y, "arranged: a stack one above the other");
+  ok(by.G1L1.y >= Math.max(bottom(by.G1L2), bottom(by.G1S)), "arranged: a child not on the background view comes last");
+  eq(r, run(g), "arranged: same graph, same result");
+  eq([by.G2.width, by.G0.width], [by.G1.width, by.G1.width], "arranged: boxes one above the other as wide as their stack (bands)");
+  eq([by.G1L0.width, by.G1L0.height], [by.G1S.width, 60], "arranged: a leaf in a band beside others takes the band's width, not its parent's");
+  eq(by.G1S.width, 340, "arranged: a band beside others keeps the width of its own part");
+  // An extra occurrence follows its element's place.
+  const occ = graph(1, 2);
+  occ.nodes.push({ id: "X", label: "X", elementType: "grouping", width: 300, height: 60, parent: null },
+    { id: "G0L1_occ_1", label: "Leaf B", elementType: "business-function", width: 300, height: 60, parent: "X" },
+    { id: "XL", label: "Leaf X", elementType: "business-function", width: 300, height: 60, parent: "X" });
+  occ._parentMap.G0L1_occ_1 = "X"; occ._parentMap.XL = "X";
+  occ.arrangements = { X: { cut: "H", parts: ["G0L1", "XL"] } };
+  const ro = boxes(run(occ));
+  ok(right(ro.G0L1_occ_1) <= ro.XL.x, "arranged: an extra occurrence takes its element's place");
+  // A box alone in an arranged container fills it, a leaf too; a diagram object keeps its size.
+  const one = graph(2, 1);
+  one.nodes.push({ id: "legend", label: "", elementType: "diagram-model-group", width: 200, height: 50, parent: null });
+  one.arrangements = { "": { cut: "V", parts: ["G0", "G1", "legend"] }, G0: "G0L0" };
+  const b1 = boxes(run(one));
+  eq(right(b1.G0L0), right(b1.G0) - 20, "arranged: a leaf alone in its container fills it (padding 20)");
+  eq([b1.legend.width, b1.legend.height], [200, 50], "arranged: a diagram object in a band keeps its size");
+}
+
+// Same width per level: a diagram object keeps its size; it neither takes nor sets a level width.
+{
+  const g = graph(2, 2, { alignWidthSameType: true });
+  g.nodes.push({ id: "note", label: "", elementType: "diagram-model-note", width: 1500, height: 300, parent: null });
+  const by = boxes(run(g));
+  eq([by.note.width, by.note.height], [1500, 300], "diagram object: keeps its size");
+  ok(by.G0.width < 1500, "diagram object: does not set the level width");
 }
 
 if (failed) { console.log(`${failed} tiles test(s) failed`); process.exit(1); }

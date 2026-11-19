@@ -38,6 +38,8 @@ const Nesting    = require(REPO_ROOT + "View/lib/nesting");
 const SelectionRead = require(REPO_ROOT + "View/lib/selection_read");
 /** @type {typeof import("./layout_graph")} */
 const LayoutGraph = require(REPO_ROOT + "View/lib/layout_graph");
+/** @type {typeof import("./arrangement")} */
+const Arrangement = require(REPO_ROOT + "View/lib/arrangement");
 /** @type {typeof import("./process_runner")} */
 const ProcessRun = require(REPO_ROOT + "View/lib/process_runner");
 /** @type {typeof import("./node_layout")} */
@@ -417,6 +419,7 @@ function _applyViewProperties(view, preset) {
 function _generateSingle(preset, uiSelection, actionId, target, runtime) {
   const timer = _phaseTimer();
   const snapshot = SelectionRead.readSelection(uiSelection, actionId);
+  snapshot.background = SelectionRead.readBackground(preset.params.backgroundView);
   timer.lap("selection");
 
   // Determine the target view.
@@ -457,7 +460,7 @@ function _generateSingle(preset, uiSelection, actionId, target, runtime) {
     const copy = written.get(id);
     keep.set(copy ? String(copy.id) : id, block);
   }
-  Appearance.applyAppearance(view, preset, actionId, TextMeasure.defaultViewFont(), keep);
+  Appearance.applyAppearance(view, preset, actionId, TextMeasure.defaultViewFont(), keep, Arrangement.boxesOf(planned.objectSet.arrangements));
   _applyViewProperties(view, preset);
   _recordOrigin(view, actionId, target);
   timer.lap("appearance");
@@ -540,6 +543,11 @@ function plan(preset, snapshot, actionId, runtime, timer = { lap() {} }) {
                    relationsOf: snapshot.relationsOf, isModify };
   const graph = LayoutGraph.buildLayoutGraph(preset, objectSet.elements, routedRels, nestingRels, objectSet.diagramObjects,
                                   objectSet.visuals, objectSet.visualRelations, objectSet.diagramConnections, objectSet, labels);
+  if (objectSet.arrangements) {
+    // Every box in place: every arrangement of the background view; else only those of containers that hold a frame.
+    graph.arrangements = preset.params.backgroundEveryBox ? objectSet.arrangements : Arrangement.framesOnly(objectSet.arrangements);
+    _checkArrangements(graph, objectSet.arrangements, graph.arrangements);
+  }
   timer.lap("layout graph");
   if (graph.nodes.length === 0) {
     if (isModify) Log.warn("Nothing to place: the view holds no elements or diagram objects.", { effect: "the view is not changed." });
@@ -572,6 +580,46 @@ function plan(preset, snapshot, actionId, runtime, timer = { lap() {} }) {
   return { objectSet, graph: laid.graph, result: laid.result, writePlan, counts };
 }
 
+/**
+ * Where the model and the background view differ, on the console: a child of a container whose
+ * places are kept that is not on the background view in it comes last; one the background view has
+ * under another parent goes where the model puts it. The arrangements in the log file.
+ * @param {LayoutGraph}  graph
+ * @param {Arrangements} arrangements  every arrangement of the background view
+ * @param {Arrangements} kept          those whose places the layout keeps
+ */
+function _checkArrangements(graph, arrangements, kept) {
+  const element = (/** @type {string} */ nodeId) => nodeId.replace(/_occ_\d+$/, "");
+  const label = new Map(graph.nodes.map(n => [element(n.id), n.label || n.id]));
+  /** @type {Map<string, string>} */
+  const backgroundParent = new Map();
+  for (const [key, arrangement] of Object.entries(arrangements)) {
+    for (const id of Arrangement.idsOf(arrangement)) backgroundParent.set(id, key);
+    Log.debug(`  Arrangement of ${key === Arrangement.ROOT ? "the view" : `"${label.get(key) || key}"`} on the background view${kept[key] ? "" : " (not kept: placed by the layout)"}: ` +
+      Arrangement.describe(arrangement, id => label.get(id) || `(${id}, not on this view)`));
+  }
+  const name = (/** @type {string} */ id) => id === Arrangement.ROOT ? "the view" : `"${label.get(id) || id}"`;
+  /** @type {string[]} */
+  const missing = [];
+  /** @type {string[]} */
+  const moved = [];
+  for (const node of graph.nodes) {
+    const id = element(node.id);
+    const parent = node.parent ? element(node.parent) : Arrangement.ROOT;
+    if (!arrangements[parent]) continue;
+    const there = backgroundParent.get(id);
+    if (there === parent) continue;
+    if (there === undefined) { if (kept[parent]) missing.push(`${name(id)} in ${name(parent)}`); }
+    else moved.push(`${name(id)}: in the model under ${name(parent)}, on the background view under ${name(there)}`);
+  }
+  const list = (/** @type {string[]} */ l) => l.slice(0, 5).join("; ") + (l.length > 5 ? "; …" : "");
+  if (missing.length) Log.warn(`Not on the background view: ${list(missing)}.`, {
+    effect: "placed after the arranged boxes of their container.", action: "add them to the background view where they belong." });
+  if (moved.length) Log.warn(`The background view differs from the model: ${list(moved)}.`, {
+    effect: "placed where the model puts them.", action: "move them on the background view." });
+  if (missing.length + moved.length > 5) Log.detail("WARN", [...missing, ...moved].join("\n"));
+}
+
 // Layouts per run at most to fit the container labels (_layoutFittingLabels).
 const LABEL_FIT_RUNS = 6;
 /** @typedef {{ height: number, width: number, drawn: number }} LabelNeed  a container label's room and the container's width at the width it was drawn */
@@ -592,6 +640,11 @@ const LABEL_FIT_RUNS = 6;
  */
 function _layoutFittingLabels(graph, run) {
   const containerIds = [...new Set(Object.values(graph._parentMap))];
+  // A box of an arrangement is drawn as wide as its band (Tiles fillBands): that width is no minimum
+  // of its own, else the next layout keeps it, and Columns across containers widens a column for it.
+  const arrangements = graph.arrangements || {};
+  const element = (/** @type {string} */ id) => id.replace(/_occ_\d+$/, "");
+  const banded = new Set(containerIds.filter(id => arrangements[graph._parentMap[id] ? element(graph._parentMap[id]) : ""]));
   // Casts below: the maps hold every container id, and every container is placed.
   /** @type {(r: LayoutResult) => Map<string, LabelNeed>} */
   const needed = r => {
@@ -629,7 +682,7 @@ function _layoutFittingLabels(graph, run) {
     if (left > 0 && (!best || left < best.left)) best = { attempt, left };
     const g = left >= 0
       // Trim: the room needed at the drawn width, never narrower than drawn.
-      ? reserve(attempt.graph, need, (n, nd) => ({ labelHeight: nd.height, minWidth: Math.max(n.minWidth, nd.drawn) }))
+      ? reserve(attempt.graph, need, (n, nd) => ({ labelHeight: nd.height, minWidth: banded.has(n.id) ? n.minWidth : Math.max(n.minWidth, nd.drawn) }))
       // Grow: at least what this layout needed, a container wider where its label asks.
       : reserve(attempt.graph, need, (n, nd) => ({ labelHeight: Math.max(n.labelHeight, nd.height), minWidth: Math.max(n.minWidth, nd.width > nd.drawn ? nd.width : 0) }));
     attempt = { graph: g, result: run(g) };

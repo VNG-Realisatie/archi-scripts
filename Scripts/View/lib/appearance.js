@@ -40,6 +40,7 @@ const { compareNames } = Defs;
  * @property {{ type: string, outgoing: boolean }[]} rels  model relations between parent and element; outgoing = the parent is the source
  * @property {number}        depth
  * @property {boolean}       isContainer
+ * @property {boolean}       [isFrame]    an element of the background view: styled as a container, also with nothing in it
  *
  * @typedef {object} NestingStyle  how followNestingChains styles a visual
  * @property {number}  segmentDepth  from the segment start: lightening
@@ -66,8 +67,9 @@ const DEFAULT_FONT_STYLE = "normal";
  * @param {string}        actionId
  * @param {TextFont}      defaultFont  Archi's default view font: the name of a nesting font, and a reset
  * @param {Map<string, string>} [diagramBlockOf]  visuals inside a diagram-block: they keep their appearance
+ * @param {Set<string>} [frames]  elements of the background view: styled as containers
  */
-function applyAppearance(view, preset, actionId, defaultFont, diagramBlockOf) {
+function applyAppearance(view, preset, actionId, defaultFont, diagramBlockOf, frames = new Set()) {
   const keep = diagramBlockOf || new Map();
   const app  = preset.appearance;
   const isModify = actionId === "layout_only" || actionId === "expand_view";
@@ -100,7 +102,7 @@ function applyAppearance(view, preset, actionId, defaultFont, diagramBlockOf) {
   /** @type {Set<string>} */
   const styledVoIds = new Set();
 
-  _applyNestingLevel(view, nl, palette, isModify, defaultFont, styledVoIds, keep);
+  _applyNestingLevel(view, nl, palette, isModify, defaultFont, styledVoIds, keep, frames);
   _applyHighlightRepeated(view, hr, palette, isModify, styledVoIds, keep);
   _applyStyleConditions(view, sbp, palette, isModify, styledVoIds, keep);
 }
@@ -133,7 +135,7 @@ function _onView(view, selector, keep) {
  * Font: where a condition starts (a root, or a child selected by another condition than its parent)
  * the element takes the condition's font size and bold; elsewhere, and where the condition has no
  * font size, the size is its parent's less fontDecreasePerLevel, never below DEFAULT_FONT_SIZE.
- * A leaf beside a container (same parent, or both roots) is styled as a container.
+ * A leaf beside a container (same parent, or both roots), and an element of the background view, is styled as a container.
  * @param {NestingNode[]}           nodes       every element visual; order = view order (determinism)
  * @param {NestingStyleCondition[]} conditions
  * @param {number}                  fontDecreasePerLevel
@@ -150,7 +152,7 @@ function followNestingChains(nodes, conditions, fontDecreasePerLevel) {
   const withContainer = new Set(nodes.filter(n => n.isContainer).map(n => n.parentId));
   // Stable sort: parents before children, view order within a depth.
   for (const n of nodes.slice().sort((a, b) => a.depth - b.depth)) {
-    const asContainer = n.isContainer || withContainer.has(n.parentId);
+    const asContainer = n.isContainer || !!n.isFrame || withContainer.has(n.parentId);
     if (!n.parentId) {
       if (!asContainer) continue;
       const sel = active.filter(x => _selectsRoot(x.r, n.type));
@@ -277,9 +279,10 @@ function _rootSpecificity(r) {
  * between the two elements.
  * @param {VisualObject} vo
  * @param {Map<string, string>} keep  visuals inside a diagram-block: not a parent
+ * @param {Set<string>}         frames  elements of the background view
  * @returns {NestingNode}
  */
-function _nestingNode(vo, keep) {
+function _nestingNode(vo, keep, frames) {
   const parentVo = $(vo).parent().filter("element").first();
   const parentId = parentVo && !keep.has(String(parentVo.id)) ? String(parentVo.id) : null;
   /** @type {{ type: string, outgoing: boolean }[]} */
@@ -292,6 +295,7 @@ function _nestingNode(vo, keep) {
   return {
     id: String(vo.id), parentId, type: (vo.concept && vo.concept.type) || "", rels,
     depth: _voDepth(vo), isContainer: $(vo).children("element").length > 0,
+    isFrame: !!vo.concept && frames.has(String(vo.concept.id)),
   };
 }
 
@@ -311,11 +315,12 @@ function _voDepth(vo) {
  * @param {TextFont}                               defaultFont  Archi's default view font
  * @param {Set<string>}                            styledVoIds
  * @param {Map<string, string>}                    keep  visuals inside a diagram-block: left out
+ * @param {Set<string>}                            frames  elements of the background view
  */
-function _applyNestingLevel(view, settings, palette, isModify, defaultFont, styledVoIds, keep) {
+function _applyNestingLevel(view, settings, palette, isModify, defaultFont, styledVoIds, keep, frames) {
   let fontSet = 0, fontReset = 0, colorSet = 0, colorReset = 0;
   const vos = _onView(view, "element", keep).filter(vo => !!vo.id);
-  const nodes = vos.map(vo => _nestingNode(vo, keep));
+  const nodes = vos.map(vo => _nestingNode(vo, keep, frames));
   const { styles, conflicts } = followNestingChains(nodes, settings.conditions, settings.fontDecreasePerLevel);
   if (conflicts.length > 0)
     Log.warn(`Style by nesting level: conditions ${conflicts.join(" · ")} are equally specific and select the same elements with different styles; the last condition wins.`);

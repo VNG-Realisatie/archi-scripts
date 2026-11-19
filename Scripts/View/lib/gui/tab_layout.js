@@ -31,6 +31,7 @@ const LabelWidget       = Java.type("org.eclipse.swt.widgets.Label");
 const CompositeWidget   = Java.type("org.eclipse.swt.widgets.Composite");
 const SpinnerWidget     = Java.type("org.eclipse.swt.widgets.Spinner");
 const ButtonWidget      = Java.type("org.eclipse.swt.widgets.Button");
+const TextWidget        = Java.type("org.eclipse.swt.widgets.Text");
 const GridDataFactory         = Java.type("org.eclipse.jface.layout.GridDataFactory");
 const GridLayoutFactory       = Java.type("org.eclipse.jface.layout.GridLayoutFactory");
 
@@ -58,7 +59,7 @@ const DP = DEFAULT_PRESET.params;
 // Layout params with one plain widget: loaded (_syncToUI), saved (_saveUI) and enabled per
 // algorithm (updateAlgorithmControls) from this table, so every param follows defs.activeParams.
 //   kind: spin | check | combo (items = full list; the algorithm's supportedOptions narrow it) |
-//         conditions (condition table, gui/condition_table.js)
+//         conditions (condition table, gui/condition_table.js) | view (a view's path, BackgroundRef)
 // Params with their own handling: the view size (maxWidth / aspectRatio / viewSizeMode radios).
 /** @type {Readonly<Record<string, ParamWidget>>} */
 const PARAM_WIDGETS = Object.freeze({
@@ -88,6 +89,8 @@ const PARAM_WIDGETS = Object.freeze({
   sort:     { w: "cmbSort",      kind: "combo", items: SORT_MODE_LABELS },
   alignWidthSameType:       { w: "chkAlignWidthSameType",        kind: "check" },
   columnsAcrossContainers:        { w: "chkColumnsAcrossContainers",               kind: "check" },
+  backgroundView:           { w: "txtBackgroundView",            kind: "view" },
+  backgroundEveryBox:       { w: "chkBackgroundEveryBox",        kind: "check" },
 });
 
 /**
@@ -237,6 +240,15 @@ function buildLayoutTab(tabFolder, ctx) {
   row = Widgets.formRow(grpCtr, "Options:", formRows, "ctrOptions");
   Widgets.addCheck(row, "Same width per level", null, 2, w, "chkAlignWidthSameType");
   Widgets.addCheck(row, "Columns across containers", null, 2, w, "chkColumnsAcrossContainers");
+  row = Widgets.formRow(grpCtr, "Background:", formRows);
+  w.txtBackgroundView = new TextWidget(row, SWT.BORDER);
+  GridDataFactory.fillDefaults().grab(true, false).span(4, 1).hint(300, SWT.DEFAULT).applyTo(w.txtBackgroundView);
+  w.txtBackgroundView.setMessage("path of a view, e.g. /Views/Backgrounds/Map");
+  w.txtBackgroundView.addListener(SWT.Modify, () => ctx.markModified());
+  // Read the view when the path is complete: Enter or leaving the field, not at every key.
+  w.txtBackgroundView.addListener(SWT.DefaultSelection, () => ctx.backgroundChanged());
+  w.txtBackgroundView.addListener(SWT.FocusOut, () => ctx.backgroundChanged());
+  Widgets.addCheck(row, "Every box in place", null, 2, w, "chkBackgroundEveryBox");
 
   // ── Flow ──────────────────────────────────────────────────────────────────────
   const grpFlow = Widgets.group(page, "Flow", 1);

@@ -498,17 +498,23 @@ function isReversed(rel, params) {
  * @returns {{ nestingRels: ArchiRelation[], connectionRels: ArchiRelation[] }}
  */
 function splitNestingRels(relations, params) {
-  const conditions          = params.nestingConditions || [];
   /** @type {ArchiRelation[]} */
   const nestingRels    = [];
   /** @type {ArchiRelation[]} */
   const connectionRels = [];
-  for (const rel of relations) {
-    const isNesting = conditions.length > 0 &&
-      ConditionLists.matchRelation(conditions, rel.type, rel.source && rel.source.type, rel.target && rel.target.type, false, rel);
-    (isNesting ? nestingRels : connectionRels).push(rel);
-  }
+  for (const rel of relations) (isNesting(rel, params) ? nestingRels : connectionRels).push(rel);
   return { nestingRels, connectionRels };
+}
+
+/**
+ * Does this relation match params.nestingConditions (a nesting candidate)?
+ * @param {ArchiRelation}   rel
+ * @param {EffectiveParams} params
+ */
+function isNesting(rel, params) {
+  const conditions = params.nestingConditions || [];
+  return conditions.length > 0 &&
+    ConditionLists.matchRelation(conditions, rel.type, rel.source && rel.source.type, rel.target && rel.target.type, false, rel);
 }
 
 /**
@@ -614,6 +620,7 @@ function _pushTo(map, key, value) {
 
 module.exports = {
   isReversed,
+  isNesting,
   splitNestingRels,
   resolveNesting,
   classifyVisuals,

@@ -60,6 +60,12 @@ One name per concept across UI, docs, logs and code, grouped by subject.
 - **managed occurrence**: an extra occurrence the system placed itself for an *every container* condition and recorded on the view. It follows the settings. Only managed occurrences are ever removed.
 - **diagram-block**: a diagram object with contents, together with everything inside it, such as a legend, or a frame with a title and elements. The layout decides only its position.
 
+**Background**
+- **background view**: a view a preset names as the map a generated view is drawn on: its elements are always on the view, the selection fills it.
+- **arrangement**: which boxes of a container stand side by side and which one above the other on the background view; it holds no sizes or positions.
+- **frame**: a box with boxes of its own on the background view. A frame keeps its place; a box without is only always there.
+- **band**: boxes of an arrangement one above the other, drawn as wide as each other.
+
 **Subsystem**
 - **Layout**: algorithmic positioning of all visible objects on a view.
 - **Preset**: a named, persistable bundle of selection, layout and styling configuration.
@@ -193,6 +199,7 @@ Only `NEW_VIEW` overwrites a view's contents, onto a matching name. A Modify act
 - **Managed occurrences** follow the settings ([§ 7](#7-layout-options)).
 - **Diagram objects** keep their size and appearance; the engine decides their position. A diagram object is never nested: nesting conditions select relations, and a diagram object has none.
 - **A diagram-block** keeps its size, appearance and contents; the engine decides only its position. A relation from outside to an object inside it is laid out as a relation to the diagram-block, and drawn to the object itself.
+- **A background view** ([§ 7](#7-layout-options)) gives only its arrangement: nothing is added or left out.
 
 ---
 
@@ -254,6 +261,7 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
   - Across is unavailable, and *between* is used, when the inner layout is a packing layout or a view size is set; otherwise unconnected elements would stack in one column.
 - **Padding**: the space between a container's border and its contents. Above its contents a container keeps room for its label: its lines wrapped at the width the container is drawn, and below them half the padding, more in proportion for a larger font.
 - **Sort**, **same width per level** and **columns across containers** are refinements: they order the boxes, make nested frames telescope cleanly, and align columns across the view. They only position or derive sizes and never scale a leaf ([§ 8](#8-engine-contract), [sizing refinements](reference/selection-nesting.md#sizing-refinements)).
+- **Background** (Tiles): a background view the selection fills, so every view of one map reads alike. Its elements and diagram objects are always on the view. An element of the selection that hangs under nothing there brings its nesting parents, up to the background view; one that reaches it by no path is left out, and the console says so. The selection decides where an element nests: another parent the model gives it on the background view is not drawn. The frames keep their places in its arrangement, as bands; the other boxes are placed by the layout, sorted and compact. **Every box in place** keeps the place of every box. The model leads: a box the model puts elsewhere goes there, with a warning ([background view](reference/selection-nesting.md#background-view)).
 - **Sort** (Grid, Pack, Tiles) orders a view with containers, at every level, always ascending by type and name: *None* keeps the selection order, *Elements* (default) orders the elements, *Containers, then elements* the containers too and first, *All together* both in one list. A visible sort wins over **Selection order**. A view without containers is not sorted: Selection order orders it. Directed views have no Sort: the elements inside a container are ordered by type and name.
 
 **Consequences** (not separate controls). For a nesting relation the **source is the parent** and the **target the child**; they are swapped if the type is also reversed. Container-ness is **derived**: an element is a container exactly when something resolves to be its child.
@@ -384,7 +392,7 @@ Detail: [Appearance tab](reference/gui.md#appearance-tab).
 System-wide, grouped by theme. Code reviews enforce them.
 
 **Layout integrity.**
-1. **No post-layout scaling**: result leaf sizes equal input sizes; the engine sizes containers; nothing is multiplied after layout. (Foundational.)
+1. **No post-layout scaling**: result leaf sizes equal input sizes; the engine sizes containers; nothing is multiplied after layout. (Foundational.) Only the sizing refinements widen a leaf: *Same width per level*, and a band of a background view ([sizing refinements](reference/selection-nesting.md#sizing-refinements)).
 2. **Position spread only**: an outward centre-spread, with sizes frozen, is the only post-layout adjustment; compression is forbidden.
 3. **Parent-relative coordinates**: a nested visual's bounds are relative to its parent. The orchestrator converts them from the engine's absolute output.
 4. **Parent-first writing**: every node is written after its parent, so parent-relative conversion and draw order hold under any engine output order.

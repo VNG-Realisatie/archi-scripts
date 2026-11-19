@@ -24,6 +24,8 @@ const Pipeline  = require(REPO_ROOT + "View/lib/selection_pipeline");
 const Nesting   = require(REPO_ROOT + "View/lib/nesting");
 /** @type {typeof import("../rel_filter")} */
 const ConditionLists = require(REPO_ROOT + "View/lib/rel_filter");
+/** @type {typeof import("../background")} */
+const Background = require(REPO_ROOT + "View/lib/background");
 
 const { ACTION, DIAGRAM_TYPES, compareNames } = Defs;
 
@@ -55,8 +57,19 @@ function dialogCounts(input) {
     // Casts: neither a relation nor a diagram object, so an element.
     else if (ConditionLists.matchElement(filter.elementConditions, /** @type {ArchiElement} */ (o))) filteredElements.push(/** @type {ArchiElement} */ (o));
   }
+  // As the pipeline: the background view's diagram objects are always on the view, with their diagram-blocks.
+  const background = input.background && (input.params.nestingConditions || []).length ? input.background : null;
+  const blocksRead = background ? {
+    diagramBlockOf:       new Map([...input.diagramBlockOf, ...background.diagramBlockOf]),
+    blockContents:        new Map([...input.blockContents, ...background.blockContents]),
+    sourceVisualElements: [...input.sourceVisualElements, ...background.sourceVisualElements],
+  } : input;
+  if (background) {
+    const kept = new Set(keptDiagramObjects.map(o => String(o.id)));
+    for (const o of background.diagramObjects) if (!kept.has(String(o.id))) keptDiagramObjects.push(o);
+  }
   // As the pipeline: a diagram connection is a line; a diagram-block is laid out as one and written with its contents.
-  const inBlock = Pipeline.keptDiagramBlocks(input.diagramBlockOf, keptDiagramObjects);
+  const inBlock = Pipeline.keptDiagramBlocks(blocksRead.diagramBlockOf, keptDiagramObjects);
   const diagramNodes = keptDiagramObjects.filter(o => o.type !== "diagram-model-connection" && !inBlock.has(String(o.id)));
   const diagramConnections = keptDiagramObjects.filter(o => o.type === "diagram-model-connection");
 
@@ -98,10 +111,16 @@ function dialogCounts(input) {
   // Predict view-level counts (duplicates, containers) using the current params: the totals
   // line must reflect what the writer will produce.
   // An element that appears only inside a diagram-block is written with it, not laid out, as in the pipeline.
-  const onlyInBlocks = Pipeline.mapDiagramBlockVisuals(input.sourceVisualElements, inBlock);
+  // The background view: its elements always on the view, the selection filling it (lib/background.js).
+  if (background) {
+    const filled = Background.compose(cumulative, finalRels, background.elements, relationsOf, input.params);
+    cumulative = filled.elements;
+    finalRels.splice(0, finalRels.length, ...filled.relations);
+  }
+  const onlyInBlocks = Pipeline.mapDiagramBlockVisuals(blocksRead.sourceVisualElements, inBlock);
   const onView = cumulative.filter(el => !onlyInBlocks.has(el.id));
   const diagram = {
-    objects:     diagramNodes.length + Pipeline.countDiagramObjectsInBlocks(input.blockContents, inBlock),
+    objects:     diagramNodes.length + Pipeline.countDiagramObjectsInBlocks(blocksRead.blockContents, inBlock),
     connections: Pipeline.countDiagramConnections(diagramConnections, diagramNodes, onView, inBlock),
     elements:    onlyInBlocks.size,
   };

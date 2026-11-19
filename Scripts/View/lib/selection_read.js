@@ -17,6 +17,10 @@ const Selection = require(REPO_ROOT + "_lib/selection");
 const Defs      = require(REPO_ROOT + "View/lib/defs");
 /** @type {typeof import("./nesting")} */
 const Nesting   = require(REPO_ROOT + "View/lib/nesting");
+/** @type {typeof import("./arrangement")} */
+const Arrangement = require(REPO_ROOT + "View/lib/arrangement");
+/** @type {typeof import("../../_lib/archi_folders")} */
+const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders");
 const { ACTION } = Defs;
 
 /** @typedef {import("./nesting").RawVisual} RawVisual */
@@ -433,6 +437,90 @@ function getSeedElements(uiSelection) {
   return seeds;
 }
 
+// ── Background view ───────────────────────────────────────────────────────────
+
+/**
+ * The background view a preset names: its elements, its diagram objects with their diagram-blocks,
+ * and the arrangement of its boxes. null when the preset names none.
+ * @param {BackgroundRef | undefined} ref  absent where the algorithm has no background (effectiveParams)
+ * @returns {BackgroundSnapshot | null}
+ * @throws when the view is not in the model
+ */
+function readBackground(ref) {
+  if (!ref || (!ref.id && !ref.path)) return null;
+  const view = findBackgroundView(ref);
+  if (!view) throw new Error(`Background view "${ref.path || ref.id}" is not in this model. Choose a view on the Layout tab (Background), or empty the field.`);
+  const path = viewPath(view);
+  if (ref.path && path !== ref.path) Log.debug(`  Background view found by its id; the preset names it "${ref.path}", it is now "${path}"`);
+  /** @type {ArchiElement[]} */
+  const elements = [];
+  /** @type {Set<string>} */
+  const seen = new Set();
+  // Cast: on a view, "element" selects element visuals; a view reference has no element concept.
+  /** @type {ArchiCollection<VisualObject>} */ ($(view).find("element")).each(ve => {
+    if (!ve.concept || ve.type in Defs.DIAGRAM_TYPES || seen.has(String(ve.concept.id))) return;
+    seen.add(String(ve.concept.id));
+    elements.push(/** @type {ArchiElement} */ (ve.concept));   // Cast: an element visual's concept is an element
+  });
+  const blocks = _readDiagramBlocks([view]);
+  const arrangements = Arrangement.arrangementsOf(_boxTree(view));
+  Log.debug(`  Background view "${path}": ${elements.length} elements, ${Object.keys(arrangements).length} arrangement(s)`);
+  return {
+    path, elements,
+    diagramObjects: _expandViews($(view)).diagramObjects,
+    diagramBlockOf: blocks.diagramBlockOf, blockContents: blocks.blockContents,
+    sourceVisualElements: _elementVisualsRead($(view)),
+    arrangements,
+  };
+}
+
+/**
+ * A background view by its id, else by its path.
+ * @param {BackgroundRef} ref
+ * @returns {ArchiView | null}
+ */
+function findBackgroundView(ref) {
+  // Casts: "#id" finds any object; a view is the one of type archimate-diagram-model without a .view.
+  const byId = ref.id ? /** @type {ArchiView | null} */ ($(`#${ref.id}`).first()) : null;
+  if (byId && byId.type === "archimate-diagram-model" && !byId.view) return byId;
+  if (!ref.path) return null;
+  /** @type {ArchiView | null} */
+  let found = null;
+  /** @type {ArchiCollection<ArchiView>} */ ($("view")).each(v => { if (!found && viewPath(v) === ref.path) found = v; });
+  return found;
+}
+
+/**
+ * A view's path as the Background field shows it: its folders and its name, e.g. "/Views/Backgrounds/Map".
+ * @param {ArchiView} view
+ */
+function viewPath(view) {
+  return `${ArchiFolders.printFolderPath(view)}${view.name}`;
+}
+
+/**
+ * The boxes of a view as a tree: an element visual by its element's id, a diagram object by its own
+ * (as the layout graph names them); a diagram object's contents stay with it (a diagram-block).
+ * @param {ArchiView | VisualObject} parent
+ * @returns {import("./arrangement").BoxTree[]}
+ */
+function _boxTree(parent) {
+  /** @type {import("./arrangement").BoxTree[]} */
+  const out = [];
+  $(parent).children().each(o => {
+    const v = /** @type {VisualObject} */ (o);   // Cast: a child of a view or visual with bounds is a visual
+    if (!v || !v.bounds) return;   // a connection has no bounds
+    const isDiagram = v.type in Defs.DIAGRAM_TYPES;
+    const b = v.bounds;
+    out.push({
+      id: isDiagram || !v.concept ? String(v.id) : String(v.concept.id),
+      x: b.x, y: b.y, width: b.width, height: b.height,
+      children: isDiagram ? [] : _boxTree(v),
+    });
+  });
+  return out;
+}
+
 /**
  * @param {ArchiObject} object
  * @returns {boolean} a view, or a folder that holds views
@@ -458,6 +546,9 @@ function findDiagramObjects(scope, type) {
 module.exports = {
   findDiagramObjects,
   readSelection,
+  readBackground,
+  findBackgroundView,
+  viewPath,
   readRelationIndex,
   readDiagramBlocks,
   describeVisuals,

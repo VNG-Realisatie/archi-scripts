@@ -65,6 +65,7 @@ const ICON_OFFSET = Object.freeze({
  * @property {(nodeId: string) => ArchiElement | undefined} elementOf  the element of an occurrence; undefined for a diagram object
  * @property {(nodeId: string) => VisualObject | undefined} visualOf   the visual on the target view paired with the occurrence
  * @property {Preset["appearance"]["nestingLevel"]} nestingLevel
+ * @property {Set<string>} frames  elements of the background view: styled as containers
  * @property {LabelInput} input
  *
  * @typedef {object} LabelLayout  how Archi lays out one node's label
@@ -97,7 +98,7 @@ function labelLayouts(nodes, parentMap, src) {
     nestingNodes.push({
       id: n.id, parentId: n.parent, type: el.type,
       rels: parentEl ? _relsBetween(parentEl, el, src.input.relationsOf) : [],
-      depth: depthOf(n.id), isContainer: containers.has(n.id),
+      depth: depthOf(n.id), isContainer: containers.has(n.id), isFrame: src.frames.has(el.id),
     });
   }
   const styled = Appearance.nestingFonts(nestingNodes, src.nestingLevel, src.input.isModify, src.input.defaultFont);

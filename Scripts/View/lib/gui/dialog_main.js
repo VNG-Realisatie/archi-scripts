@@ -105,6 +105,7 @@ function open(uiSelection) {
   const w = /** @type {DialogWidgets} */ ({});       // widget map
   const ctx = /** @type {DialogContext} */ ({ config, widgets: w, uiSelection, firstName: "", relBlocks: /** @type {StepBlock[]} */ ([]),
     recount: () => _updateFilteredCount(ctx), markModified: () => PresetRow.markModified(ctx),
+    backgroundChanged: () => { _readBackgroundField(ctx); _updateFilteredCount(ctx); },
     saveUI: () => _saveUI(ctx), syncToUI: () => _syncToUI(ctx), refreshAction: () => _refreshAction(ctx) });  // firstName set below
 
   // Compute selection counts before the dialog opens.
@@ -542,6 +543,7 @@ function _countInput(ctx, objects) {
     relationsOf: ctx.relationsOf,
     visuals: ctx.visuals,
     expandSnapshot: ctx.expandSnapshot || null,
+    background: Defs.ALGORITHMS[TabLayout.selectedAlgorithm(w)].activeParams.includes("backgroundView") ? ctx.background || null : null,
   };
 }
 
@@ -1127,6 +1129,7 @@ function _fillWidgets(ctx) {
 
   // Layout params (validatePreset guarantees every key is present)
   for (const [key, def] of Object.entries(TabLayout.PARAM_WIDGETS)) _paramToWidget(w[def.w], def, /** @type {Record<string, unknown>} */ (p)[key]);   // Cast: key is a params key
+  _readBackgroundField(ctx);
   _spinSet(w.spinMaxWidth, p.maxWidth);
   let arIdx = AR_OPTIONS.findIndex(a => a.val === p.aspectRatio);
   if (arIdx < 0) arIdx = AR_OPTIONS.findIndex(a => a.val === Defs.AR_DEFAULT);  // no ratio yet
@@ -1285,6 +1288,13 @@ function _paramToWidget(ctrl, def, value) {
     case "spin":  ctrl.setSelection(value); break;
     case "check": ctrl.setSelection(!!value); break;
     case "conditions": ctrl.setConditions(value); break;
+    case "view": {
+      // The view's path as it is now (found by id), else the path the preset names.
+      const ref = /** @type {BackgroundRef} */ (value);
+      const view = ref.id || ref.path ? SelectionRead.findBackgroundView(ref) : null;
+      ctrl.setText(view ? SelectionRead.viewPath(view) : ref.path);
+      break;
+    }
     case "combo": {
       // The value may be outside the current (algorithm-filtered) items: add it so it survives
       // until TabLayout.updateAlgorithmControls sets the items for the newly selected algorithm.
@@ -1306,6 +1316,35 @@ function _paramFromWidget(ctrl, def) {
     case "check":    return ctrl.getSelection();
     case "conditions":    return ctrl.getConditions();
     case "combo":    return String(ctrl.getText());
+    case "view":     return _backgroundRef(String(ctrl.getText()).trim());
+  }
+}
+
+/**
+ * The background view a path names: its id when the model has it, so a rename or move keeps it.
+ * @param {string} path
+ * @returns {BackgroundRef}
+ */
+function _backgroundRef(path) {
+  const view = path ? SelectionRead.findBackgroundView({ id: "", path }) : null;
+  return { id: view ? String(view.id) : "", path };
+}
+
+/**
+ * Read the view in the Background field for the counts; a path not in the model reads as none, and
+ * the field's tooltip says so (a run stops on it).
+ * @param {DialogContext} ctx
+ */
+function _readBackgroundField(ctx) {
+  const txt = ctx.widgets.txtBackgroundView;
+  if (!txt) return;
+  const ref = _backgroundRef(String(txt.getText()).trim());
+  try {
+    ctx.background = SelectionRead.readBackground(ref);
+    txt.setToolTipText(Defs.paramTooltip("backgroundView"));
+  } catch (e) {
+    ctx.background = null;
+    txt.setToolTipText(`Not found: "${ref.path}" is not a view in this model.\n${Defs.paramTooltip("backgroundView")}`);
   }
 }
 

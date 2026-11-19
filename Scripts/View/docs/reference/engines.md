@@ -65,6 +65,8 @@ An option outside the active set is greyed in the dialog, keeps its value, and i
 | Sort `sort` | — | — | — | — | ✓ | ✓ | ✓ | — | — | — | — | — | — | — |
 | Same width per level `alignWidthSameType` | ✓ | ✓ | — | — | ✓ | ✓ | ✓ | — | — | — | — | — | — | — |
 | Columns across containers `columnsAcrossContainers` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — | — |
+| Background `backgroundView` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — | — |
+| Every box in place `backgroundEveryBox` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — | — |
 | Direction `direction` | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — |
 | Cycles `acyclicer` | — | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
 | Ranking `ranking` | — | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |

@@ -32,6 +32,8 @@ const Defs        = require(REPO_ROOT + "View/lib/defs");
 const ConditionLists = require(REPO_ROOT + "View/lib/rel_filter");
 /** @type {typeof import("./nesting")} */
 const Nesting     = require(REPO_ROOT + "View/lib/nesting");
+/** @type {typeof import("./background")} */
+const Background  = require(REPO_ROOT + "View/lib/background");
 const { ACTION } = Defs;
 
 /**
@@ -49,10 +51,40 @@ function buildObjectSet(snapshot, preset, actionId) {
   if (!_isModifyAction(actionId)) _logFilter(preset.filter);
   else Log.debug("  Modify-selected-view action: element-type filter skipped");
 
+  if (snapshot.background && _isModifyAction(actionId)) Log.debug("  Modify-selected-view action: the background view gives the arrangement only (nothing added or left out)");
+  else if (snapshot.background && !(preset.params.nestingConditions || []).length) Log.warn(`The background view "${snapshot.background.path}" has no effect: nothing nests without a nesting condition.`, {
+    action: "add a nesting condition on the Layout tab, or empty Background." });
   const composed = composeObjectSet(snapshot, preset, actionId);
   _logSteps(preset.relatedElements.steps, composed.stepCounts);
   _logComposed(composed, _isModifyAction(actionId));
+  if (composed.background) _logBackground(composed.background);
   return composed;
+}
+
+/**
+ * The background view's part: on the console what it left out, in the log file what it added.
+ * @param {NonNullable<ComposedObjectSet["background"]>} bg
+ */
+function _logBackground(bg) {
+  const names = (/** @type {ArchiElement[]} */ list) => list.map(e => `"${e.name}"`).join(", ");
+  Log.debug(`  Background view "${bg.view}": ${bg.elements} elements; parents brought up to it: ${bg.parents.length ? names(bg.parents) : "none"}`);
+  if (!bg.dropped.length) return;
+  const n = bg.dropped.length;
+  Log.info(`Left out: ${n} element${n === 1 ? "" : "s"} under nothing on the background view: ${names(bg.dropped.slice(0, 5))}${n > 5 ? ", …" : ""}`);
+  if (n > 5) Log.detail("INFO", `  All left out: ${names(bg.dropped)}`);
+}
+
+/**
+ * The background view a Create action fills: none for the Modify actions, or without a nesting
+ * condition (nothing could hang under it).
+ * @param {Snapshot}        snapshot
+ * @param {EffectiveParams} params
+ * @param {boolean}         isModifyAction
+ * @returns {BackgroundSnapshot | null}
+ */
+function _backgroundOf(snapshot, params, isModifyAction) {
+  if (isModifyAction || !snapshot.background || !params.backgroundView) return null;
+  return (params.nestingConditions || []).length ? snapshot.background : null;
 }
 
 /**
@@ -77,6 +109,9 @@ function composeObjectSet(snapshot, preset, actionId) {
   const isModifyAction = _isModifyAction(actionId);
   const isExpand       = actionId === ACTION.EXPAND_VIEW.id;
   const { existing, relationsOf } = snapshot;
+  const background     = _backgroundOf(snapshot, preset.params, isModifyAction);
+  // Expand view and Layout only keep what is on the view, but lay it out in the background view's arrangement.
+  const arranged       = isModifyAction && snapshot.background && preset.params.backgroundView ? snapshot.background : background;
 
   // Filter (skipped for the Modify actions, see buildObjectSet).
   let filteredElementsArr = snapshot.elements;
@@ -85,6 +120,13 @@ function composeObjectSet(snapshot, preset, actionId) {
     filteredElementsArr = applyFilter(filteredElementsArr, preset.filter);
     diagramObjects      = _applyDiagramFilter(diagramObjects, preset.filter);
   }
+  // The background view's diagram objects are always on the view, like its elements: no filter.
+  const blocksRead = background ? {
+    diagramBlockOf:       new Map([...snapshot.diagramBlockOf, ...background.diagramBlockOf]),
+    blockContents:        new Map([...snapshot.blockContents, ...background.blockContents]),
+    sourceVisualElements: [...snapshot.sourceVisualElements, ...background.sourceVisualElements],
+  } : snapshot;
+  if (background) diagramObjects = _uniqueById([...diagramObjects, ...background.diagramObjects]);
 
   const filteredCounts = {
     elems: filteredElementsArr.length,
@@ -115,16 +157,20 @@ function composeObjectSet(snapshot, preset, actionId) {
 
   // Elements are the filtered base plus step additions
   // (EXPAND_VIEW: every element on the view plus step additions, so the whole view is laid out).
-  const viewElements = isExpand
+  let viewElements = isExpand
     ? _uniqueById([.../** @type {ArchiElement[]} */ (existing.visualElements.map(ve => ve.concept).filter(Boolean)), ...expansion.addedElements])   // Cast: nulls filtered
     : [...filteredElementsArr, ...expansion.addedElements];
+  let viewRelations = allRelations;
+  // The background view: its elements always on the view, the selection filling it (lib/background.js).
+  const filled = background ? Background.compose(viewElements, allRelations, background.elements, relationsOf, preset.params) : null;
+  if (filled) { viewElements = filled.elements; viewRelations = filled.relations; }
 
   // Diagram-blocks: Create copies only those the diagram filter keeps (the view read is not the target).
-  const diagramBlockOf = isModifyAction ? snapshot.diagramBlockOf : keptDiagramBlocks(snapshot.diagramBlockOf, diagramObjects);
+  const diagramBlockOf = isModifyAction ? snapshot.diagramBlockOf : keptDiagramBlocks(blocksRead.diagramBlockOf, diagramObjects);
   // An element that appears only inside a diagram-block is not laid out.
-  const diagramBlockVisualOf = mapDiagramBlockVisuals(isModifyAction ? existing.visualElements : snapshot.sourceVisualElements, diagramBlockOf);
+  const diagramBlockVisualOf = mapDiagramBlockVisuals(isModifyAction ? existing.visualElements : blocksRead.sourceVisualElements, diagramBlockOf);
   const elements  = viewElements.filter(el => !diagramBlockVisualOf.has(el.id));
-  const relations = allRelations;
+  const relations = viewRelations;
 
   // Partition diagram-model-connection (edges) from positional diagram objects.
   const diagramConnections = diagramObjects.filter(o => o.type === "diagram-model-connection");
@@ -133,7 +179,7 @@ function composeObjectSet(snapshot, preset, actionId) {
   // Predict on-view counts using the same algorithm the writer uses.
   const visuals = snapshot.visuals.filter(v => !diagramBlockOf.has(v.id));
   const diagram = {
-    objects:     diagramNodes.length + countDiagramObjectsInBlocks(snapshot.blockContents, diagramBlockOf),
+    objects:     diagramNodes.length + countDiagramObjectsInBlocks(blocksRead.blockContents, diagramBlockOf),
     connections: countDiagramConnections(diagramConnections, diagramNodes, elements, diagramBlockOf),
     elements:    diagramBlockVisualOf.size,
   };
@@ -151,15 +197,17 @@ function composeObjectSet(snapshot, preset, actionId) {
       existingView:      existing.existingView,
       positions:         existing.positions,
       diagramBlockOf,
-      blockContents:     snapshot.blockContents,
+      blockContents:     blocksRead.blockContents,
       diagramBlockVisualOf,
       visuals,
       joinRun,
+      ...(arranged ? { arrangements: arranged.arrangements } : {}),
     },
     filteredCounts,
     filteredBaseRels,
     stepCounts: expansion.stepCounts,
     view,
+    ...(background && filled ? { background: { view: background.path, elements: background.elements.length, parents: filled.parents, dropped: filled.dropped } } : {}),
   };
 }
 

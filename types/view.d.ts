@@ -220,7 +220,27 @@ type PresetParams = {
   labelSizing: boolean;
   labelMaxLineWidth: number;
   connectionLabelSpacing: boolean;
+  /** Tiles: the view the selection fills (lib/background.js); empty id and path = none. */
+  backgroundView: BackgroundRef;
+  /** Tiles: every box of the background view keeps its place; false: only a box with boxes inside it there. */
+  backgroundEveryBox: boolean;
 };
+
+/** A background view as a preset names it: found by id; the path (folders and name) is a label, and finds it when the id is empty. */
+type BackgroundRef = { id: string; path: string };
+
+/** A background view as read (selection_read.readBackground): what it puts on the view, and its arrangement. */
+interface BackgroundSnapshot {
+  /** Path of the view, as the console names it. */
+  path: string;
+  elements: ArchiElement[];
+  /** Its diagram objects, with their diagram-blocks: copied onto the view like a selected view's. */
+  diagramObjects: DiagramObject[];
+  diagramBlockOf: Map<string, string>;
+  blockContents: Map<string, BlockContents>;
+  sourceVisualElements: VisualObject[];
+  arrangements: Arrangements;
+}
 
 /**
  * The params an algorithm uses (defs.effectiveParams): inactive keys are absent, a view-size
@@ -369,6 +389,8 @@ interface ObjectSet {
   diagramBlockVisualOf?: Map<string, string>;
   /** The run in which each added element joined (joinRuns); the selection and the view's elements are absent (0). */
   joinRun?: Map<string, number>;
+  /** The arrangement of the background view's containers (Tiles); absent without a background view. */
+  arrangements?: Arrangements;
 }
 
 /** One expand-selection step's result (expandStepWithRelations). */
@@ -441,6 +463,8 @@ interface Snapshot {
   sourceVisualElements: VisualObject[];
   /** Every element visual on the target view, described (describeVisuals); [] for a new view. */
   visuals: VisualDescription[];
+  /** The preset's background view (readBackground); absent or null without one. */
+  background?: BackgroundSnapshot | null;
 }
 
 /** Everything inside one diagram-block, as read. */
@@ -458,6 +482,8 @@ interface ComposedObjectSet {
   filteredBaseRels: number;
   stepCounts: StepCount[];
   view: ViewCounts;
+  /** With a background view: its path, its elements, the parents brought up to it, the elements left out (lib/background.js). */
+  background?: { view: string; elements: number; parents: ArchiElement[]; dropped: ArchiElement[] };
 }
 
 /** What plan() counted for the console: the selection, the filtered base, the step adds, the view. */
@@ -659,6 +685,8 @@ interface DialogCountInput {
   visuals: VisualDescription[];
   /** What Expand view works on (readSelection); null when it is disabled. */
   expandSnapshot: Snapshot | null;
+  /** The background view in the Background field, read (readBackground); null without one, or where the algorithm has none. */
+  background: BackgroundSnapshot | null;
 }
 
 /** One step's counts in the dialog. */
@@ -955,6 +983,8 @@ type DialogWidgets = {
   /** "/_Generated" in front of the folder when Under _Generated is ticked, else "". */
   lblCustomUnder: Swt.Label;
   txtViewFolder: Swt.Text;
+  txtBackgroundView: Swt.Text;
+  chkBackgroundEveryBox: CheckBox;
   rdoMirrored: Swt.Button;
   lblMirroredUnder: Swt.Label;
   lblMirrored: Swt.Label;
@@ -971,7 +1001,8 @@ type WidgetName<T> = { [K in keyof DialogWidgets]: DialogWidgets[K] extends T ? 
 /** A layout param's widget (tab_layout.js PARAM_WIDGETS). */
 type ParamWidget = { kind: "spin"; w: WidgetName<Swt.Spinner> } | { kind: "check"; w: WidgetName<CheckBox> } |
                    { kind: "combo"; w: WidgetName<Swt.Combo>; items: readonly string[] } |
-                   { kind: "conditions"; w: WidgetName<ConditionTable<"relation">> };
+                   { kind: "conditions"; w: WidgetName<ConditionTable<"relation">> } |
+                   { kind: "view"; w: WidgetName<Swt.Text> };
 
 /**
  * State shared by the tab builders and handlers: created in dialog_main.js open(), filled while building.
@@ -1020,6 +1051,9 @@ interface DialogContext {
   predicted?: { elements: ArchiElement[], relations: ArchiRelation[] } | null; // what the view will hold
   viewRelations?: ArchiRelation[]; // relations of the predicted view
   expandSnapshot?: Snapshot | null; // what Expand view works on (readSelection), null when it is disabled
+  background?: BackgroundSnapshot | null; // the view in the Background field, read; null when empty or not found
+  /** Read the view in the Background field again, then recount. */
+  backgroundChanged: () => void;
   recount: () => void; // recount after a change of the settings (marks the dialog modified)
   markModified: () => void;
   /** Read every tab into config (the preset row's Save and Save As). */

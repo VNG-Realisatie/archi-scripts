@@ -15,6 +15,7 @@ Preset {
   params {                           // one key per layout option: the Parameter column of the
                                      // generated tables in gui.md (Layout options, Preset-only options)
     viewSizeMode : "none"|"maxWidth"|"aspectRatio"   // which View size radio; "none" = Free
+    backgroundView : { id, path : string }            // the background view: found by id, else by path (folders and name); "" both = none
   }
   filter {                           // every list: [] = keep all
     elementConditions  : ElementCondition[]    // seed elements

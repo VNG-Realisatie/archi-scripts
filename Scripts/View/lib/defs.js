@@ -83,6 +83,8 @@ const PARAM_LABELS = Object.freeze({
   cycleSelectionOrder:      "Cycle selection order",
   alignWidthSameType:       "Same width per level",
   columnsAcrossContainers:  "Columns across containers",
+  backgroundView:           "Background",
+  backgroundEveryBox:       "Every box in place",
   direction:                "Direction",
   acyclicer:                "Cycles",
   ranking:                  "Ranking",
@@ -126,6 +128,10 @@ const PARAM_TOOLTIPS = Object.freeze({
                              "A container is never narrower than its contents; Use label width: the widest label sets it."],
   columnsAcrossContainers:  ["Line up the columns of the tiles on one grid across the whole view.",
                              "Boxes of one level line up along their parent's edge; neighbours stay Distance apart."],
+  backgroundView:           ["A view the selection fills: its elements are always on the view, in its arrangement of rows and columns.",
+                             "Path of the view, e.g. /Views/Backgrounds/Map. An element under nothing on it brings its parents; one that reaches it by no path is left out."],
+  backgroundEveryBox:       ["Every box of the background view keeps its place. Off: only a box with boxes inside it on the background view keeps its place;",
+                             "the others are always on the view, and the layout places them (sorted, compact)."],
   direction:                ["Direction of the main flow.", ""],
   acyclicer:                ["How relation cycles are broken before layout; no effect without cycles.",
                              "Default: depth-first search. Greedy: reverses as few relations as it can."],
@@ -187,7 +193,7 @@ const LAYOUT_GROUPS = Object.freeze({
   Nesting:     ["nestingConditions"],
   Reverse:     ["reverseConditions"],
   Containers:  ["containerAlgorithm", "connectionsMode", "padding",
-                "sort", "alignWidthSameType", "columnsAcrossContainers"],
+                "sort", "alignWidthSameType", "columnsAcrossContainers", "backgroundView", "backgroundEveryBox"],
   Flow:        ["direction", "acyclicer", "ranking", "nodePlacement", "circles", "layerSpacing"],
   Elements:    ["elementWidth", "elementHeight", "labelSizing", "labelMaxLineWidth", "elementSpacing"],
   Connections: ["routing", "labelPosition", "connectionLabelSpacing", "connectionSpacing", "connectionElementSpacing"],
@@ -339,7 +345,7 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    false,  // tiles position nodes only — they do not route edges
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, "nestingConditions", "padding", "sort", "alignWidthSameType", "columnsAcrossContainers",
-      ...PARAMS_VIEW_SIZE, "labelSizing", "labelMaxLineWidth", "elementSpacing", "reverseConditions",
+      ...PARAMS_VIEW_SIZE, "labelSizing", "labelMaxLineWidth", "elementSpacing", "reverseConditions", "backgroundView", "backgroundEveryBox",
     ],
     supportedOptions:     {},
     labelPositionDefault: null,
@@ -769,6 +775,8 @@ const DEFAULT_PRESET = Object.freeze({
     labelSizing:           false,   // derive node width/height from the measured label (label_size.labelSizedLeaf)
     labelMaxLineWidth:     400,    // widest element Use label width makes before the label wraps
     connectionLabelSpacing:      true,   // reserve space for connection labels in ELK Layered (prevents overlap)
+    backgroundView:        { id: "", path: "" },   // Tiles: the view the selection fills (lib/background.js); id finds it, path is its label
+    backgroundEveryBox:    false,   // every box of the background view keeps its place; false: only frames (arrangement.framesOnly)
   },
   // Filter lists (empty = keep everything); condition shapes in rel_filter.js.
   filter: {
@@ -985,6 +993,19 @@ function _legacyKeys(raw) {
 }
 
 /**
+ * A background view reference from a preset file: { id, path }, both strings.
+ * @param {unknown} raw
+ * @returns {BackgroundRef}
+ * @throws when it is not an object with string id and path
+ */
+function _backgroundRef(raw) {
+  const r = /** @type {Record<string, unknown>} */ (raw);   // Cast: checked below
+  if (!r || typeof r !== "object" || typeof r.id !== "string" || typeof r.path !== "string")
+    throw new Error(`Preset params.backgroundView must be { "id": "…", "path": "…" } (both may be empty); it is ${JSON.stringify(raw)}.`);
+  return { id: r.id, path: r.path };
+}
+
+/**
  * Validate and normalise a preset object.
  * - Fills missing params from DEFAULT_PRESET
  * - Validates algorithm exists
@@ -1027,6 +1048,10 @@ function validatePreset(raw) {
       if (!(key in DEFAULT_PRESET.params)) continue;  // unknown key ignored
       if (key === "nestingConditions" || key === "reverseConditions") {
         preset.params[key] = conditions("relation", rawVal, `params.${key}`);
+        continue;
+      }
+      if (key === "backgroundView") {
+        preset.params.backgroundView = _backgroundRef(rawVal);
         continue;
       }
       // Migrate old direction labels (e.g. "Left → Right" → "Left") so old presets remain valid.
