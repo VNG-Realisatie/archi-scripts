@@ -1,5 +1,11 @@
 // Sync BF BO.ajs
 
+// TODO (bevinding 2026-11-19): onafgemaakte kopie van Sync UPL.ajs; loopt nog niet.
+// - bedrijfsfuncties.getId geeft element.id terug, setId schrijft het id in property "URI": een tweede sync
+//   herkent geen bestaand element en maakt alles opnieuw aan. Waarschijnlijk: getId → element.prop("URI").
+// - Onderaan staat Sync.loadAndSync(producten), maar producten bestaat hier niet (alleen bedrijfsfuncties):
+//   ReferenceError. Ook de blokken thema, topthema en thema_producten komen nog uit UPL.
+
 // Configuration starts here ======================================================================================
 
 // Each source of information (data source) has its own object which contains:
