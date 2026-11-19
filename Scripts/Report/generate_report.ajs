@@ -59,6 +59,7 @@
  * - removed option renderViewEmbed
  *
  */
+if (typeof require !== "function") { const m = "This script needs jArchi 1.11 or later, with CommonJS on: in Archi, open Preferences > Scripting and tick \"Enable CommonJS Support\" (no such option: update jArchi first). Then run the script again."; try { window.alert(m); } catch (e) { console.error(m); } exit(); }
 const Showdown = require("showdown");
 const AsciiTable = require("ascii-table");
 

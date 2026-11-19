@@ -4,15 +4,16 @@
  * (c) 2019 Mark Backer
  *
  */
+if (typeof require !== "function") { const m = "This script needs jArchi 1.11 or later, with CommonJS on: in Archi, open Preferences > Scripting and tick \"Enable CommonJS Support\" (no such option: update jArchi first). Then run the script again."; try { window.alert(m); } catch (e) { console.error(m); } exit(); }
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
-const Common = require(REPO_ROOT + "_lib/Common.js");
+const Log    = require(REPO_ROOT + "_lib/log");
 const Selection = require(REPO_ROOT + "_lib/selection.js");
 // chroma-js for color conversions and color scales https://gka.github.io/chroma.js/
 const Chroma = require("chroma-js");
 
 const LIMIT_ONE_COLOR_SHADE = 5;
 
-Common.initConsoleLog(__FILE__, true);
+Log.start(__FILE__, true);
 
 try {
   let collection = Selection.getVisualSelection($(selection), "element");
@@ -35,7 +36,7 @@ try {
 } catch (error) {
   console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
-Common.finishConsoleLog();
+Log.finish();
 
 /**
  * show all properties and let the user select one

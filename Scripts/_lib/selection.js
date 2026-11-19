@@ -10,11 +10,12 @@
  *
  * (c) 2021-2026 Mark Backer
  */
-console.log("Loading selection.js");
-
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
 /** @type {typeof import("./Common")} */
 const Common = require(REPO_ROOT + "_lib/Common");
+/** @type {typeof import("./log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading selection.js");
 
 const DIAGRAM_OBJECT_TYPES = [
   "diagram-model-group",
@@ -35,9 +36,9 @@ const DIAGRAM_OBJECT_TYPES = [
  * @param {unknown[]} [pArgs] optional array with arguments for the function
  */
 function applyToCollection(collection, pFunc, pArgs) {
-  console.log(`Apply ${pFunc.name} to selection`);
+  Log.info(`Apply ${pFunc.name} to selection`);
   collection.each((object) => pFunc(object, pArgs));
-  console.log(`${pFunc.name} applied to ${collection.size()} objects`);
+  Log.info(`${pFunc.name} applied to ${collection.size()} objects`);
 }
 
 /**
@@ -83,7 +84,7 @@ function getSelection(startSelection, selector = "*", logPrefix = "") {
     return $(test).is("concept") ? Common.concept(test) : test;
   });
 
-  console.log(`${logPrefix}Collection: ${coll.size()} object${coll.size() === 1 ? "" : "s"} of type "${selector}"`);
+  Log.debug(`${logPrefix}Collection: ${coll.size()} object${coll.size() === 1 ? "" : "s"} of type "${selector}"`);
   return coll;
 }
 
@@ -101,7 +102,7 @@ function getVisualSelection(startSelection, selector = "*") {
     throw "Nothing selected. Select views or one or more objects on a view";
   }
   _logSelected(startSelection);
-  console.log(`Select "${selector}"`);
+  Log.debug(`Select "${selector}"`);
 
   let coll = _walkAndCollect(startSelection, (o) => {
     if (!o.view) return null;
@@ -113,7 +114,7 @@ function getVisualSelection(startSelection, selector = "*") {
   // Preserve existing behaviour: if exactly one VO selected, expand to all of its type on the view.
   if (coll.size() === 1) {
     const obj = /** @type {VisualObject | VisualConnection} */ (coll.first());   // Cast: size() is 1
-    console.log(`One concept selected, apply to all concepts of type ${obj.type}`);
+    Log.debug(`One concept selected, apply to all concepts of type ${obj.type}`);
     coll = $(obj.view).find(obj.type);
   }
   return coll;
@@ -152,9 +153,9 @@ function _walkAndCollect(startSelection, decide) {
  */
 function _logSelected(startSelection, logPrefix = "") {
   if (startSelection.size() === 1) {
-    console.log(`${logPrefix}Selected ${startSelection.first()}`);
+    Log.debug(`${logPrefix}Selected ${startSelection.first()}`);
   } else {
-    console.log(`${logPrefix}Selected ${startSelection.size()} objects, first is ${startSelection.first()}`);
+    Log.debug(`${logPrefix}Selected ${startSelection.size()} objects, first is ${startSelection.first()}`);
   }
 }
 

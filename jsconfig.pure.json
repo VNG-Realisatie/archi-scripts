@@ -9,6 +9,7 @@
     "types/view.d.ts",
     "types/vendor.d.ts",
     "types/swt.d.ts",
+    "Scripts/_lib/log.js",
     "Scripts/View/lib/rel_filter.js"
   ]
 }

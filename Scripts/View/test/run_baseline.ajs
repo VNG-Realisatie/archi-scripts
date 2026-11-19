@@ -12,13 +12,13 @@
  * deletes what Views/Baseline holds, then runs the matrix and saves the model in place. Procedure, comparing
  * with the committed baseline and when to commit a new one: skill view-baseline (skills/view-baseline/SKILL.md).
  */
+if (typeof require !== "function") { const m = "This script needs jArchi 1.11 or later, with CommonJS on: in Archi, open Preferences > Scripting and tick \"Enable CommonJS Support\" (no such option: update jArchi first). Then run the script again."; try { window.alert(m); } catch (e) { console.error(m); } exit(); }
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
-const Common       = require(REPO_ROOT + "_lib/Common");
+const Log          = require(REPO_ROOT + "_lib/log");
 const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders");
 const PresetIO     = require(REPO_ROOT + "View/lib/preset_io");
 const GenView      = require(REPO_ROOT + "View/lib/generate_view");
 const { ACTION }   = require(REPO_ROOT + "View/lib/defs");
-const CliConsole   = require(REPO_ROOT + "View/test/cli_console");
 
 const MODEL_FILE      = "view-test.archimate";
 const BASELINE_FOLDER = "/Baseline";   // under /Views, as preset view.folder
@@ -38,8 +38,8 @@ const PARTS_RUNS = [
   { action: ACTION.NEW_VIEW.id, view: "4 Parts", algorithm: "Grid" },
 ];
 
-Common.initConsoleLog(__FILE__, true);
-CliConsole.markErrorsOnCommandLine();
+Log.start(__FILE__, true);
+Log.name();   // the presets differ per run: the log file takes the script's name
 try {
   _checkTestModel();
   _clearBaseline();
@@ -50,24 +50,24 @@ try {
                   ...PARTS_RUNS.map(run => ({ presetName: PRESETS[0], run }))];
   for (const { presetName, run } of matrix) {
     const name = `${presetName.replace(/^.*\//, "")} ${run.action} ${run.view}${run.algorithm ? " " + run.algorithm : ""}`;
-    console.log(`\n##### ${name}`);
+    Log.info(`\n##### ${name}`);
     const expected = run.elements ? run.elements.length : 1;
     try {
       const views = GenView.generate_view(_runPreset(presetName, run, name), _runSelection(run, name, folder), run.action);
       if (views.length !== expected) failed.push(`${name}: ${views.length} views, expected ${expected}`);
     } catch (error) {   // one failed run does not stop the baseline
-      console.error(`> ${/** @type {Error} */ (error).stack || error}`);
+      Log.error(String(/** @type {Error} */ (error).message || error)); Log.detail("ERROR", String(/** @type {Error} */ (error).stack || error));
       failed.push(`${name}: failed (${/** @type {Error} */ (error).message || error})`);
     }
   }
-  console.log(`\nBaseline: ${matrix.length - failed.length}/${matrix.length} runs wrote their views`);
-  for (const f of failed) console.error(f);
+  Log.info(`\nBaseline: ${matrix.length - failed.length}/${matrix.length} runs wrote their views`);
+  for (const f of failed) Log.error(f);
   model.save();
-  console.log(`Baseline saved: ${model.getPath()}`);
+  Log.info(`Baseline saved: ${model.getPath()}`);
 } catch (error) {
-  console.error(`> ${typeof /** @type {Error} */ (error).stack === "undefined" ? error : /** @type {Error} */ (error).stack}`);
+  Log.error(String(/** @type {Error} */ (error).message || error)); Log.detail("ERROR", String(/** @type {Error} */ (error).stack || error));
 }
-Common.finishConsoleLog();
+Log.finish();
 
 /** The current model is the test model, loaded from its file. */
 function _checkTestModel() {

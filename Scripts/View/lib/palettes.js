@@ -12,7 +12,10 @@
  * the default. The file is read once per run and validated as a whole: an unusable file stops the
  * run with a message.
  */
-console.log("Loading palettes.js");
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+/** @type {typeof import("../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading palettes.js");
 
 const Chroma = require("chroma-js");
 

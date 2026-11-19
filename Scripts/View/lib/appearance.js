@@ -12,12 +12,14 @@
  * default view font); with style conditions, every element fill and relation line colour / width not styled
  * earlier in the pass is reset before the conditions colour (SPEC §10, Style by property).
  */
-console.log("Loading appearance.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading appearance.js");
 
 const Chroma = require("chroma-js");
 /** @type {typeof import("./defs")} */
@@ -79,17 +81,17 @@ function applyAppearance(view, preset, actionId, defaultFont, diagramBlockOf) {
 
   if (!anyEnabled && !isModify) return;
 
-  console.log(`\nAppearance (${actionId || "?"})`);
-  const palette = Palettes.paletteOf(Palettes.readPalettes(), app.palette, message => console.error(`Appearance: ${message}`));
+  Log.debug(`\nAppearance (${actionId || "?"})`);
+  const palette = Palettes.paletteOf(Palettes.readPalettes(), app.palette, message => Log.warn(`Appearance: ${message}`));
   // params is the algorithm's effective subset: nestingConditions is absent when the algorithm does not nest.
   const hasNestingTypes = (preset.params.nestingConditions || []).length > 0;
   if ((nl.fontEnabled || nl.colorEnabled) && hasNestingTypes)
-    console.log(`  nestingLevel  font=${nl.fontEnabled}  color=${nl.colorEnabled}  palette=${palette.name}  darkenStart=${nl.darkenStart}  lighten=${nl.lightenPerLevel}%/level  conditions=${nl.conditions.filter(r => r.on !== false).length}`);
+    Log.debug(`  nestingLevel  font=${nl.fontEnabled}  color=${nl.colorEnabled}  palette=${palette.name}  darkenStart=${nl.darkenStart}  lighten=${nl.lightenPerLevel}%/level  conditions=${nl.conditions.filter(r => r.on !== false).length}`);
   if (hr.enabled)
-    console.log(`  highlightRepeated  range=${hr.colorRange}`);
+    Log.debug(`  highlightRepeated  range=${hr.colorRange}`);
   sbp.conditions.forEach((r, i) => {
     if (r.on === false || !r.property) return;
-    console.log(`  styleByProperty condition ${i + 1}  applyTo=${r.applyTo}  ${r.source || "all"} ${r.relation || "all"} ${r.target || "all"}  prop=${r.propertyOf}."${r.property}"  range=${r.colorRange}`);
+    Log.debug(`  styleByProperty condition ${i + 1}  applyTo=${r.applyTo}  ${r.source || "all"} ${r.relation || "all"} ${r.target || "all"}  prop=${r.propertyOf}."${r.property}"  range=${r.colorRange}`);
   });
 
   // VOs colored by an active feature are protected from being cleared by later disabled-feature
@@ -316,11 +318,11 @@ function _applyNestingLevel(view, settings, palette, isModify, defaultFont, styl
   const nodes = vos.map(vo => _nestingNode(vo, keep));
   const { styles, conflicts } = followNestingChains(nodes, settings.conditions, settings.fontDecreasePerLevel);
   if (conflicts.length > 0)
-    console.log(`  nestingLevel: conditions ${conflicts.join(" · ")} are equally specific and select the same elements with different styles; the last condition wins.`);
+    Log.warn(`Style by nesting level: conditions ${conflicts.join(" · ")} are equally specific and select the same elements with different styles; the last condition wins.`);
   // One message per colour name the palette does not hold.
   /** @type {Set<string>} */
   const reported = new Set();
-  const reportOnce = (/** @type {string} */ m) => { if (!reported.has(m)) { reported.add(m); console.error(`Appearance: ${m}`); } };
+  const reportOnce = (/** @type {string} */ m) => { if (!reported.has(m)) { reported.add(m); Log.warn(`Appearance: ${m}`); } };
 
   vos.forEach((vo, i) => {
     const st = styles.get(nodes[i].id);
@@ -352,8 +354,8 @@ function _applyNestingLevel(view, settings, palette, isModify, defaultFont, styl
     }
   });
 
-  if (settings.fontEnabled  || fontReset  > 0) console.log(`  nestingLevel font:  ${fontSet} set  ${fontReset} reset`);
-  if (settings.colorEnabled || colorReset > 0) console.log(`  nestingLevel color: ${colorSet} set  ${colorReset} reset`);
+  if (settings.fontEnabled  || fontReset  > 0) Log.debug(`  nestingLevel font:  ${fontSet} set  ${fontReset} reset`);
+  if (settings.colorEnabled || colorReset > 0) Log.debug(`  nestingLevel color: ${colorSet} set  ${colorReset} reset`);
 }
 
 // ── Highlight repeated elements ───────────────────────────────────────────────
@@ -382,15 +384,15 @@ function _applyHighlightRepeated(view, settings, palette, isModify, styledVoIds,
   byConceptId.forEach((vos, id) => { if (vos.length > 1) multiIds.push(id); });
 
   if (settings.enabled) {
-    if (multiIds.length === 0) { console.log(`  highlightRepeated: 0 multi-occurrence elements`); return; }
+    if (multiIds.length === 0) { Log.debug(`  highlightRepeated: 0 multi-occurrence elements`); return; }
     const colors = _colorScale(palette, settings.colorRange, multiIds.length);
     let n = 0;
     multiIds.forEach((id, i) => { /** @type {VisualObject[]} */ (byConceptId.get(id)).forEach(vo => { vo.fillColor = colors[i]; styledVoIds.add(vo.id); n++; }); });
-    console.log(`  highlightRepeated: ${n} VOs colored  (${multiIds.length} elements  range=${settings.colorRange})`);
+    Log.debug(`  highlightRepeated: ${n} VOs colored  (${multiIds.length} elements  range=${settings.colorRange})`);
   } else if (isModify && settings.colorRange && multiIds.length > 0) {
     let n = 0;
     multiIds.forEach(id => { /** @type {VisualObject[]} */ (byConceptId.get(id)).forEach(vo => { if (styledVoIds.has(vo.id)) return; vo.fillColor = null; n++; }); });
-    console.log(`  highlightRepeated: ${n} VOs reset`);
+    Log.debug(`  highlightRepeated: ${n} VOs reset`);
   }
 }
 
@@ -454,7 +456,7 @@ function computeConditionTargets(condition, elements, relations) {
           hit(el.id, "element", readFrom(r, el));
         });
       } catch (e) {
-        console.log(`  styleByProperty: error reading relations for ${el.id}: ${e}`);
+        Log.warn(`Style by property: the relations of element ${el.id} could not be read (${e}).`, { effect: "it is styled without them." });
       }
     }
   }
@@ -472,7 +474,7 @@ function computeConditionTargets(condition, elements, relations) {
 function _applyStyleConditions(view, settings, palette, isModify, styledVoIds, keep) {
   const conditions = settings.conditions || [];
   if (conditions.length === 0) return;
-  const mixedColor = Palettes.colorOf(palette, settings.mixedValuesColor, m => console.error(`Appearance: ${m}`))
+  const mixedColor = Palettes.colorOf(palette, settings.mixedValuesColor, m => Log.warn(`Appearance: ${m}`))
     || Defs.DEFAULT_PRESET.appearance.styleByProperty.mixedValuesColor;
   const fixedWidth = settings.lineWidth > 0 ? Math.min(3, Math.max(1, settings.lineWidth)) : 0;
 
@@ -511,7 +513,7 @@ function _applyStyleConditions(view, settings, palette, isModify, styledVoIds, k
       vo.fillColor = null; n++;
     }));
     vcsByRelationId.forEach(vcs => vcs.forEach(vc => { vc.lineColor = null; vc.lineWidth = 1; n++; }));
-    if (n > 0) console.log(`  styleByProperty: ${n} objects reset`);
+    if (n > 0) Log.debug(`  styleByProperty: ${n} objects reset`);
   }
 
   /** @type {Map<number, Set<string>>} */
@@ -550,11 +552,11 @@ function _applyStyleConditions(view, settings, palette, isModify, styledVoIds, k
       colored++;
     });
     styledByCondition.set(i, mine);
-    console.log(`  styleByProperty condition ${i + 1}: ${targets.size} matched  ${colored} colored  ${mixed} mixed values  ${unique.length} unique values`);
+    Log.debug(`  styleByProperty condition ${i + 1}: ${targets.size} matched  ${colored} colored  ${mixed} mixed values  ${unique.length} unique values`);
   });
 
   ConditionLists.detectConditionConflicts(styledByCondition).forEach(c =>
-    console.log(`  ⚠ styleByProperty condition ${c.condition + 1} also styles ${c.count} objects of condition${c.with.length > 1 ? "s" : ""} ${c.with.map(j => j + 1).join(", ")}; the last condition wins`));
+    Log.warn(`Style by property: condition ${c.condition + 1} also styles ${c.count} objects of condition${c.with.length > 1 ? "s" : ""} ${c.with.map(j => j + 1).join(", ")}; the last condition wins`));
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -571,7 +573,7 @@ function _colorScale(palette, rangeName, n) {
   let range = palette.ranges.find(r => r.name === rangeName);
   if (!range) {
     range = palette.ranges[0];
-    console.error(`Appearance: colour range "${rangeName}" is not in palette "${palette.name}"; its first range "${range.name}" is used, as the dialog shows. Save the preset to keep it.`);
+    Log.warn(`Appearance: colour range "${rangeName}" is not in palette "${palette.name}"; its first range "${range.name}" is used, as the dialog shows. Save the preset to keep it.`);
   }
   return Palettes.rangeColors(range, n);
 }

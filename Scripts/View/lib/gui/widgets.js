@@ -2,12 +2,14 @@
  * SWT helpers of the View dialog: tab pages, groups, form rows, combos, checks, spinners, colour pickers, fonts.
  * No dialog state; the tabs and dialog_main.js build on them.
  */
-console.log("Loading widgets.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading widgets.js");
 
 /** @type {typeof import("../palettes")} */
 const Palettes = require(REPO_ROOT + "View/lib/palettes");

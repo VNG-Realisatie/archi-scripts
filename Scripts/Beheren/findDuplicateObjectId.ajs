@@ -2,12 +2,13 @@
  * find objects with two or more properties PROP_ID
  */
 
+if (typeof require !== "function") { const m = "This script needs jArchi 1.11 or later, with CommonJS on: in Archi, open Preferences > Scripting and tick \"Enable CommonJS Support\" (no such option: update jArchi first). Then run the script again."; try { window.alert(m); } catch (e) { console.error(m); } exit(); }
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
-const Common = require(REPO_ROOT + "_lib/Common.js");
+const Log    = require(REPO_ROOT + "_lib/log");
 
 const PROP_ID = "Object ID";
 
-Common.initConsoleLog(__FILE__, false);
+Log.start(__FILE__, false);
 
 console.log(`Check model for objects with duplicate property ${PROP_ID}`);
 let i = 0;
@@ -28,6 +29,6 @@ try {
 } catch (error) {
   console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
-Common.finishConsoleLog();
+Log.finish();
 
 

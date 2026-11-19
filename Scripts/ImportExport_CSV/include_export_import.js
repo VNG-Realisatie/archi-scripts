@@ -2,7 +2,7 @@
  * Shared constants and functions for exporting and importing
  */
 const Papa = require("papaparse");
-const Common = require(REPO_ROOT + "_lib/Common.js");
+const Log    = require(REPO_ROOT + "_lib/log");
 
 // define a mapping object with PROP_ADD as an extra column
 const PROP_ADD = "add column to export";
@@ -76,15 +76,14 @@ function set_attr_or_prop(object, row, label) {
  * get the given attribute or property value of an Archi object
  */
 function get_attr_or_prop(archi_object, row_label) {
-  Common.debugStackPush(false);
   let value = "";
 
   // get attribute, for instance "documentation", "name",
   if (ATTRIBUTE_LABELS.indexOf(row_label) != -1 || RELATION_ATTRIBUTE_LABELS.indexOf(row_label) != -1) {
-    Common.debug(`row_label = ${row_label}`);
-    Common.debug(`archi_object = ${archi_object}`);
-    Common.debug(`archi_object.name = ${archi_object.name}`);
-    Common.debug(`archi_object[row_label] = ${archi_object[row_label]}`);
+    Log.debug(`row_label = ${row_label}`);
+    Log.debug(`archi_object = ${archi_object}`);
+    Log.debug(`archi_object.name = ${archi_object.name}`);
+    Log.debug(`archi_object[row_label] = ${archi_object[row_label]}`);
     if (row_label == ASSOCIATION_DIRECTED) {
       if (archi_object.type == "association-relationship") {
         value = archi_object[row_label].toString();
@@ -92,7 +91,7 @@ function get_attr_or_prop(archi_object, row_label) {
     } else {
       value = archi_object[row_label];
     }
-    Common.debug(`attr archi_object.${row_label}=${value}`);
+    Log.debug(`attr archi_object.${row_label}=${value}`);
   } else if (_get_ENDPOINT_LABELS().indexOf(row_label) != -1) {
     // get endpoint label, for instance source.id, target.prop.Object ID
     // const [endpoint, attr, prop] = row_label.split("."); // GRAALVM only
@@ -106,18 +105,17 @@ function get_attr_or_prop(archi_object, row_label) {
 
     if (secondSubString == "prop") {
       value = archi_object[endpoint].prop(prop);
-      Common.debug(`endpoint archi_object[${endpoint}].prop(${prop})=${value}`);
+      Log.debug(`endpoint archi_object[${endpoint}].prop(${prop})=${value}`);
     } else {
       value = archi_object[endpoint][attr];
-      Common.debug(`endpoint archi_object[${endpoint}][${attr}]=${value}`);
+      Log.debug(`endpoint archi_object[${endpoint}][${attr}]=${value}`);
     }
   } else {
       // get property, for instance 'Object ID'
       value = archi_object.prop(row_label);
-      Common.debug(`prop archi_object.prop(${row_label})=${value}`);
+      Log.debug(`prop archi_object.prop(${row_label})=${value}`);
   }
 
-  Common.debugStackPop();
   return value;
 }
 

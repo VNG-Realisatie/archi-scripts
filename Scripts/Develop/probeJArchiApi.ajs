@@ -157,6 +157,7 @@ probe("drawing a connection reorders rels()", () => {
 // ── Script environment ───────────────────────────────────────────────────────
 probe("__DIR__ ends with a separator", () => /[\\/]$/.test(__DIR__));
 probe("__SCRIPTS_DIR__", () => __SCRIPTS_DIR__);
+if (typeof require !== "function") { const m = "This script needs jArchi 1.11 or later, with CommonJS on: in Archi, open Preferences > Scripting and tick \"Enable CommonJS Support\" (no such option: update jArchi first). Then run the script again."; try { window.alert(m); } catch (e) { console.error(m); } exit(); }
 probe("relative require inside a module", () => require(REPO_ROOT + "Develop/_probe_require_a.js").viaRelative);
 probe("relative require with ../ inside a module", () => require(REPO_ROOT + "Develop/_probe_require_a.js").viaParent);
 

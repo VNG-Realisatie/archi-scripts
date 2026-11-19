@@ -15,18 +15,18 @@
  * - a view                       => set default formatting to all elements on the view
  * - a folder with views          => set default formatting to all elements of all views in the folder(s)
  */
+if (typeof require !== "function") { const m = "This script needs jArchi 1.11 or later, with CommonJS on: in Archi, open Preferences > Scripting and tick \"Enable CommonJS Support\" (no such option: update jArchi first). Then run the script again."; try { window.alert(m); } catch (e) { console.error(m); } exit(); }
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
-const Common = require(REPO_ROOT + "_lib/Common.js");
+const Log    = require(REPO_ROOT + "_lib/log");
 const Selection = require(REPO_ROOT + "_lib/selection.js");
 
-Common.initConsoleLog(__FILE__, true);
+Log.start(__FILE__, true);
 let collection = Selection.getVisualSelection($(selection), "*");
 Selection.applyToCollection(collection, SetDefaultFormat);
-Common.finishConsoleLog();
+Log.finish();
 
 function SetDefaultFormat(obj) {
-  Common.debugStackPush(false);
-  Common.debug(`- view "${obj.view.name}", \t${obj} `);
+  Log.debug(`- view "${obj.view.name}", \t${obj} `);
 
   // all types
   obj.fontColor = null;
@@ -63,5 +63,4 @@ function SetDefaultFormat(obj) {
   if ((obj.type == "diagram-model-group" && obj.borderType == BORDER.TABBED) || obj.type == "diagram-model-note") {
     obj.textAlignment = TEXT_ALIGNMENT.LEFT;
   }
-  Common.debugStackPop();
 }

@@ -6,12 +6,14 @@
  *
  * Docs: https://eclipse.dev/elk/reference/
  */
-console.log("Loading engines/elk.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading engines/elk.js");
 
 /** @type {typeof import("../defs")} */
 const Defs = require(REPO_ROOT + "View/lib/defs");
@@ -275,7 +277,7 @@ function _loadELK() {
   try {
     const t0 = Date.now();
     _elk = require(REPO_ROOT + "node_modules/elkjs/index.js");
-    console.log(`ELK layout engine loaded (${Date.now() - t0} ms).`);
+    Log.debug(`ELK layout engine loaded (${Date.now() - t0} ms).`);
   } catch (e) {
     throw new Error("ELK module not loaded. Enable CommonJS in Archi Preferences > Scripting and use GraalVM.");
   }
@@ -288,7 +290,7 @@ function _loadELK() {
  * @returns {LayoutResult}     — { nodes, edges }
  */
 function layout(graph) {
-  const logger = (/** @type {string} */ msg) => console.log("  " + msg);
+  const logger = (/** @type {string} */ msg) => Log.debug("  " + msg);
   const fit = _fitViewSize(graph);
   if (!fit) return _layoutOnce(graph, logger);
   for (const line of fit.lines) logger(line);
@@ -398,6 +400,11 @@ function _fitViewSize(graph) {
     measure(k);
   }
   const chosen = best();
+  if (target === "maxWidth" && chosen.width > goal) Log.warn(`The max width of ${goal} px is not reachable: the narrowest layout is ${size(chosen)}.`, {
+    effect: "the view is wider than asked (connection chains or the widest container set the minimum).",
+    action: "allow a larger max width, or choose another direction or algorithm." });
+  if (target === "aspectRatio" && !fits(chosen)) Log.warn(`The aspect ratio ${goal} is not reached: the closest is ${ratio(chosen).toFixed(2)} (${size(chosen)}).`, {
+    effect: "the view has another shape than asked.", action: "choose another aspect ratio, direction or algorithm." });
   if (target === "maxWidth") {
     return choose(chosen, chosen.width <= goal
       ? `max width ${goal} px → ${size(chosen)}  (elk.aspectRatio ${chosen.k.toFixed(2)})`
@@ -1247,6 +1254,7 @@ function _collectEdgeResults(layouted, edgeMeta, resultNodes, resultEdges, label
     const complete = recs.filter(Boolean).length === meta.segCount;
     if (!complete) {
       log(`⚠ [elk] relation "${relId}": ${recs.filter(Boolean).length}/${meta.segCount} port segments routed — left unrouted`);
+      Log.warn(`Relation ${relId} could not be routed.`, { effect: "its connection is drawn without bendpoints." });
       continue;
     }
     const label = (recs.find(r => r.label) || {}).label || null;

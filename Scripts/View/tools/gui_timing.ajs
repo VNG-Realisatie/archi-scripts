@@ -39,7 +39,7 @@ function time(label, fn) {
 // Module load: leaf-first, so each line costs that module alone (read, parse, top-level code).
 // A module missing from this list is counted with the first one that requires it.
 const MODULES = [
-  "_lib/Common.js", "_lib/archi_folders.js", "_lib/selection.js", "View/lib/rel_filter.js", "View/lib/defs.js",
+  "_lib/log.js", "_lib/Common.js", "_lib/archi_folders.js", "_lib/selection.js", "View/lib/rel_filter.js", "View/lib/defs.js",
   "View/lib/preset_io.js", "View/lib/hidden_properties.js", "View/lib/nesting.js",
   "View/lib/selection_pipeline.js", "View/lib/selection_read.js", "chroma-js", "View/lib/palettes.js",
   "View/lib/appearance.js", "View/lib/label_size.js", "View/lib/engines/engine-utils.js",
@@ -54,6 +54,7 @@ const MODULES = [
 ];
 /** @type {Record<string, any>} */
 const mods = {};
+if (typeof require !== "function") { const m = "This script needs jArchi 1.11 or later, with CommonJS on: in Archi, open Preferences > Scripting and tick \"Enable CommonJS Support\" (no such option: update jArchi first). Then run the script again."; try { window.alert(m); } catch (e) { console.error(m); } exit(); }
 for (const m of MODULES) mods[m] = time(`load  ${m}`, () => require(m.endsWith(".js") ? REPO_ROOT + m : m));
 record("load  all modules", Date.now() - T0);
 
@@ -159,8 +160,8 @@ TabProperties.buildPropertiesTab = function (/** @type {any} */ tabFolder, /** @
   return r;
 };
 
-const Common = mods["_lib/Common.js"];
-Common.initConsoleLog(__FILE__, true);
+const Log = mods["_lib/log.js"];
+Log.start(__FILE__, true);
 
 let uiSelection = $(selection);
 if (commandLine) {   // no selection and no workbench shell
@@ -182,4 +183,4 @@ console.log("");
 console.log("   calls    total      avg      max  (ms)");
 const pad = (/** @type {number} */ v) => String(Math.round(v)).padStart(8);
 for (const [label, s] of stats) console.log(`${pad(s.n)} ${pad(s.total)} ${pad(s.total / s.n)} ${pad(s.max)}  ${label}`);
-Common.finishConsoleLog();
+Log.finish();

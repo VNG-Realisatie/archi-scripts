@@ -14,8 +14,9 @@
  * export does. Every object gets the property "view-architecture export date"; sync_architecture_model.ajs removes
  * from the target model what an older export left behind.
  */
+if (typeof require !== "function") { const m = "This script needs jArchi 1.11 or later, with CommonJS on: in Archi, open Preferences > Scripting and tick \"Enable CommonJS Support\" (no such option: update jArchi first). Then run the script again."; try { window.alert(m); } catch (e) { console.error(m); } exit(); }
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
-const Common       = require(REPO_ROOT + "_lib/Common");
+const Log          = require(REPO_ROOT + "_lib/log");
 const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders");
 const TestViews    = require(REPO_ROOT + "View/test/test_model_views");
 const Content      = require(REPO_ROOT + "View/docs/architecture-model/architecture_model");
@@ -43,7 +44,7 @@ const EXPORT_DATE_KEY = "view-architecture export date";
 // every id changes.
 const ID_NAMESPACE = "671ba4cd6c0951ed93c298f6d15673b1";
 
-Common.initConsoleLog(__FILE__, true);
+Log.start(__FILE__, true);
 try {
   _checkNotLoaded(MODEL_PATH);
   const archModel = $.model.create(MODEL_NAME);
@@ -76,7 +77,7 @@ try {
 } catch (error) {
   console.error(`> ${typeof /** @type {Error} */ (error).stack === "undefined" ? error : /** @type {Error} */ (error).stack}`);
 }
-Common.finishConsoleLog();
+Log.finish();
 
 /**
  * Saving over the file of a model that is open would give two models with one file.

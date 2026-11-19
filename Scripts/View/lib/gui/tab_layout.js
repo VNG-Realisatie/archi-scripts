@@ -2,12 +2,14 @@
  * Layout tab of the View dialog: algorithm, nesting and reverse conditions, containers, flow, elements, connections, view size.
  * Also the layout param → widget table (PARAM_WIDGETS) and the controls that follow the chosen algorithm.
  */
-console.log("Loading tab_layout.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading tab_layout.js");
 
 /** @type {typeof import("../defs")} */
 const Defs = require(REPO_ROOT + "View/lib/defs");

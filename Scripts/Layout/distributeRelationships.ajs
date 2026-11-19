@@ -10,14 +10,15 @@
  *   - and then B=>A relationships.
  * - A & B could be nested in different visual objects.
  */
+if (typeof require !== "function") { const m = "This script needs jArchi 1.11 or later, with CommonJS on: in Archi, open Preferences > Scripting and tick \"Enable CommonJS Support\" (no such option: update jArchi first). Then run the script again."; try { window.alert(m); } catch (e) { console.error(m); } exit(); }
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
-const Common = require(REPO_ROOT + "_lib/Common.js");
+const Log    = require(REPO_ROOT + "_lib/log");
 
 // parameters
 const verticalMaxStep = 100; // 20
 const horizontalMaxStep = 100; // 30
 
-Common.initConsoleLog(__FILE__, true);
+Log.start(__FILE__, true);
 
 let elements = $(selection).filter("element");
 let e1 = elements.first();
@@ -25,7 +26,7 @@ let e2 = elements.not($(e1)).first();
 
 if (!e1 || !e2) {
   window.alert("2 elements joined by relation(s) have to be selected");
-  Common.finishConsoleLog();
+  Log.finish();
   exit();
 }
 
@@ -37,7 +38,7 @@ let rels = $(e1)
 
 if (!rels.size()) {
   window.alert("2 elements have to share relation(s)");
-  Common.finishConsoleLog();
+  Log.finish();
   exit();
 }
 
@@ -79,7 +80,7 @@ if (
   layout = "vertical";
 } else {
   window.alert("No common surface between the 2 elements");
-  Common.finishConsoleLog();
+  Log.finish();
   exit();
 }
 
@@ -163,4 +164,4 @@ if (layout === "horizontal") {
   });
 }
 
-Common.finishConsoleLog();
+Log.finish();

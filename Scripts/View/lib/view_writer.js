@@ -3,12 +3,14 @@
  * only code that changes what is on a view; it decides nothing, it follows the plan step by step.
  * Archi side: jArchi calls only. A step that fails is logged and the write goes on.
  */
-console.log("Loading view_writer.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading view_writer.js");
 
 /** @type {typeof import("./defs")} */
 const Defs = require(REPO_ROOT + "View/lib/defs");
@@ -31,9 +33,12 @@ const CREATE_OBJECT_TYPES = ["diagram-model-note", "diagram-model-group", "diagr
  * managed-occurrence records rewritten.
  * @param {ArchimateView} view
  * @param {WritePlan}     plan
- * @returns {Map<string, VisualObject>}  node id → its visual on the view
+ * @returns {{ written: Map<string, VisualObject>, onView: ObjectsOnView, failed: string[] }}
+ *   written: node id → its visual on the view; onView: what is on the view after it; failed: the write
+ *   steps that failed (each in the log), the write went on
  */
 function applyWritePlan(view, plan) {
+  _failed = [];
   /** @type {Map<string, VisualObject | VisualConnection>} */
   const onView = new Map();   // what is on the view before the write, by id
   $(view).find().each(o => onView.set(String(o.id), o));
@@ -64,11 +69,14 @@ function applyWritePlan(view, plan) {
   const copied = plan.nodes.filter(w => "source" in w && written.has(w.node)).length;
   const atRoot = plan.userAtRoot ? ` · ${plan.userAtRoot} user content the settings place nowhere, at view root` : "";
   const copiedNote = copied ? ` · ${copied} copied from the view read` : "";
-  console.log(`  Occurrences: ${kept} kept · ${written.size - kept - copied} created${copiedNote} · ${removed} managed removed · ${plan.records.length} managed on view${atRoot}`);
-  _logObjectsOnView(view, plan.nestings.length + plan.keptNestings);
-  console.log(`View "${view.name}" written`);
-  return written;
+  Log.debug(`  Occurrences: ${kept} kept · ${written.size - kept - copied} created${copiedNote} · ${removed} managed removed · ${plan.records.length} managed on view${atRoot}`);
+  const objects = _logObjectsOnView(view, plan.nestings.length + plan.keptNestings);
+  Log.debug(`View "${view.name}" written`);
+  return { written, onView: objects, failed: _failed };
 }
+
+/** The write steps of the current applyWritePlan that failed. @type {string[]} */
+let _failed = [];
 
 /**
  * Write the nodes, parents first: an existing visual is moved when its container changes and gets
@@ -85,7 +93,7 @@ function _writeNodes(view, nodes, onView) {
   const written = new Map();
   for (const w of nodes) {
     const container = w.parent ? written.get(w.parent) : view;
-    if (!container) { console.error(`Not written: ${w.node}, its container ${w.parent} was not written`); continue; }
+    if (!container) { _failure(`not written: ${w.node}, its container ${w.parent} was not written`); continue; }
     const b = w.bounds;
     if ("visual" in w) {
       const visual = /** @type {VisualObject} */ (_get(onView, w.visual));   // Cast: a kept node's visual is an object
@@ -121,7 +129,7 @@ function _copyVisual(container, source, b) {
     if (source.concept) copy = container.add(source.concept, b.x, b.y, b.width, b.height);
     else if (CREATE_OBJECT_TYPES.includes(type)) copy = container.createObject(type, b.x, b.y, b.width, b.height);
     else if (type === "diagram-model-reference" || type === "archimate-diagram-model") copy = container.createViewReference(source.refView, b.x, b.y, b.width, b.height);
-    else console.log(`  Not copied: ${type} "${source.name || source.id}" (jArchi cannot create it)`);
+    else _failure(`not copied: ${type} "${source.name || source.id}" (jArchi cannot create it)`);
   });
   if (!copy) return null;
   const made = /** @type {VisualObject} */ (copy);   // Cast: tsc does not follow the assignment inside the step
@@ -182,7 +190,7 @@ function _copyAttributes(source, copy, attributes, own) {
  * @param {(ref: VisualRef) => VisualObject | VisualConnection | undefined} end
  */
 function _writeConnections(view, plan, onView, end) {
-  console.log(`  Writing ${plan.connections.length} connections · ${plan.nestings.length + plan.keptNestings} nestings...`);
+  Log.debug(`  Writing ${plan.connections.length} connections · ${plan.nestings.length + plan.keptNestings} nestings...`);
   for (const c of plan.connections) {
     const connection = "id" in c ? /** @type {VisualConnection} */ (_get(onView, c.id))   // Cast: a connection id
       : "from" in c ? _copyConnection(view, c, end) : _addConnection(view, c, end);
@@ -202,7 +210,7 @@ function _writeNestings(view, plan, onView, end) {
   for (const n of plan.nestings) if (_addConnection(view, n, end)) created++;
   for (const id of plan.removedLines) if (_attempt(`remove line of nested relation ${id}`, () => _get(onView, id).delete())) removed++;
   const linesNote = removed ? ` · ${removed} line${removed !== 1 ? "s" : ""} of nested relations removed` : "";
-  console.log(`  Nestings: ${created} created · ${plan.keptNestings} existing${linesNote}`);
+  Log.debug(`  Nestings: ${created} created · ${plan.keptNestings} existing${linesNote}`);
 }
 
 /**
@@ -216,7 +224,7 @@ function _addConnection(view, c, end) {
   const source = end(c.source), target = end(c.target);
   if (!source || !target) return null;
   try { return view.add(c.relation, source, target); }
-  catch (e) { console.error(`Failed to add relation ${c.relation.id}: ${e}`); return null; }
+  catch (e) { _failure(`add relation ${c.relation.id}: ${e}`); return null; }
 }
 
 /**
@@ -246,7 +254,7 @@ function _logNodes(nodes) {
     if (xElements   > 0) parts.push(`${xElements} element${xElements !== 1 ? "s" : ""}`);
     line += ` (${extra.length} extra multiple occurrence${extra.length !== 1 ? "s" : ""}: ${parts.join(" · ")})`;
   }
-  console.log(line + "...");
+  Log.debug(line + "...");
 }
 
 /**
@@ -255,6 +263,7 @@ function _logNodes(nodes) {
  * candidates were dropped by Archi's one-parent-per-child rule (see "Nestings applied").
  * @param {ArchimateView} view
  * @param {number}        nestings  nesting connections created or kept
+ * @returns {ObjectsOnView}
  */
 function _logObjectsOnView(view, nestings) {
   let elements = 0, relations = 0, diagramObjects = 0, diagramConnections = 0;
@@ -264,7 +273,8 @@ function _logObjectsOnView(view, nestings) {
   Object.keys(Defs.DIAGRAM_TYPES).forEach(dt => { try { $(view).find(dt).each(() => {
     if (dt === "diagram-model-connection") diagramConnections++; else diagramObjects++;
   }); } catch (e) {} });
-  console.log(`  Objects on view: ${elements} elements · ${relations - nestings} connections · ${nestings} nestings · ${diagramObjects} diagram objects · ${diagramConnections} diagram connections`);
+  Log.debug(`  Objects on view: ${elements} elements · ${relations - nestings} connections · ${nestings} nestings · ${diagramObjects} diagram objects · ${diagramConnections} diagram connections`);
+  return { elements, connections: relations - nestings, nestings, diagramObjects, diagramConnections };
 }
 
 /**
@@ -284,7 +294,16 @@ function _get(onView, id) {
  */
 function _attempt(what, step) {
   try { step(); return true; }
-  catch (e) { console.error(`Failed to ${what}: ${e}`); return false; }
+  catch (e) { _failure(`${what}: ${e}`); return false; }
+}
+
+/**
+ * A write step that failed: in the log; the view's status line sums them up.
+ * @param {string} what
+ */
+function _failure(what) {
+  _failed.push(what);
+  Log.detail("WARN", `Write step failed: ${what}`);
 }
 
 module.exports = { applyWritePlan };

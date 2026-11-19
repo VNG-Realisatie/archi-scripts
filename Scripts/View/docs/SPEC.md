@@ -419,12 +419,13 @@ System-wide, grouped by theme. Code reviews enforce them.
 
 ## 12. Resilience & error model
 
-- **Engine failure.** If an adapter throws or returns an unusable result, the run aborts cleanly with a logged reason. **No partial view is written**, and an existing view of that name is left as it was: a Create action creates or empties its view only after the layout succeeded. Where an algorithm is known to fail on certain graph shapes, the adapter pre-conditions the graph (e.g. cycle or forest pre-processing) rather than letting the engine crash.
+- **Engine failure.** If an adapter throws or returns an unusable result, that view fails with its reason. **No partial view is written**, and an existing view of that name is left as it was: a Create action creates or empties its view only after the layout succeeded. Where an algorithm is known to fail on certain graph shapes, the adapter pre-conditions the graph (e.g. cycle or forest pre-processing) rather than letting the engine crash.
 - **Target resolution failure.** If a Modify action cannot identify its view, or a Create action cannot create or locate its folder, the run aborts with a message; nothing is written.
-- **Empty or invalid selection.** The run proceeds and produces an empty (or unchanged) view; this is not an error.
+- **Empty or invalid selection.** Nothing to place is not an error: the view is skipped with the reason and what to do; no view is written, and a Modify action leaves its view unchanged. Without a selected model the run does not start, and says so.
 - **Invalid preset.** Validation repairs its shape: unknown keys are dropped with a warning, missing keys defaulted, and an invalid condition is skipped with a warning. A preset with another `schemaVersion` is refused with a message naming the expected version.
 - **Partial results.** Edges the engine dropped have any stale routing cleared. A nesting that cannot be drawn as containment is drawn as a connection, never left as it was.
-- **A failed run** shows its reason in a message box from the entry point; the detail goes to the console. A failure is never only on the console. A preset that cannot be saved says so; the dialog does not act as if it was saved.
+- **A failed view** stays with that view: a run of several views (*One view each*, *Regenerate*) makes the others. A failure before the views (an invalid preset or configuration, no folder for new views) stops the run before anything is written.
+- **The user is told.** A failed run shows its reason on the console and in a message box from the entry point; the detail goes to the log file. A run ends with a message box when a view failed or was skipped, or no view was written, so the user does not look for a view that is not there; warnings alone stay on the console. A preset that cannot be saved says so; the dialog does not act as if it was saved.
 - **One run is one undo step.** One undo reverts everything a run changed, of a failed run too. An engine failure writes nothing (above); a failure while writing or styling can leave the view partly written, and that undo restores it.
 - **Managed occurrences.** A record that no longer matches the view is dropped. Removing a managed occurrence removes the connections drawn to it, hand-drawn ones included. A view without records (made before records existed) holds only user content.
 
@@ -443,7 +444,7 @@ A rebuild is accepted when rules 1, 3, 11 and 12 hold in tests, and:
 ## 14. Development rules
 
 - **Schema migration.** Every preset carries a `schemaVersion`. An older shape is migrated by an explicit, documented one-shot migration; an unmigrated preset is refused with a message, never silently reinterpreted. Unknown keys are reported, never dropped silently. New configuration keys are added to the defaults in the same change that introduces them.
-- **Logging.** Console output mirrors the orchestration phases as named steps (validate → selection → layout graph → layout → target → write). Each step has a consistent, column-stable count block, so prediction and result can be compared at a glance ([console logging](reference/engines.md#console-logging)).
+- **Logging.** The console is for the user: per run the action, preset, selection, settings and target; per view a status line (new, updated, overwritten, skipped, failed) with what came from the selection, what the steps added, what is on the view and its size; at the end the result and the duration. Each warning and error says what happened, its effect and what to do. Everything else goes to a log file per run: the orchestration steps (selection → object set → layout graph → layout → target → write) with their column-stable count blocks, so prediction and result can be compared, engine detail and timings ([console and log file](reference/engines.md#console-and-log-file)).
 - **Rule hierarchy**: [`AGENTS.md`](../../../AGENTS.md) § Hierarchy; the View rules are in [`Scripts/View/AGENTS.md`](../AGENTS.md). This spec is the authority on what the View system does.
 
 ---
@@ -457,4 +458,4 @@ Functional detail per subject; not part of the readable body.
 | [reference/gui.md](reference/gui.md) | Display-label map, dialog mock-ups and per-control behaviour, generated option tables |
 | [reference/presets.md](reference/presets.md) | Preset JSON schema, condition lists |
 | [reference/selection-nesting.md](reference/selection-nesting.md) | Selection run order, counting rules, nesting reference, sizing refinements |
-| [reference/engines.md](reference/engines.md) | Runtime and engines, layout graph and result, capability matrix, view size per engine, console logging |
+| [reference/engines.md](reference/engines.md) | Runtime and engines, layout graph and result, capability matrix, view size per engine, console and log file |

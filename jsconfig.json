@@ -19,6 +19,7 @@
     "skills/jarchi-scripting/jarchi-globals.d.ts",
     "types/*.d.ts",
     "Scripts/_lib/Common.js",
+    "Scripts/_lib/log.js",
     "Scripts/_lib/archi_folders.js",
     "Scripts/_lib/selection.js",
     "Scripts/View/lib/*.js",

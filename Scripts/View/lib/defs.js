@@ -8,9 +8,11 @@
  * Single shared import: the diagram-object type list from _lib/selection.js
  * (SSOT for what counts as a canvas diagram object).
  */
-console.log("Loading defs.js");
 
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+/** @type {typeof import("../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading defs.js");
 /** @type {typeof import("../../_lib/selection")} */
 const { DIAGRAM_OBJECT_TYPES } = require(REPO_ROOT + "_lib/selection");
 /** @type {typeof import("./rel_filter")} */
@@ -1033,7 +1035,7 @@ function validatePreset(raw) {
       const val = (key === "direction" && _DIR_MIGRATE[rawVal]) ? _DIR_MIGRATE[rawVal] : rawVal;
       const opts = alg.supportedOptions[key];
       if (opts && !opts.includes(val)) {
-        console.log(`Warning: param "${key}" value "${val}" not supported by ${preset.algorithm}. Using default.`);
+        Log.warn(`Preset value ${key} "${val}" is not supported by ${preset.algorithm}; the default is used.`, { action: "choose a supported value and save the preset." });
         continue;
       }
       /** @type {Record<string, unknown>} */ (preset.params)[key] = val;   // Cast: key is a DEFAULT_PRESET.params key

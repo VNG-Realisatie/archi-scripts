@@ -55,11 +55,12 @@ Runtime libraries are copied into the repo, not installed (rule 6). Versions are
 
 ## Shared modules (`Scripts/_lib/`)
 
-Signatures are in each module's JSDoc (type-checked for Common, selection, archi_folders).
+Signatures are in each module's JSDoc (type-checked for Common, log, selection, archi_folders).
 
 | Module | Use it for |
 |---|---|
-| `Common.js` | Start/finish console banner, timing, `debug` / `info` logging, `concept()` (visual → concept), `formatRelation`, UUID, column output |
+| `log.js` | All logging: `start` / `finish` of a run (console banner, jArchi version check, log file), `info` / `warn` / `error` on the console and in the log file, `debug` / `detail` in the log file only, `columns`; items of a run with their status (`beginItem` / `endItem`, `summary`). Console for the user, log file (`<Archi workspace>/logs/archi-scripts/`) for troubleshooting |
+| `Common.js` | Timing (`startCounter` / `endCounter`), `concept()` (visual → concept), `formatRelation`, UUID, date formatting |
 | `selection.js` | Turning `$(selection)` into model concepts (`getSelection`) or visuals (`getVisualSelection`), expanding folders, views and view references |
 | `archi_folders.js` | Folder paths: get-or-create (`getFolderPath`), print a path, delete empty folders |
 | `doEach.js` | Bendpoint geometry: absolute bendpoints, L/S-shaped and orthogonal connections, spreading connections |
@@ -68,13 +69,13 @@ Signatures are in each module's JSDoc (type-checked for Common, selection, archi
 
 ## An entry script
 
-`.ajs` files are the scripts users run; keep them thin and put logic in modules. A working example to copy: `Scripts/View/_default_new_view.ajs` (REPO_ROOT, require, `Common.initConsoleLog`, one call, `Common.finishConsoleLog`). Guard `model.isSet()` when nothing else does.
+`.ajs` files are the scripts users run; keep them thin and put logic in modules. A working example to copy: `Scripts/View/_default_new_view.ajs`: the CommonJS check, REPO_ROOT, require, `Log.start`, one call, `Log.finish`. The CommonJS check is the first line of every `.ajs` that requires, the same everywhere: without *Enable CommonJS Support* jArchi has no `require`, so no module can check it. The scripts need jArchi 1.11 or later (`MIN_JARCHI` in `_lib/log.js`, checked by `Log.start`; the CommonJS line names it too). Guard `model.isSet()` when nothing else does.
 
 ## Testing
 
 | What | How |
 |---|---|
-| Types and API use (View/lib, three `_lib` modules) | `npm run typecheck` (`types/README.md`) |
+| Types and API use (View/lib, four `_lib` modules) | `npm run typecheck` (`types/README.md`) |
 | The View subsystem: test levels, judging a result, test data | `Scripts/View/docs/ARCHITECTURE.md` § Development and testing |
 | View test model and baseline | `Scripts/View/test/model/view-test.archimate` is built by `Scripts/View/test/build_test_model.ajs` with `test_model_views.js`. `Scripts/View/test/run_baseline.ajs` writes the 12-run matrix into its `Views/Baseline`; the agent runs it through Archi's command line on a copy (`Scripts/View/tools/archi_cli.sh`) and checks it with `compare-views.js`, `console_checks.js`, and `render_views.ajs` + `svg_checks.js` (skill `view-baseline`); `run_large.ajs` times view 5 in Archi. `Scripts/View/tools/layout_checks.js` tests every run against the layout rules. `Scripts/View/tools/tiles_test.js` checks the Tiles engine on synthetic graphs. `Scripts/View/tools/compose_test.js` checks the object set and predicted counts on the test model; `Scripts/View/tools/counts_test.js` checks the dialog's counts on it. `Scripts/View/tools/write_plans.js --check` and `tools/compare-layouts.js --check` compare one fingerprint per write plan (preset × algorithm × view × action) and per layout with the expected files in `Scripts/View/test/expected/` (`--write` rewrites them for a meant change). Both tools run Graphviz through `dot` on the PATH (`Scripts/View/tools/process_runner_node.js`) |
 | Other scripts, dialogs | Run the script in Archi on a small test model; golden path plus empty selection, one element, deep nesting |

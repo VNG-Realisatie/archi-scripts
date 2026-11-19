@@ -16,9 +16,11 @@
  *   modified   made with unsaved settings, or changed by Expand view since: Regenerate differs
  *   script     made by a script that works on after the run: Regenerate names it and refuses
  */
-console.log("Loading view_origin.js");
 
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+/** @type {typeof import("../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading view_origin.js");
 /** @type {typeof import("../../_lib/archi_folders")} */
 const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders");
 /** @type {typeof import("./defs")} */

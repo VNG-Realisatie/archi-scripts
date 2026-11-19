@@ -3,12 +3,14 @@
  * Rename… · Delete, and the preset's description. Loading a preset fills every tab through the
  * dialog's callbacks (ctx.syncToUI, ctx.saveUI, ctx.recount).
  */
-console.log("Loading preset_row.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading preset_row.js");
 
 /** @type {typeof import("../preset_io")} */
 const PresetIO = require(REPO_ROOT + "View/lib/preset_io");

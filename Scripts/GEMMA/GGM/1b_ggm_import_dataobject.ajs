@@ -4,15 +4,16 @@
  * This script imports GGM data-objects and their relations to Beleidsdomeinen.
  * Also tags deleted GGM concepts.
  */
+if (typeof require !== "function") { const m = "This script needs jArchi 1.11 or later, with CommonJS on: in Archi, open Preferences > Scripting and tick \"Enable CommonJS Support\" (no such option: update jArchi first). Then run the script again."; try { window.alert(m); } catch (e) { console.error(m); } exit(); }
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
-const Common = require(REPO_ROOT + "_lib/Common.js");
+const Log    = require(REPO_ROOT + "_lib/log");
 const Sync = require(REPO_ROOT + "Sync from CSV/Include_LoadAndSync.js");
 
 const Config = require(__DIR__ + "config.default.js");
 const GgmGemma = require(__DIR__ + "include_ggm_gemma.js");
 const GgmImport = require(__DIR__ + "include_ggm_import.js");
 
-Common.initConsoleLog(__FILE__, true);
+Log.start(__FILE__, true);
 
 try {
   const importFile = GgmImport.getImportFile(Config);
@@ -41,7 +42,7 @@ try {
   console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
 
-Common.finishConsoleLog();
+Log.finish();
 
 /**
  * Propagate deleted status from Data-objects to the Business-objects they realize

@@ -4,7 +4,8 @@
 # Usage: Scripts/View/tools/archi_cli.sh <script.ajs> [model.archimate] [out dir]
 #   model:   default Scripts/View/test/model/view-test.archimate; copied, never changed in place (a model in the
 #            out dir is used as it is: a later step on a copy)
-#   out dir: default a new temporary folder; gets the copy (as the script saves it) and <script>.console.txt
+#   out dir: default a new temporary folder; gets the copy (as the script saves it), <script>.console.txt and
+#            <script>.log (the run's log file, its path from the line after the last "Log file:")
 #   ARCHI_HOME: the Archi folder, default ~/Tools/Archi
 # Prints the out dir; the exit code is Archi's.
 #
@@ -26,5 +27,7 @@ status=0
 GDK_BACKEND=x11 GTK_THEME=Adwaita SWT_GTK3=1 GTK_IM_MODULE=ibus GTK_OVERLAY_SCROLLING=0 UBUNTU_MENUPROXY=0 \
   "$archi/Archi" -application com.archimatetool.commandline.app -consoleLog -nosplash \
   --loadModel "$copy" --script.runScript "$script" > "$out/$(basename "$script" .ajs).console.txt" 2>&1 || status=$?
+log=$(sed -n '/^Log file:$/{n;p}' "$out/$(basename "$script" .ajs).console.txt" | tail -1)   # the path on the line after
+[ -n "$log" ] && cp "$log" "$out/$(basename "$script" .ajs).log"
 echo "$out"
 exit $status

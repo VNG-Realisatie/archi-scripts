@@ -19,7 +19,7 @@ CI (`.github/workflows/check.yml`) runs `npm ci`, the typecheck and the Node tes
 |---|---|
 | `Scripts/View/lib/*.js`, `Scripts/View/lib/engines/*.js` | View subsystem: pipeline, writer, adapters |
 | `Scripts/View/lib/gui/*.js` | View dialog (SWT / JFace) |
-| `Scripts/_lib/Common.js`, `archi_folders.js`, `selection.js` | Shared modules the View code loads |
+| `Scripts/_lib/Common.js`, `log.js`, `archi_folders.js`, `selection.js` | Shared modules the View code loads; `log.js` is pure (also on `jsconfig.pure.json`) |
 
 `jsconfig.pure.json` checks the pure files (listed in its `include`) a second time without `skills/jarchi-scripting/jarchi-globals.d.ts`, so `$`, `model`, `selection`, `window`, `Java`, `Packages`, `exit` or `load` in a pure file, or in a module it imports, is a type error. A file joins the list when it and everything it imports are pure.
 

@@ -14,12 +14,14 @@
  * closest to the Aspect ratio, or, when both are off, the one closest to portrait (a preference, not a target).
  * Connections are not routed (straight lines), as with Pack.
  */
-console.log("Loading engines/tiles.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading engines/tiles.js");
 
 /** @type {typeof import("./engine-utils")} */
 const EngineUtils = require(REPO_ROOT + "View/lib/engines/engine-utils");
@@ -144,7 +146,7 @@ function chunksOf(tiles, gap, widthCap) {
  * @returns {LayoutResult}
  */
 function layout(graph) {
-  const log = (/** @type {string} */ msg) => console.log("  " + msg);
+  const log = (/** @type {string} */ msg) => Log.debug("  " + msg);
   const o = graph.options;
   const parentMap = graph._parentMap || {};
   const gap = o.elementSpacing || 0;

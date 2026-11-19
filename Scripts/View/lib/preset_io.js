@@ -10,12 +10,14 @@
  *   Scripts/View/presets/Default.json         — the Default preset: the code defaults, or the user's own
  *   Scripts/View/presets/_session.json        — last-used session (excluded from git)
  */
-console.log("Loading preset_io.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading preset_io.js");
 
 /** @type {typeof import("./defs")} */
 const Defs      = require(REPO_ROOT + "View/lib/defs");
@@ -146,7 +148,7 @@ function listFolders() {
  * @returns {Preset} validated preset, with description preserved
  * @throws if file not found
  */
-function readPreset(name, reportUnknownKeys = message => console.log(`Warning: ${message}`)) {
+function readPreset(name, reportUnknownKeys = message => Log.warn(message)) {
   if (name === DEFAULT_PRESET_NAME) ensureDefault();
   const path = _presetPath(name);
   const raw  = readJSON(path);
@@ -171,7 +173,7 @@ function writePreset(name, preset, opts) {
   // Dialog/session state (action, _lastTabIndex, …) is not part of a preset.
   const clean = Object.fromEntries(Object.entries(preset).filter(([k]) => k !== "action" && !k.startsWith("_")));
   writeJSON(_presetPath(name), clean);
-  if (!(opts && opts.quiet)) console.log(`Preset saved: "${name}"`);
+  if (!(opts && opts.quiet)) Log.info(`Preset saved: "${name}"`);
 }
 
 /**
@@ -205,7 +207,7 @@ function ensureDefault() {
     const preset = JSON.parse(JSON.stringify(Defs.DEFAULT_PRESET));
     preset.name = DEFAULT_PRESET_NAME;
     writeJSON(_presetPath(DEFAULT_PRESET_NAME), preset);
-    console.log("Created Default preset.");
+    Log.info("Created Default preset.");
   }
 }
 
@@ -231,7 +233,8 @@ function logDefaultDifferences() {
   const diffs = defaultDifferences();
   if (!diffs.length) return;
   const lines = diffs.map(d => `  ${d.key}  ${DEFAULT_PRESET_NAME}.json: ${JSON.stringify(d.file)}  code: ${JSON.stringify(d.code)}`);
-  console.log(`Preset "${DEFAULT_PRESET_NAME}" differs from the code defaults:\n` + lines.join("\n"));
+  Log.info(`Preset "${DEFAULT_PRESET_NAME}" differs from the code defaults in ${diffs.length} setting${diffs.length === 1 ? "" : "s"} (details in the log file).`);
+  Log.detail("INFO", `Preset "${DEFAULT_PRESET_NAME}" differs from the code defaults:\n` + lines.join("\n"));
 }
 
 /**
@@ -264,7 +267,7 @@ function readSession() {
     if (raw.description !== undefined) validated.description = raw.description;
     return validated;
   } catch (e) {
-    console.log(`Session file invalid (${e}), using defaults.`);
+    Log.warn(`The session file is invalid (${e}); the defaults are used.`, { effect: "the dialog opens with the default settings." });
     return JSON.parse(JSON.stringify(Defs.DEFAULT_PRESET));
   }
 }
@@ -276,7 +279,7 @@ function readSession() {
 function writeSession(preset) {
   // Not a preset: a session that cannot be saved does not stop the dialog or the run.
   try { writeJSON(presetDir() + SESSION_FILENAME, preset); }
-  catch (e) { console.error(`Session not saved: ${/** @type {Error} */ (e).message}`); }
+  catch (e) { Log.warn(`Session not saved: ${/** @type {Error} */ (e).message}`, { effect: "the dialog does not remember these settings." }); }
 }
 
 if (typeof module !== "undefined" && module.exports) {

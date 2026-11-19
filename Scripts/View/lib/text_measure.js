@@ -4,7 +4,10 @@
  * where jArchi runs scripts. Where a line may break comes from Java too, and how Archi creates a new
  * element visual from its preferences. The Node harness has its own estimate (tools/text_measure_node.js).
  */
-console.log("Loading text_measure.js");
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+/** @type {typeof import("../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading text_measure.js");
 
 const SWT         = Java.type("org.eclipse.swt.SWT");
 const Display     = Java.type("org.eclipse.swt.widgets.Display");

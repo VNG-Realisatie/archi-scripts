@@ -1,12 +1,14 @@
 /**
  * Selection tab of the View dialog: the current selection, its filters and the Expand selection step blocks.
  */
-console.log("Loading tab_selection.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading tab_selection.js");
 
 /** @type {typeof import("../defs")} */
 const Defs = require(REPO_ROOT + "View/lib/defs");

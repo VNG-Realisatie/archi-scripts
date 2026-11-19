@@ -6,12 +6,14 @@
  * on stdout. Without Node the adapter runs in the script itself, as before. Where `node` is: the
  * View configuration (Scripts/View/config.default.js, config.js), through the runtime's runner.
  */
-console.log("Loading node_layout.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading node_layout.js");
 
 /** @type {typeof import("./engines/registry")} */
 const Registry = require(REPO_ROOT + "View/lib/engines/registry");
@@ -26,7 +28,7 @@ const ADAPTER_FIELDS = /** @type {const} */ ([
 ]);
 
 /**
- * @typedef {{ text: string, error: boolean }} NodeLayoutLine  one console line of the adapter, in order
+ * @typedef {{ level: import("../../_lib/log").Level, text: string }} NodeLayoutLine  one log line of the adapter, in order
  * @typedef {{ lines: NodeLayoutLine[], ms: number, result?: LayoutResult, error?: string }} NodeLayoutOutput
  */
 
@@ -45,7 +47,10 @@ function layout(graph, engine, runtime) {
   const input = JSON.stringify({ engine, config, graph: _adapterInput(graph) });
   const out = runProcess(NODE_BIN, [NODE_LAYOUT_SCRIPT], input, NODE_LAYOUT_TIMEOUT_S);   // a configured path not found throws
   if (out.state === "not-found") {
-    console.log(`  Layout in Archi: '${NODE_BIN}' not found on the PATH — install Node.js (nodejs.org) for a faster layout, or set nodePath in Scripts/View/config.js`);
+    Log.debug(`  Layout in Archi: '${NODE_BIN}' not found on the PATH — install Node.js (nodejs.org) for a faster layout, or set nodePath in Scripts/View/config.js`);
+    Log.warn(`Node.js ('${NODE_BIN}') is not found, so the layout runs in Archi.`, {
+      effect: "the layout takes much longer (often 10×).",
+      action: "install Node.js (nodejs.org), or set nodePath in Scripts/View/config.js." });
     return adapter.layout(graph, runProcess);
   }
   if (out.state === "timeout") {
@@ -53,12 +58,9 @@ function layout(graph, engine, runtime) {
   }
   if (out.exitCode !== 0) throw new Error(`Node layout exited with code ${out.exitCode}.\n${out.stderr.trim()}`);
   const output = /** @type {NodeLayoutOutput} */ (JSON.parse(out.stdout));   // Cast: written by node_layout_run.js
-  for (const line of output.lines) {
-    if (line.error) console.error(line.text);
-    else console.log(line.text);
-  }
+  for (const line of output.lines) Log.write(line.level, line.text);
   if (output.error !== undefined) throw new Error(output.error);
-  console.log(`  Layout in Node: ${output.ms} ms layout · ${Date.now() - t0 - output.ms} ms process`);
+  Log.debug(`  Layout in Node: ${output.ms} ms layout · ${Date.now() - t0 - output.ms} ms process`);
   return /** @type {LayoutResult} */ (output.result);   // Cast: set whenever error is not
 }
 

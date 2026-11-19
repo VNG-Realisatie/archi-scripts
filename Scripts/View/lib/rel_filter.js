@@ -27,7 +27,10 @@
  * This module is pure: no Archi, no Java. Type ids are validated against sets the caller passes
  * in (see defs.validatePreset), so it does not depend on defs.js.
  */
-console.log("Loading rel_filter.js");
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+/** @type {typeof import("../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading rel_filter.js");
 
 const MODES       = Object.freeze(["include", "exclude"]);
 const DIRECTIONS  = Object.freeze(["either", "outgoing", "incoming"]);
@@ -101,7 +104,7 @@ function defaultCondition(kind) {
  */
 function normalizeCondition(kind, raw, valid, where) {
   const K = KINDS[kind];
-  const bad = (/** @type {string} */ msg) => { console.log(`Warning: ${where}: ${msg}; condition skipped.`); return null; };
+  const bad = (/** @type {string} */ msg) => { Log.warn(`${where}: ${msg}; the condition is skipped.`, { action: "correct the condition and save the preset." }); return null; };
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return bad("not an object");
 
   /** @type {Record<string, unknown>} */

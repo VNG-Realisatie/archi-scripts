@@ -1,2 +1,5 @@
-baseline one_each 3 Network: Warning: 2 element types selected for One view each. Consider filtering to one type.
-AlgoTwopi one_each 3 Network: Warning: 2 element types selected for One view each. Consider filtering to one type.
+baseline new_view 1 Nesting: Circular nesting between "Capability P", "Capability Q".
+baseline expand_view 2 Edited: Circular nesting between "Capability P", "Capability Q".
+baseline layout_only 2 Edited: Circular nesting between "Capability P", "Capability Q".
+baseline one_each 3 Network: The selection holds 2 element types for One view each (business-process, system-software).
+AlgoTwopi one_each 3 Network: The selection holds 2 element types for One view each (business-process, system-software).

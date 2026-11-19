@@ -12,12 +12,14 @@
  * No per-action branches in the plan or the writer. Action only determines (a) which objects feed
  * the layout and (b) which view is the target.
  */
-console.log("Loading generate_view.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading generate_view.js");
 
 /** @type {typeof import("../../_lib/Common")} */
 const Common       = require(REPO_ROOT + "_lib/Common");
@@ -137,13 +139,13 @@ function generate_view(rawPreset, uiSelection, actionId, options = {}) {
   const _dropped = Object.keys(_rawParams).filter(k => !(k in preset.params)
     && _rawParams[k] !== undefined && _rawParams[k] !== null
     && !(Array.isArray(_rawParams[k]) && _rawParams[k].length === 0));
-  if (_dropped.length) console.log(`Algorithm "${preset.algorithm}" ignores inactive params: ${_dropped.join(", ")}`);
+  if (_dropped.length) Log.debug(`Algorithm "${preset.algorithm}" ignores inactive params: ${_dropped.join(", ")}`);
   if (_rawParams.connectionsMode !== preset.params.connectionsMode && preset.params.connectionsMode !== undefined)
-    console.log(`Connections: "${preset.params.connectionsMode}" (Across containers not possible with ${connectionsModeLock(preset.algorithm, _rawParams)})`);
+    Log.debug(`Connections: "${preset.params.connectionsMode}" (Across containers not possible with ${connectionsModeLock(preset.algorithm, _rawParams)})`);
 
-  console.log(`\n=== generate_view ===`);
-  console.log(`Action: ${action}`);
-  console.log(`Algorithm: ${preset.algorithm}`);
+  Log.debug(`\n=== generate_view ===`);
+  Log.debug(`Action: ${action}`);
+  Log.debug(`Algorithm: ${preset.algorithm}`);
   {
     const p = preset.params;
     const parts = [
@@ -154,31 +156,23 @@ function generate_view(rawPreset, uiSelection, actionId, options = {}) {
       `size=${p.elementWidth ?? "—"}×${p.elementHeight ?? "—"}`,
       (p.nestingConditions && p.nestingConditions.length) && `nesting=${p.nestingConditions.length}conditions containerAlgo=${p.containerAlgorithm || "(same)"}  connMode=${p.connectionsMode}`,
     ].filter(Boolean);
-    console.log(`Params: ${parts.join("  ")}`);
+    Log.debug(`Params: ${parts.join("  ")}`);
   }
-  {
-    // Params without a dialog control (defs.HIDDEN_PARAMS): show a preset value that differs
-    // from the default, so it does not act unseen.
-    // Casts: k is a params key.
-    const shown    = /** @type {Record<string, unknown>} */ (preset.params);
-    const defaults = /** @type {Record<string, unknown>} */ (Defs.DEFAULT_PRESET.params);
-    const hidden = Defs.HIDDEN_PARAMS
-      .filter(k => k in preset.params && shown[k] !== defaults[k])
-      .map(k => `${k}=${shown[k]}`);
-    if (hidden.length) console.log(`Preset values not in dialog: ${hidden.join("  ")}`);
-  }
+  const hidden = _hiddenParams(preset);
+  if (hidden.length) Log.debug(`Preset values not in dialog: ${hidden.join("  ")}`);
+  if (!options.regenerate) _logStart(preset, _rawParams, action, uiSelection, options);
   const settings = checkEngineParams(preset);
-  for (const line of settings.lines) console.log(line);
+  for (const line of settings.lines) _logEngineParamsLine(line);
   if (settings.invalid) {
-    throw new Error(`Run stopped: ${settings.invalid} engineParams setting(s) of the wrong type (✗ on the console). Correct the preset; nothing is written.`);
+    throw new Error(`${settings.invalid} engineParams setting(s) of the wrong type (✗ above). Correct the preset; nothing is written.`);
   }
-  console.log(`Name: "${preset.view.name}"  Folder: ${preset.view.mirrored ? "Mirrored" : `Custom "${preset.view.folder}"`}${preset.view.underGenerated ? `  under ${GENERATED_VIEW_FOLDER}` : ""}`);
+  Log.debug(`Name: "${preset.view.name}"  Folder: ${preset.view.mirrored ? "Mirrored" : `Custom "${preset.view.folder}"`}${preset.view.underGenerated ? `  under ${GENERATED_VIEW_FOLDER}` : ""}`);
   {
     const vsMode = _rawParams.viewSizeMode || "none";
     const vsVal  = vsMode === "maxWidth"    ? `maxWidth=${_rawParams.maxWidth}`
                  : vsMode === "aspectRatio" ? `aspectRatio=${_rawParams.aspectRatio}`
                  : "none";
-    console.log(`View size requested: ${vsVal}`);
+    Log.debug(`View size requested: ${vsVal}`);
   }
 
   /** @type {ArchimateView[]} */
@@ -188,11 +182,13 @@ function generate_view(rawPreset, uiSelection, actionId, options = {}) {
     if (action === ACTION.ONE_EACH.id) {
       views.push(..._generateOneEach(preset, uiSelection, runtime, options));
     } else {
-      const view = _generateSingle(preset, uiSelection, action, _singleTarget(uiSelection, action, options), runtime);
+      const target = _singleTarget(uiSelection, action, options);
+      const name = target.view ? target.view.name : preset.view.name;
+      const view = _generateView(preset, uiSelection, action, target, runtime, name);
       if (view) views.push(view);
     }
-  } finally {   // a failure goes to the entry point, which shows it (ARCHITECTURE § Errors)
-    console.log(`\ngenerate_view: ${Common.endCounter("generate_view")}`);
+  } finally {   // a failure before the views goes to the entry point, which shows it (ARCHITECTURE § Errors)
+    Log.debug(`\ngenerate_view: ${Common.endCounter("generate_view")}`);
   }
 
   // Open the generated view(s) in Archi's UI.
@@ -221,7 +217,152 @@ function _openView(view) {
     if (!diagramModel) throw new Error(`view ${view.id} not found in the model`);
     if (!EditorManager.openDiagramEditor(diagramModel, true)) throw new Error("Archi opened no editor");
   } catch (e) {
-    console.error(`Failed to open "${view && view.name}" in the UI — open it manually. (${e})`);
+    Log.warn(`View "${view && view.name}" was written but not opened.`, { action: "open it from the model tree." });
+    Log.detail("WARN", `Failed to open "${view && view.name}" in the UI: ${e}`);
+  }
+}
+
+// ── Console: start and per view ───────────────────────────────────────────────
+
+/**
+ * The start of a run on the console: action, preset, selection, settings, target and the log file.
+ * @param {MaskedPreset}                 preset
+ * @param {PresetParams & Record<string, unknown>} rawParams  before masking
+ * @param {string}                       action
+ * @param {ArchiCollection<ArchiObject>} uiSelection
+ * @param {GenerateOptions}              options
+ */
+function _logStart(preset, rawParams, action, uiSelection, options) {
+  const origin = options.origin || {};
+  const presetName = origin.preset || options.presetName || "unnamed preset";
+  const actionLabel = (Object.values(ACTION).find(a => a.id === action) || { label: action }).label;
+  const p = preset.params;
+  const nesting = p.nestingConditions && p.nestingConditions.length
+    ? `nesting: ${p.nestingConditions.length} condition${p.nestingConditions.length === 1 ? "" : "s"}` : "no nesting";
+  const size = rawParams.viewSizeMode === "maxWidth" ? `max width ${rawParams.maxWidth} px`
+    : rawParams.viewSizeMode === "aspectRatio" ? `aspect ratio ${rawParams.aspectRatio}` : "view size free";
+  const settings = [preset.algorithm, p.direction && `direction ${p.direction}`, nesting, size].filter(Boolean).join(" · ");
+  const hidden = _hiddenParams(preset);
+  let selection = _describeSelection(uiSelection);
+  if (action === ACTION.ONE_EACH.id) {
+    const seeds = Pipeline.applyFilter(SelectionRead.getSeedElements(uiSelection), preset.filter).length;
+    selection += ` → ${seeds} view${seeds === 1 ? "" : "s"}`;
+  }
+
+  Log.info("");
+  Log.info(`View generation: ${actionLabel}`);
+  Log.info(Log.field("Preset:", `${presetName}${origin.modified ? " (modified, not saved)" : ""}`
+    + (origin.direction ? ` · direction ${origin.direction} (script name)` : ""), 2));
+  Log.info(Log.field("Selection:", selection, 2));
+  Log.info(Log.field("Settings:", settings, 2));
+  if (hidden.length) Log.info(Log.field("", `also active, not in the dialog: ${hidden.join(" · ")}`, 2));
+  Log.info(Log.field("Target:", _describeTarget(preset, action, uiSelection), 2));
+  const logFile = Log.name(presetName);
+  if (logFile) Log.info(Log.field("Log file:", logFile, 2));
+  Log.info("");
+}
+
+/**
+ * Params without a dialog control (defs.HIDDEN_PARAMS) whose preset value differs from the default,
+ * so it does not act unseen.
+ * @param {MaskedPreset} preset
+ * @returns {string[]} "key=value"
+ */
+function _hiddenParams(preset) {
+  // Casts: k is a params key.
+  const shown    = /** @type {Record<string, unknown>} */ (preset.params);
+  const defaults = /** @type {Record<string, unknown>} */ (Defs.DEFAULT_PRESET.params);
+  return Defs.HIDDEN_PARAMS.filter(k => k in preset.params && shown[k] !== defaults[k]).map(k => `${k}=${shown[k]}`);
+}
+
+/**
+ * What is selected in Archi, by kind, and where: "1 view in the model tree: "X"", "3 elements on view "Y"".
+ * @param {ArchiCollection<ArchiObject>} uiSelection
+ * @returns {string}
+ */
+function _describeSelection(uiSelection) {
+  /** @type {Map<string, number>} */
+  const counts = new Map();
+  /** @type {Set<string>} */
+  const views = new Set(), types = new Set();
+  let first = "", total = 0;
+  uiSelection.each(o => {
+    total++;
+    if (!first) first = o.name || "";
+    if (o.view) views.add(o.view.name);
+    const type = String(o.type);
+    const kind = type === "folder" ? "folder"
+      : !o.view && type.endsWith("-model") ? "view"
+      : type.endsWith("-relationship") ? "relation"
+      : type in Defs.DIAGRAM_TYPES ? "diagram object" : "element";
+    if (kind === "element") types.add(type);
+    counts.set(kind, (counts.get(kind) || 0) + 1);
+  });
+  if (!total) return "nothing selected";
+  const parts = [...counts].map(([kind, n]) => `${n} ${kind}${n === 1 ? "" : "s"}`);
+  const where = views.size ? `on view ${[...views].map(n => `"${n}"`).join(", ")}` : "in the model tree";
+  const detail = total === 1 ? `: "${first}"` : types.size > 1 ? ` (${types.size} element types)` : "";
+  return `${parts.join(" · ")} ${where}${detail}`;
+}
+
+/**
+ * Where the run writes, as the console says it.
+ * @param {MaskedPreset}                 preset
+ * @param {string}                       action
+ * @param {ArchiCollection<ArchiObject>} uiSelection
+ * @returns {string}
+ */
+function _describeTarget(preset, action, uiSelection) {
+  if (action === ACTION.EXPAND_VIEW.id || action === ACTION.LAYOUT_ONLY.id) {
+    const o = uiSelection.first();
+    const view = o && (o.view || (String(o.type).endsWith("-model") ? o : null));
+    return view ? `the selected view "${view.name}" (in place)` : "the selected view (in place)";
+  }
+  const what = action === ACTION.ONE_EACH.id ? "a view per element" : `new view${preset.view.name ? ` "${preset.view.name}"` : ""}`;
+  if (preset.view.mirrored) return `${what}, in its element's folder${preset.view.underGenerated ? ` under /Views${GENERATED_VIEW_FOLDER}` : ""}`;
+  const path = Defs.viewFolderPath(preset.view);
+  return `${what} in /Views${path === "/" ? "" : path}`;
+}
+
+/**
+ * A line of checkEngineParams at its level: ✗ an error, ⚠ a warning, else detail.
+ * @param {string} line
+ */
+function _logEngineParamsLine(line) {
+  const t = line.trim();
+  if (t.startsWith("✗ ")) Log.error(`Preset setting outside the dialog: engineParams ${t.substring(2)}`);
+  else if (t.startsWith("⚠ ")) Log.warn(`Preset setting outside the dialog: engineParams ${t.substring(2)}`);
+  else Log.debug(line);
+}
+
+/**
+ * One view of a run, with its status on the console: generated, skipped (nothing to place, reason
+ * given) or failed. A failure stays with this view; the run goes on (ARCHITECTURE § Errors).
+ * @param {MaskedPreset}                 preset
+ * @param {ArchiCollection<ArchiObject>} uiSelection
+ * @param {string}                       actionId
+ * @param {ViewTarget}                   target
+ * @param {LayoutRuntime}                runtime
+ * @param {string}                       name  for the console until the view has its own
+ * @returns {ArchimateView | null}
+ */
+function _generateView(preset, uiSelection, actionId, target, runtime, name) {
+  Log.beginItem("view", name || "view");
+  const subject = name ? `"${name}"` : "no view written";
+  try {
+    const done = _generateSingle(preset, uiSelection, actionId, target, runtime);
+    if (!done) { Log.endItem("skipped", `Skipped: ${subject}`); return null; }
+    Log.endItem("done", `${done.status}: "${done.view.name}" in ${ArchiFolders.printFolderPath(done.view).replace(/(.)\/$/, "$1")}`, done.details);
+    return done.view;
+  } catch (error) {
+    const e = /** @type {Error} */ (error);   // Cast: an Error, or a Java exception from Archi
+    Log.error(String(e.message || e).trim(), {
+      effect: "this view is not written, or only partly (Undo restores the whole run).",
+      action: "see the reason above; details in the log file (search for ERROR).",
+    });
+    Log.detail("ERROR", String(e.stack || e));
+    Log.endItem("failed", `Failed: ${subject}`);
+    return null;
   }
 }
 
@@ -242,7 +383,7 @@ function _applyViewProperties(view, preset) {
     // docs/reference/gui.md (Properties tab): a ticked row is written (no value clears the key), an unticked row removes the key.
     if (!p.key) return;
     if (hidden.has(p.key)) {
-      console.error(`Properties: "${p.key}" is hidden (${HiddenProps.HIDDEN_FILE}) and is left alone. Remove it from the preset.`);
+      Log.warn(`View property "${p.key}" is hidden (${HiddenProps.HIDDEN_FILE}) and is left alone.`, { action: "remove it from the preset." });
       return;
     }
     if (p.enabled && p.value) {
@@ -259,7 +400,7 @@ function _applyViewProperties(view, preset) {
     view.prop(PROP_ID, id);
     lines.push(`  prop set:     ${PROP_ID} = "${id}" (new)`);
   }
-  if (lines.length) console.log("\nProperties:\n" + lines.join("\n"));   // no heading when nothing changed
+  if (lines.length) Log.debug("\nProperties:\n" + lines.join("\n"));   // no heading when nothing changed
 }
 
 // ── Single view ───────────────────────────────────────────────────────────────
@@ -270,7 +411,8 @@ function _applyViewProperties(view, preset) {
  * @param {string}                       actionId
  * @param {ViewTarget}                   target  where a Create action writes, and the origin it leaves
  * @param {LayoutRuntime}                runtime
- * @returns {ArchimateView | null}
+ * @returns {{ view: ArchimateView, status: string, details: string[] } | null}  status: New, Updated or
+ *   Overwritten; details: the console lines under it; null when there is nothing to place
  */
 function _generateSingle(preset, uiSelection, actionId, target, runtime) {
   const timer = _phaseTimer();
@@ -286,23 +428,26 @@ function _generateSingle(preset, uiSelection, actionId, target, runtime) {
   // Cast: the selected view of a Modify action is an ArchiMate view.
   const existingView = /** @type {ArchimateView | null} */ (snapshot.existing.existingView);
   if (inPlace) {
-    console.log("\nView target:");
+    Log.debug("\nView target:");
     if (!existingView) throw new Error("Layout only and Expand view: select a view, or objects on a view, to work on.");
-    console.log(`  Using: "${existingView.name}" (in place)`);
+    Log.debug(`  Using: "${existingView.name}" (in place)`);
   }
 
   const planned = plan(preset, snapshot, actionId, runtime, timer);
   if (!planned) return null;
 
   let view = existingView;
+  let status = "Updated";
   if (!view) {   // a Create action (a Modify action without its view returned above)
-    console.log("\nView target:");
-    view = _targetView(preset, planned.objectSet.elements, target);
+    Log.debug("\nView target:");
+    ({ view, status } = _targetView(preset, planned.objectSet.elements, target));
   }
 
-  console.log("\nWrite:");
-  const written = ViewWriter.applyWritePlan(view, planned.writePlan);
+  Log.debug("\nWrite:");
+  const { written, onView, failed } = ViewWriter.applyWritePlan(view, planned.writePlan);
   timer.lap("write");
+  if (failed.length) Log.warn(`${failed.length} write step${failed.length === 1 ? "" : "s"} failed: ${failed.slice(0, 3).join("; ")}${failed.length > 3 ? "; …" : ""}`, {
+    effect: "the view is not complete.", action: "check the view; details in the log file (search for WARN)." });
 
   // Appearance pass — post-write styling (colours, fonts). No-op when all features disabled.
   // Visuals inside a diagram-block keep their appearance: on a Create action, their copies.
@@ -317,8 +462,36 @@ function _generateSingle(preset, uiSelection, actionId, target, runtime) {
   _recordOrigin(view, actionId, target);
   timer.lap("appearance");
 
-  console.log(`\nTiming: ${timer.summary()}`);
-  return view;
+  Log.debug(`\nTiming: ${timer.summary()}`);
+  return { view, status, details: _viewDetails(planned.counts, onView, actionId, timer.total()) };
+}
+
+/**
+ * The console lines of a written view: what it started from, what the steps added, what is on it.
+ * @param {PlanCounts}   counts
+ * @param {ObjectsOnView} onView
+ * @param {string}       actionId
+ * @param {number}       ms
+ * @returns {string[]}
+ */
+function _viewDetails(counts, onView, actionId, ms) {
+  const n = (/** @type {number} */ k, /** @type {string} */ word) => `${k} ${word}${k === 1 ? "" : "s"}`;
+  const field = (/** @type {string} */ label, /** @type {string} */ value) => Log.field(label, value, 0, Log.DETAIL_COLUMN);
+  const isModify = actionId === ACTION.EXPAND_VIEW.id || actionId === ACTION.LAYOUT_ONLY.id;
+  const lines = [];
+  if (isModify) lines.push(field("Base:", `${n(counts.base.elements, "element")} · ${n(counts.base.relations, "relation")} on the view (filter not applied)`));
+  else {
+    const out = counts.selected - counts.base.elements;
+    lines.push(field("Filtered base:", `${n(counts.base.elements, "element")} · ${n(counts.base.relations, "relation")}${out > 0 ? ` (${out} filtered out)` : ""}`));
+  }
+  if (counts.steps.elements || counts.steps.relations) lines.push(field("Step adds:", `${n(counts.steps.elements, "element")} · ${n(counts.steps.relations, "relation")}`));
+  const roles = [counts.view.containers && n(counts.view.containers, "container"), counts.view.nestedElements && n(counts.view.nestedElements, "nested element")].filter(Boolean);
+  const parts = [`${n(onView.elements, "element")}${roles.length ? ` (${roles.join(", ")})` : ""}`,
+    n(onView.nestings, "nesting"), n(onView.connections, "connection")];
+  if (onView.diagramObjects) parts.push(n(onView.diagramObjects, "diagram object"));
+  lines.push(field("On view:", parts.join(" · ")));
+  lines.push(field("Size:", `${counts.size.width} × ${counts.size.height} px · ${Log.seconds(ms)}`));
+  return lines;
 }
 
 /**
@@ -346,11 +519,12 @@ function _layoutRuntime() {
  * @param {LayoutRuntime} runtime  where the layout runs; its runner starts the Node layout process and
  *   Graphviz: Java in Archi, child_process in Node
  * @param {{ lap(name: string): void }} [timer]  phase timing
- * @returns {{ objectSet: ObjectSet, graph: LayoutGraph, result: LayoutResult, writePlan: WritePlan } | null}
- *   null when there is nothing to place
+ * @returns {{ objectSet: ObjectSet, graph: LayoutGraph, result: LayoutResult, writePlan: WritePlan, counts: PlanCounts } | null}
+ *   null when there is nothing to place (the reason on the console)
  */
 function plan(preset, snapshot, actionId, runtime, timer = { lap() {} }) {
-  const objectSet = Pipeline.buildObjectSet(snapshot, preset, actionId);
+  const composed = Pipeline.buildObjectSet(snapshot, preset, actionId);
+  const objectSet = composed.objectSet;
   timer.lap("object set");
 
   // Assign each relation a role: nesting (drawn as containment) vs routed (drawn as line).
@@ -360,7 +534,7 @@ function plan(preset, snapshot, actionId, runtime, timer = { lap() {} }) {
 
   // Build LayoutGraph (uniform — no action branch). Pairing with the visuals on the view is
   // part of the nesting resolution, so every visual gets a node.
-  console.log("\nLayout graph:");
+  Log.debug("\nLayout graph:");
   const isModify = actionId === ACTION.LAYOUT_ONLY.id || actionId === ACTION.EXPAND_VIEW.id;
   const labels = { measure: runtime.measureText, breaks: runtime.lineBreaks, defaultFont: runtime.defaultFont, newVisual: runtime.newVisual,
                    relationsOf: snapshot.relationsOf, isModify };
@@ -368,23 +542,34 @@ function plan(preset, snapshot, actionId, runtime, timer = { lap() {} }) {
                                   objectSet.visuals, objectSet.visualRelations, objectSet.diagramConnections, objectSet, labels);
   timer.lap("layout graph");
   if (graph.nodes.length === 0) {
-    console.error(isModify ? "View not changed: nothing to place, the view holds no elements or diagram objects."
-      : `View not generated: nothing to place. No selected element passes the element filter (${snapshot.elements.length} selected, 0 kept), so the steps add none.`);
+    if (isModify) Log.warn("Nothing to place: the view holds no elements or diagram objects.", { effect: "the view is not changed." });
+    else if (snapshot.elements.length === 0) Log.warn("Nothing to place: nothing is selected.", {
+      action: "select elements, or a view, in the model tree or on a view." });
+    else Log.warn(`Nothing to place: no selected element passes the element filter (${snapshot.elements.length} selected, 0 kept), so the steps add none.`, {
+      action: "change the element filter, or select other elements." });
     return null;
   }
   _logRelationRoles(graph, nestingRels, routedRels);
   const sample = runtime.measureText("Archi", null);
-  console.log(`  Label text in Archi's default view font: "Archi" ${sample.width} px wide, a line ${sample.height} px, font size ${Math.round(sample.em)} px`);
+  Log.debug(`  Label text in Archi's default view font: "Archi" ${sample.width} px wide, a line ${sample.height} px, font size ${Math.round(sample.em)} px`);
 
-  console.log("\nLayout:");
+  Log.debug("\nLayout:");
   const engine = ALGORITHMS[preset.algorithm].engine;
   const laid = _layoutFittingLabels(graph, g => NodeLayout.layout(g, engine, runtime));
   timer.lap("layout");
-  _logLayoutResult(laid.result);
+  const size = _logLayoutResult(laid.result);
 
   const writePlan = WritePlan.planWrite(preset, objectSet, laid.graph, laid.result);
   timer.lap("write plan");
-  return { objectSet, graph: laid.graph, result: laid.result, writePlan };
+  /** @type {PlanCounts} */
+  const counts = {
+    selected: snapshot.elements.length,
+    base:  { elements: composed.filteredCounts.elems, relations: composed.filteredBaseRels },
+    steps: { elements: composed.stepCounts.reduce((a, c) => a + c.elems, 0), relations: composed.stepCounts.reduce((a, c) => a + c.rels, 0) },
+    view:  composed.view,
+    size,
+  };
+  return { objectSet, graph: laid.graph, result: laid.result, writePlan, counts };
 }
 
 // Layouts per run at most to fit the container labels (_layoutFittingLabels).
@@ -437,7 +622,7 @@ function _layoutFittingLabels(graph, run) {
   let need = needed(attempt.result);
   let left = spare(need, graph);
   if (left === 0) return first;
-  console.log(`  Container labels: ${containerIds.filter(id => /** @type {LabelNeed} */ (need.get(id)).height !== graph.nodes.find(n => n.id === id)?.labelHeight).length} of ${containerIds.length} need other room at the width they were drawn — laid out again`);
+  Log.debug(`  Container labels: ${containerIds.filter(id => /** @type {LabelNeed} */ (need.get(id)).height !== graph.nodes.find(n => n.id === id)?.labelHeight).length} of ${containerIds.length} need other room at the width they were drawn — laid out again`);
   /** @type {{ attempt: LabelAttempt, left: number } | null} */
   let best = null;
   for (let k = 2; k <= LABEL_FIT_RUNS; k++) {
@@ -455,7 +640,8 @@ function _layoutFittingLabels(graph, run) {
   }
   if (left > 0 && (!best || left < best.left)) best = { attempt, left };
   if (best) return best.attempt;
-  console.log("  Container labels: no layout fits every label — the first layout is kept");
+  Log.warn("Not every container label fits in the layout: the first layout is kept.", {
+    effect: "a container label can be cut off or have room to spare." });
   return first;
 }
 
@@ -469,20 +655,23 @@ function _layoutFittingLabels(graph, run) {
  */
 function _logRelationRoles(graph, nestingRels, routedRels) {
   const ns = graph._nestingStats;
-  console.log(`  Relation roles: ${nestingRels.length} nestings · ${routedRels.length} connections`);
+  Log.debug(`  Relation roles: ${nestingRels.length} nestings · ${routedRels.length} connections`);
   if (ns.candidates > 0) {
     const notes = [];
     if (ns.notNestedNestings > 0) notes.push(`${ns.notNestedNestings} drawn as connection`);
     if (ns.circularNestings  > 0) notes.push(`${ns.circularNestings} circular`);
     const suffix = notes.length > 0 ? ` (${notes.join(", ")})` : "";
-    console.log(`  Nestings applied: ${ns.applied}/${ns.candidates}${suffix}`);
+    Log.debug(`  Nestings applied: ${ns.applied}/${ns.candidates}${suffix}`);
   }
 }
 
-/** @param {LayoutResult} result */
+/**
+ * @param {LayoutResult} result
+ * @returns {{ width: number, height: number }} the view size generated, px
+ */
 function _logLayoutResult(result) {
-  console.log(`  Layout result: ${result.nodes.length} elements · ${result.edges.length} connections`);
-  if (result.nodes.length === 0) return;
+  Log.debug(`  Layout result: ${result.nodes.length} elements · ${result.edges.length} connections`);
+  if (result.nodes.length === 0) return { width: 0, height: 0 };
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const n of result.nodes) {
     if (n.x           < x0) x0 = n.x;
@@ -490,7 +679,9 @@ function _logLayoutResult(result) {
     if (n.x + n.width > x1) x1 = n.x + n.width;
     if (n.y + n.height> y1) y1 = n.y + n.height;
   }
-  console.log(`  View size generated: ${Math.round(x1 - x0)} × ${Math.round(y1 - y0)} px`);
+  const size = { width: Math.round(x1 - x0), height: Math.round(y1 - y0) };
+  Log.debug(`  View size generated: ${size.width} × ${size.height} px`);
+  return size;
 }
 
 // Phase durations of one view generation, logged as one summary line — shows where the time goes.
@@ -502,6 +693,7 @@ function _phaseTimer() {
   return {
     lap(/** @type {string} */ name) { const now = Date.now(); laps.push(`${name} ${_fmtMs(now - t)}`); t = now; },
     summary() { return `${laps.join(" · ")}  (total ${_fmtMs(t - t0)})`; },
+    total() { return t - t0; },
   };
 }
 
@@ -523,11 +715,17 @@ function _generateOneEach(preset, uiSelection, runtime, options) {
   // Seeds = model elements from the Archi selection that pass the preset's filter, before expansion:
   // an element the filter drops would give no view. Each seed gets its own full pipeline run.
   const seeds = Pipeline.applyFilter(SelectionRead.getSeedElements(uiSelection), preset.filter);
-  if (seeds.length === 0) { console.log("No elements selected."); return []; }
+  if (seeds.length === 0) {
+    Log.warn("No element of the selection passes the element filter, so One view each makes no view.", {
+      action: "select elements, or change the element filter." });
+    return [];
+  }
 
   const types = new Set(seeds.map(e => e.type));
   if (types.size > 1) {
-    console.log(`Warning: ${types.size} element types selected for One view each. Consider filtering to one type.`);
+    Log.warn(`The selection holds ${types.size} element types for One view each (${[...types].sort().join(", ")}).`, {
+      effect: "the views of the different types are built differently.",
+      action: "select elements of one type, or filter the preset on one type." });
   }
 
   const siblings = options.siblings;
@@ -537,7 +735,7 @@ function _generateOneEach(preset, uiSelection, runtime, options) {
   /** @type {ArchimateView[]} */
   const views = [];
   for (const element of seeds) {
-    console.log(`\nGenerating view for: ${element.name}`);
+    Log.debug(`\nGenerating view for: ${element.name}`);
     /** @type {ViewTarget} */
     const target = { name: element.name + preset.view.suffix, view: siblings && siblings.views.get(String(element.id)) };
     if (mirror) target.folder = () => _mirroredFolder(element, preset.view.underGenerated);
@@ -545,7 +743,7 @@ function _generateOneEach(preset, uiSelection, runtime, options) {
       ...options.origin, action: ACTION.ONE_EACH.id, selection: start, element: ViewOrigin.describeObject(element),
       ...(!mirror ? { folder: Defs.viewFolderPath(preset.view) } : preset.view.underGenerated ? { underGenerated: true } : {}),
     };
-    const view = _generateSingle(preset, $(element), ACTION.NEW_VIEW.id, target, runtime);
+    const view = _generateView(preset, $(element), ACTION.NEW_VIEW.id, target, runtime, target.name || element.name);
     if (view) views.push(view);
   }
   return views;
@@ -588,13 +786,13 @@ function _singleTarget(uiSelection, action, options) {
  * @param {MaskedPreset}   preset
  * @param {ArchiElement[]} elements
  * @param {ViewTarget}     target
- * @returns {ArchimateView}
+ * @returns {{ view: ArchimateView, status: string }}  status: New, Updated (regenerated) or Overwritten
  */
 function _targetView(preset, elements, target) {
   if (target.view) {
-    console.log(`  Regenerating view: "${target.view.name}" in ${ArchiFolders.printFolderPath(target.view)}`);
+    Log.debug(`  Regenerating view: "${target.view.name}" in ${ArchiFolders.printFolderPath(target.view)}`);
     _emptyView(target.view);
-    return target.view;
+    return { view: target.view, status: "Updated" };
   }
   const folder = target.folder ? target.folder() : _resolveFolder(preset.view);
   return _getOrCreateView(folder, target.name || _resolveViewName(preset, elements));
@@ -660,19 +858,21 @@ function _emptyView(view) {
 /**
  * @param {Folder} folder
  * @param {string} viewName
- * @returns {ArchimateView}
+ * @returns {{ view: ArchimateView, status: string }}  status: New or Overwritten
  */
 function _getOrCreateView(folder, viewName) {
   let existing = $(folder).children("view").filter(`.${viewName}`).first();
   if (existing) {
-    console.log(`  Overwriting view: "${viewName}" in ${ArchiFolders.printFolderPath(existing)}`);
+    Log.debug(`  Overwriting view: "${viewName}" in ${ArchiFolders.printFolderPath(existing)}`);
+    Log.warn("A view of this name was there already and is overwritten; its properties are kept.", {
+      effect: "what was on it is replaced (Undo restores it)." });
     _emptyView(existing);
-    return existing;
+    return { view: existing, status: "Overwritten" };
   }
   const v = model.createArchimateView(viewName);
   folder.add(v);
-  console.log(`  Created view: "${viewName}" in ${ArchiFolders.printFolderPath(v)}`);
-  return v;
+  Log.debug(`  Created view: "${viewName}" in ${ArchiFolders.printFolderPath(v)}`);
+  return { view: v, status: "New" };
 }
 
 if (typeof module !== "undefined" && module.exports) {

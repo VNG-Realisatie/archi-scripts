@@ -8,12 +8,14 @@
  * Spline sampling: converts cubic Bézier control points to SPLINE_SAMPLE_POINTS
  * intermediate points per segment, approximating curves in Archi via bendpoints.
  */
-console.log("Loading engines/graphviz.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading engines/graphviz.js");
 
 /** @type {typeof import("../defs")} */
 const Defs         = require(REPO_ROOT + "View/lib/defs");
@@ -170,8 +172,8 @@ function layout(graph, runProcess) {
 
   const dotSource = _buildDOT(graph);
   const _graphLine = dotSource.split("\n").find(l => l.trim().startsWith("graph [")) || "";
-  console.log(`Running Graphviz (${alg.engineAlgorithmId})...`);
-  console.log(`  DOT graph attrs: ${_graphLine.trim()}`);
+  Log.debug(`Running Graphviz (${alg.engineAlgorithmId})...`);
+  Log.debug(`  DOT graph attrs: ${_graphLine.trim()}`);
 
   // circo removes overlap only in a graph of one part, and neato and sfdp apply ratio only to a graph
   // of one part (they lay out and pack each part on its own). With more parts (a note, an unconnected
@@ -179,7 +181,7 @@ function layout(graph, runProcess) {
   // the same overlap, sep and ratio, and routes the connections again.
   const ratioOnParts = RATIO_SECOND_RUN.has(graph.algorithm) && (graph.options.aspectRatio || 0) > 0;
   const secondRun = (graph.algorithm === "Circo" || ratioOnParts) && _partCount(graph) > 1;
-  if (secondRun) console.log(`  More than one part: ${ratioOnParts ? "aspect ratio" : "overlap removal"} and connections in a second run (neato -n1)`);
+  if (secondRun) Log.debug(`  More than one part: ${ratioOnParts ? "aspect ratio" : "overlap removal"} and connections in a second run (neato -n1)`);
   const jsonOut = secondRun
     ? _runDot(runProcess, _runGraphviz(runProcess, dotSource, ["-K" + alg.engineAlgorithmId, "-Tdot"]), ["-Kneato", "-n1"])
     : _runDot(runProcess, dotSource, ["-K" + alg.engineAlgorithmId]);
@@ -187,7 +189,7 @@ function layout(graph, runProcess) {
   const _bbParts = _rawBb.split(",").map(parseFloat);
   const _bbWpx  = _bbParts.length === 4 ? Math.round((_bbParts[2] - _bbParts[0]) * (96 / 72)) : "?";
   const _bbHpx  = _bbParts.length === 4 ? Math.round((_bbParts[3] - _bbParts[1]) * (96 / 72)) : "?";
-  console.log(`  Graphviz bb: ${_rawBb}  →  ${_bbWpx} × ${_bbHpx} px`);
+  Log.debug(`  Graphviz bb: ${_rawBb}  →  ${_bbWpx} × ${_bbHpx} px`);
 
   return _extractResult(graph, jsonOut);
 }

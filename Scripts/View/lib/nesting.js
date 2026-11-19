@@ -3,12 +3,14 @@
  * element, the pairing of occurrences with the visuals on a view, and the predicted counts.
  * Pure: reads ids, types, names and ends only, so Node runs it as it is (jsconfig.pure.json).
  */
-console.log("Loading nesting.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading nesting.js");
 
 /** @type {typeof import("./defs")} */
 const Defs      = require(REPO_ROOT + "View/lib/defs");

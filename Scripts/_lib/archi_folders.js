@@ -3,7 +3,10 @@
  *
  * (c) 2023 Mark Backer
  */
-console.log("Loading archi_folders.js");
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+/** @type {typeof import("./log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading archi_folders.js");
 /**
  * get the path of an object
  *  by recursively walkin up the parentfolders
@@ -40,7 +43,7 @@ function deleteEmptyFolders(folderObj, level = 0, folderPath = "") {
 
     // delete empty folder
     if ($(subFolder).children().size() == 0 && level > 0) {
-      console.log(` - ${subFolder.name != "" ? `${folderPath}/${subFolder.name}` : `${folderPath}/## no name ##`}`);
+      Log.info(` - ${subFolder.name != "" ? `${folderPath}/${subFolder.name}` : `${folderPath}/## no name ##`}`);
       subFolder.delete();
     }
   });

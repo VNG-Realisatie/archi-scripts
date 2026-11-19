@@ -61,7 +61,6 @@ var currentDateTime = Common.getFormattedDateTime();
  * @param {*} transformRowFn - mapping function for data
  */
 function importObjects(importFile, sync = false, transformRowFn) {
-  Common.debugStackPush(false);
 
   try {
     console.log(`Importing objects of CSV`);
@@ -92,18 +91,18 @@ function importObjects(importFile, sync = false, transformRowFn) {
         console.log(`> no data in CSV file: ${importFileName}`);
         console.log(`\n> Select another file and import again\n`);
       } else {
-        Common.debug("\n> check header for missing columns");
+        Log.debug("\n> check header for missing columns");
         let headerLabels = _get_headerLabels(rows);
         if (headerLabels.length == 0) {
           console.log(`\n> Add missing columns and run import script again`);
           console.log(`> Use export script to create a CSV file with all required columns\n`);
         } else {
-          Common.debug("\n> process all rows, find necesary action for every row");
+          Log.debug("\n> process all rows, find necesary action for every row");
 
           // process all rows from CSV file
           Common.startCounter("importObjects");
           let results = rows.map((row, index) => _processRow(row, index, headerLabels, sync));
-          Common.debug(`importObjects ${results.length} rows (${Common.endCounter("importObjects")}`);
+          Log.debug(`importObjects ${results.length} rows (${Common.endCounter("importObjects")}`);
 
           let skipped = results.filter((result) => result.resultCode === SKIP);
           let created = results.filter((result) => result.resultCode === CREATE);
@@ -141,8 +140,7 @@ function importObjects(importFile, sync = false, transformRowFn) {
   } catch (error) {
     console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
   }
-  Common.debug(`< `);
-  Common.debugStackPop();
+  Log.debug(`< `);
 }
 
 function _tagDeletedConcepts() {
@@ -188,7 +186,7 @@ function _get_headerLabels(rows) {
   let headerLabels = [];
   if (attrCheck && endpointCheck) {
     headerLabels = allHeaderLabels.filter((label) => !ExportImport.COLUMNS_NOT_TO_IMPORT.includes(label));
-    Common.debug(`\nlabelsToUpdate: ${headerLabels}`);
+    Log.debug(`\nlabelsToUpdate: ${headerLabels}`);
   }
   return headerLabels;
 
@@ -233,15 +231,14 @@ function _processRow(row, index, rowLabels, sync) {
   let findResult;
   let result = {};
 
-  Common.debugStackPush(false);
-  Common.debug(`row[${index + 2}] ${row.type}: ${row.name}`);
+  Log.debug(`row[${index + 2}] ${row.type}: ${row.name}`);
 
   // Search without whitespaces
   row.type = row.type.trim();
   row.name = row.name.trim();
   row.id = row.id.trim();
   findResult = _findObject(row.type, row.name, row[ExportImport.PROP_ID], row.id, row);
-  Common.debug(`findResult: ${JSON.stringify(findResult)}`);
+  Log.debug(`findResult: ${JSON.stringify(findResult)}`);
 
   if (findResult.findCode == FOUND) {
     result = _updateObject(row, index, rowLabels, findResult, "uitzoeken", sync);
@@ -255,8 +252,7 @@ function _processRow(row, index, rowLabels, sync) {
     }
   }
 
-  Common.debug(`>> processRow: ${Common.endCounter("processRow")}\n`);
-  Common.debugStackPop();
+  Log.debug(`>> processRow: ${Common.endCounter("processRow")}\n`);
 
   return result;
 }
@@ -285,14 +281,14 @@ function _findObject(row_type, row_name, row_prop_id, row_id, row) {
     if (archiColl.size() == 1) {
       findCode = FOUND;
       findText = `found with '${ExportImport.PROP_ID}'`;
-      Common.debug(`${findText}: ${archiColl.first()}; prop(${ExportImport.PROP_ID})=${archiColl.first().prop(row_prop_id)}`);
+      Log.debug(`${findText}: ${archiColl.first()}; prop(${ExportImport.PROP_ID})=${archiColl.first().prop(row_prop_id)}`);
     } else if (archiColl.size() > 1) {
       errorCode += ERROR;
       errorText += `Error: Multiple objects with prop(${ExportImport.PROP_ID})=${row_prop_id}`;
       archiColl.each((obj) => (errorText += `> - ${obj}\n`));
       errorText += `>> Use script setObjectID.ajs to find and resolve duplicates\n`;
 
-      Common.debug(errorText);
+      Log.debug(errorText);
     }
   }
   // search with Archi id
@@ -302,7 +298,7 @@ function _findObject(row_type, row_name, row_prop_id, row_id, row) {
     if (archiColl.size() == 1) {
       findCode = FOUND;
       findText = `found with 'id'`;
-      Common.debug(`${findText}: ${archiColl.first()}; id=${archiColl.first().id}`);
+      Log.debug(`${findText}: ${archiColl.first()}; id=${archiColl.first().id}`);
     }
   }
 
@@ -325,7 +321,7 @@ function _findObject(row_type, row_name, row_prop_id, row_id, row) {
       if (archiColl.size() == 1) {
         findCode = FOUND;
         findText = `found with 'name'`;
-        Common.debug(`${findText}: ${archiColl.first()}`);
+        Log.debug(`${findText}: ${archiColl.first()}`);
       } else if (archiColl.size() > 1) {
         errorCode += WARNING;
         errorText += `Warning: Multiple objects with name=${row_name}\n`;
@@ -346,11 +342,11 @@ function _findObject(row_type, row_name, row_prop_id, row_id, row) {
     errorText += `Error: missing search key\n`;
     if (ExportImport.PROP_ID) errorText += `- search keys are ${ExportImport.PROP_ID}, 'id' or the combination of name and type\n`;
     else errorText += `- search keys are 'id' or the combination of name and type (PROP_ID skipped)\n`;
-    Common.debug(errorText);
+    Log.debug(errorText);
   }
 
   let archiObj = archiColl.first();
-  Common.debug(`>>> findObjects: ${Common.endCounter("findObjects")}`);
+  Log.debug(`>>> findObjects: ${Common.endCounter("findObjects")}`);
 
   // returns the object and how it was found
   return { findCode: findCode, findText: findText, errorCode: errorCode, errorText: errorText, archiObj: archiObj };
@@ -369,21 +365,21 @@ function _findWithEndpoints(row) {
   let errorCode = SUCCES;
   let errorText = "";
 
-  Common.debug(`Row source`);
+  Log.debug(`Row source`);
   let findSrc = _findObject(row["source.type"], row["source.name"], row[`source.prop.${ExportImport.PROP_ID}`], row["source.id"]);
   if (findSrc.errorCode != SUCCES) {
     errorCode += findSrc.errorCode;
     errorText += `- Error in row source.<endpoint> columns > `;
     errorText += `${findSrc.errorText}\n`;
-    Common.debug(errorText);
+    Log.debug(errorText);
   }
-  Common.debug(`Row target`);
+  Log.debug(`Row target`);
   let findTgt = _findObject(row["target.type"], row["target.name"], row[`target.prop.${ExportImport.PROP_ID}`], row["target.id"]);
   if (findTgt.errorCode != SUCCES) {
     errorCode += findTgt.errorCode;
     errorText += `- Error in row target.<endpoint> columns > `;
     errorText += `${findTgt.errorText}`;
-    Common.debug(errorText);
+    Log.debug(errorText);
   }
 
   if (findSrc.findCode == FOUND && findTgt.findCode == FOUND) {
@@ -433,7 +429,7 @@ function _findWithEndpoints(row) {
     // }
   }
 
-  Common.debug(`>>> findRelation: ${Common.endCounter("findRelation")}`);
+  Log.debug(`>>> findRelation: ${Common.endCounter("findRelation")}`);
   return { findCode: findCode, findText: findText, errorCode: errorCode, errorText: errorText, archiObj: archiRels };
 }
 
@@ -442,7 +438,6 @@ function _findWithEndpoints(row) {
  *  if row is a relation the source and target have to exist
  */
 function _createObject(row, index, rowLabels, sync) {
-  Common.debugStackPush(false);
   Common.startCounter("createObject");
   let line = "";
   let resultCode = SKIP;
@@ -452,9 +447,9 @@ function _createObject(row, index, rowLabels, sync) {
 
     if (row.type.endsWith("relationship")) {
       let findSrc = _findObject(row["source.type"], row["source.name"], row[`source.prop.${ExportImport.PROP_ID}`], row["source.id"]);
-      Common.debug(`findSrc: ${JSON.stringify(findSrc)}`);
+      Log.debug(`findSrc: ${JSON.stringify(findSrc)}`);
       let findTgt = _findObject(row["target.type"], row["target.name"], row[`target.prop.${ExportImport.PROP_ID}`], row["target.id"]);
-      Common.debug(`findTgt: ${JSON.stringify(findTgt)}`);
+      Log.debug(`findTgt: ${JSON.stringify(findTgt)}`);
       
       if (findSrc.findCode == FOUND && findTgt.findCode == FOUND) {
         archiObj = model.createRelationship(row.type, row.name, findSrc.archiObj, findTgt.archiObj);
@@ -470,7 +465,7 @@ function _createObject(row, index, rowLabels, sync) {
   } catch (error) {
     line += `row[${index + 2}] ${SKIP}\n`;
     line += `  Error when creating object: ${error}\n`;
-    Common.debug(line);
+    Log.debug(line);
   }
 
   if (Object.keys(archiObj).length > 0) {
@@ -482,8 +477,7 @@ function _createObject(row, index, rowLabels, sync) {
     resultCode = CREATE;
   }
   if (sync) archiObj.prop(PROP_IMPORT_CREATED, currentDateTime);
-  Common.debugStackPop();
-  Common.debug(`createObject: ${resultCode} ${Common.endCounter("createObject")}`);
+  Log.debug(`createObject: ${resultCode} ${Common.endCounter("createObject")}`);
   return { index: index, resultCode: resultCode, line: line };
 }
 
@@ -502,9 +496,8 @@ function _updateObject(row, index, rowLabels, findResult, calledFrom, sync) {
   let lineRowUpdate = `row[${index + 2}] ${UPDATE}\n`;
   lineRowUpdate += `  ${archiObj} (${findResult.findText})\n`;
 
-  Common.debugStackPush(false);
-  Common.debug(`row = ${JSON.stringify(row)}`);
-  Common.debug(`obj = ${archiObj}`);
+  Log.debug(`row = ${JSON.stringify(row)}`);
+  Log.debug(`obj = ${archiObj}`);
 
   // update objects attributes and properties with the row cell values
   rowLabels.map((label) => {
@@ -540,12 +533,11 @@ function _updateObject(row, index, rowLabels, findResult, calledFrom, sync) {
     resultCode = UPDATE;
     if (calledFrom != CREATE) line += lineRowUpdate; // there is already a row create line
     line += lineUpdated;
-    Common.debug(`line: ${line}`);
+    Log.debug(`line: ${line}`);
     if (sync && calledFrom != CREATE) archiObj.prop(PROP_IMPORT_UPDATED, currentDateTime);
   }
   if (sync) archiObj.prop(PROP_IMPORT, currentDateTime);
-  Common.debug(`updateObject: ${Common.endCounter("updateObject")}`);
-  Common.debugStackPop();
+  Log.debug(`updateObject: ${Common.endCounter("updateObject")}`);
 
   return { index: index, resultCode: resultCode, line: line };
 }
@@ -555,7 +547,6 @@ function _updateObject(row, index, rowLabels, findResult, calledFrom, sync) {
  */
 function _getRowsFromFile(importFile, transformRowFn) {
   let debugFlag = false;
-  Common.debugStackPush(debugFlag);
 
   Common.startCounter("getRowsFromFile");
   const parsed = ExportImport.Papa.parse(_readFully_csv(importFile, "utf-8"), {
@@ -565,10 +556,10 @@ function _getRowsFromFile(importFile, transformRowFn) {
     skipEmptyLines: true,
   }).data;
 
-  Common.debug("");
-  Common.debug("Rows before transform");
-  Common.debug(`${JSON.stringify(parsed, null, 2)}`);
-  Common.debug("");
+  Log.debug("");
+  Log.debug("Rows before transform");
+  Log.debug(`${JSON.stringify(parsed, null, 2)}`);
+  Log.debug("");
 
   console.log("\nShowing the first row as an example:\n", JSON.stringify(parsed[0], null, 2));
 
@@ -581,14 +572,13 @@ function _getRowsFromFile(importFile, transformRowFn) {
   } else {
     rows = parsed;
   }
-  Common.debug("");
-  Common.debug("Rows after transform");
-  Common.debug(JSON.stringify(rows, null, 2));
-  Common.debug("");
+  Log.debug("");
+  Log.debug("Rows after transform");
+  Log.debug(JSON.stringify(rows, null, 2));
+  Log.debug("");
 
-  Common.debug(`getRowsFromFile: ${Common.endCounter("getRowsFromFile")}`);
+  Log.debug(`getRowsFromFile: ${Common.endCounter("getRowsFromFile")}`);
 
-  Common.debugStackPop();
   return rows;
 }
 
@@ -602,7 +592,7 @@ function _readFully_csv(url, charset) {
     // Catches EFBBBF (UTF-8 BOM) because the buffer-to-string
     // conversion translates it to FEFF (UTF-16 BOM).
     if (string.charCodeAt(0) === 0xfeff) {
-      Common.debug("Strip BOM from CSV file");
+      Log.debug("Strip BOM from CSV file");
       return string.slice(1);
     }
     return string;

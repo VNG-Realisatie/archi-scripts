@@ -1,12 +1,14 @@
 /**
  * Appearance tab of the View dialog: palette, style by property, style by nesting level, highlight repeated elements.
  */
-console.log("Loading tab_appearance.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading tab_appearance.js");
 
 /** @type {typeof import("../defs")} */
 const Defs = require(REPO_ROOT + "View/lib/defs");
@@ -100,7 +102,7 @@ function updateStyleWarnings(ctx) {
         // Feedback in the Property combo: colored objects, or reached objects before a property is chosen.
         counts[i] = { count: r.property ? ids.size : targets.size };
         if (r.property && r.on !== false) styled.set(i, ids);
-      } catch (e) { console.error(`Appearance: style condition ${i + 1} not counted: ${/** @type {Error} */ (e).stack || e}`); }
+      } catch (e) { Log.error(`Appearance: style condition ${i + 1} not counted: ${/** @type {Error} */ (e).message || e}`); Log.detail("ERROR", String(/** @type {Error} */ (e).stack || e)); }
     });
     ConditionLists.detectConditionConflicts(styled).forEach(c => warnings.set(c.condition,
       `Condition ${c.with.map(j => j + 1).join(", ")} also styles ${c.count} of these objects. ` +
@@ -145,7 +147,7 @@ function buildAppearanceTab(tabFolder, ctx) {
 
   // ── Colors: the palette every colour and colour range of the tab comes from ──
   try { ctx.palettes = Palettes.readPalettes(); }
-  catch (e) { ctx.palettes = []; console.error(`Appearance: ${/** @type {Error} */ (e).message}`); }
+  catch (e) { ctx.palettes = []; Log.warn(`Appearance: ${/** @type {Error} */ (e).message}`); }
   const grpColors = Widgets.group(page, "Colors", 1);
   Widgets.noteLabel(grpColors, "Every color and color range on this tab comes from the palette.");
   const paletteRow = Widgets.formRow(grpColors, "Palette:", formRows);

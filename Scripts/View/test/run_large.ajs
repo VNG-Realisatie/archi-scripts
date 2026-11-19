@@ -1,20 +1,20 @@
 /**
  * Time a New view of "5 Large" (300 elements) in Archi with presets/Test/baseline/baseline.json: how long
  * Archi is busy (GraalJS, the layout process, the writer), which the Node checks do not show. Through
- * Archi's command line on a copy of the test model, then the console checked:
+ * Archi's command line on a copy of the test model, then its log file checked:
  *   Scripts/View/tools/archi_cli.sh Scripts/View/test/run_large.ajs "" <out dir>
- *   node Scripts/View/tools/console_checks.js <out dir>/run_large.console.txt --check
+ *   node Scripts/View/tools/console_checks.js <out dir>/run_large.log --check
  * The view goes to Views/Large of the copy; the time is logged only (plan decision T2).
  */
+if (typeof require !== "function") { const m = "This script needs jArchi 1.11 or later, with CommonJS on: in Archi, open Preferences > Scripting and tick \"Enable CommonJS Support\" (no such option: update jArchi first). Then run the script again."; try { window.alert(m); } catch (e) { console.error(m); } exit(); }
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
-const Common     = require(REPO_ROOT + "_lib/Common");
+const Log        = require(REPO_ROOT + "_lib/log");
 const PresetIO   = require(REPO_ROOT + "View/lib/preset_io");
 const GenView    = require(REPO_ROOT + "View/lib/generate_view");
 const { ACTION } = require(REPO_ROOT + "View/lib/defs");
-const CliConsole = require(REPO_ROOT + "View/test/cli_console");
 
-Common.initConsoleLog(__FILE__, true);
-CliConsole.markErrorsOnCommandLine();
+Log.start(__FILE__, true);
+Log.name();   // the presets differ per run: the log file takes the script's name
 try {
   const source = $("view").filter(v => v.name === "5 Large").first();
   if (!source) throw new Error(`No view "5 Large" in ${model.getPath()}`);
@@ -22,9 +22,9 @@ try {
   preset.view.name = "baseline new_view 5 Large";
   preset.view.folder = "/Large";
   preset.view.underGenerated = false;
-  console.log("\n##### baseline new_view 5 Large");
+  Log.info("\n##### baseline new_view 5 Large");
   GenView.generate_view(preset, $(source), ACTION.NEW_VIEW.id);
 } catch (error) {
-  console.error(`> ${/** @type {Error} */ (error).stack || error}`);
+  Log.error(String(/** @type {Error} */ (error).message || error)); Log.detail("ERROR", String(/** @type {Error} */ (error).stack || error));
 }
-Common.finishConsoleLog();
+Log.finish();

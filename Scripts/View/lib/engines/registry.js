@@ -4,12 +4,14 @@
  * module. Adding an engine is one entry here plus its algorithm entries in defs.js
  * (tools/check_registry.js checks that every algorithm's engine is registered).
  */
-console.log("Loading engines/registry.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading engines/registry.js");
 
 // Adapter module per engine id, relative to Scripts/. Loaded on first use (require memoises).
 /** @type {Readonly<Record<string, string>>} */

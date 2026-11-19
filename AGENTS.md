@@ -8,7 +8,7 @@ jArchi scripts for Archi (CommonJS, GraalJS). This file holds the binding repo r
 |---|---|---|
 | Generic | `~/ai/shared/` (own repo, cloned to `~/ai`; not in this clone) | Working agreements and coding defaults across all projects |
 | Project | `AGENTS.md` (this file), `repo-guide.md` | Entry point and vocabulary rule, runtime constraints, module structure, testing policy |
-| Shared library | `Scripts/_lib/` module JSDoc, `repo-guide.md` § Shared modules | Contracts every script relies on: selection helpers, utilities, folder resolution |
+| Shared library | `Scripts/_lib/` module JSDoc, `repo-guide.md` § Shared modules | Contracts every script relies on: logging, selection helpers, utilities, folder resolution |
 | Part | `Scripts/<folder>/AGENTS.md` | One folder only; today `Scripts/View/AGENTS.md` |
 | Skill | `skills/<skill>/SKILL.md` | One kind of task; `jarchi-scripting` is the highest repo authority on jArchi facts |
 
@@ -58,10 +58,10 @@ No exceptions.
 
 Defaults, not hard rules; a reason to deviate goes in a comment.
 
-- **Names.** Functions: camelCase verbs (`buildGraph`); file-internal: `_` prefix, never exported; an exported function has no `_`; engine-specific: suffix (`_buildGraphELK`); constants: UPPER_SNAKE_CASE; required modules: PascalCase (`const Common = require(…)`), always called with the namespace (`Common.debug()`).
+- **Names.** Functions: camelCase verbs (`buildGraph`); file-internal: `_` prefix, never exported; an exported function has no `_`; engine-specific: suffix (`_buildGraphELK`); constants: UPPER_SNAKE_CASE; required modules: PascalCase (`const Common = require(…)`), always called with the namespace (`Log.debug()`).
 - **Functions.** One verb — a name that needs "and" is two functions. Aim for ≤ 30 lines. Return one value; two results → `{ a, b }`. Guards in the caller, not in the extracted function. Extract on the third identical line, not before.
 - **Errors.** Validate at the boundaries (user input, files, presets, external tools); trust internal code — the typecheck covers its contracts. No fallback for a case that cannot happen.
-- **Logging.** `console.log` for progress, `console.error` for errors (one argument: jArchi's console takes one; it has no `warn`), `Common.debug` for diagnostics.
+- **Logging.** Through `_lib/log.js`, never `console` directly in a module: `Log.info` for progress and results, `Log.warn` / `Log.error` with what happened, its effect and what to do, `Log.debug` for diagnostics (log file only). The console is for the user, the log file for troubleshooting.
 - **Selection.** Use `Selection.getSelection` / `getVisualSelection` (`_lib/selection.js`) when view references and single-object selections should expand; a script with its own selection semantics (e.g. View, `$(selection)`) says so.
 - **Java.** `Java.type("java.io.File")`, not the `java.io.File` package root. Java lists are arrays to GraalJS; Java maps are not plain objects (`JSON.stringify` gives `{}`).
 - **Vocabulary.** Per part; View: `Scripts/View/docs/SPEC.md` § Vocabulary (rule 2).

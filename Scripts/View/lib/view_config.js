@@ -5,12 +5,14 @@
  * `programRunner` gives a ProcessRunner that starts `node` and `dot` from the configured paths, so
  * the adapters and the Node layout keep asking for the program by name.
  */
-console.log("Loading view_config.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading view_config.js");
 
 const CONFIG_FILE = "config.js";
 const VIEW_DIR = REPO_ROOT + "View/";
@@ -32,7 +34,7 @@ function readConfig(fileExists) {
   const path = VIEW_DIR + CONFIG_FILE;
   if (!fileExists(path)) return Object.assign({}, DEFAULTS);
   const local = validateConfig(require(path));
-  for (const [key, value] of Object.entries(local)) console.log(`View config (${CONFIG_FILE}): ${key} = ${value}`);
+  for (const [key, value] of Object.entries(local)) Log.debug(`View config (${CONFIG_FILE}): ${key} = ${value}`);
   return Object.assign({}, DEFAULTS, local);
 }
 

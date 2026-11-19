@@ -7,9 +7,11 @@
  * "Object ID", "Managed occurrence" and "View origin" are always hidden (the tool owns them) and are not listed.
  * The file is read once per run and validated as a whole: an unusable file stops the run with a message.
  */
-console.log("Loading hidden_properties.js");
 
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+/** @type {typeof import("../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading hidden_properties.js");
 /** @type {typeof import("./defs")} */
 const Defs = require(REPO_ROOT + "View/lib/defs");
 
@@ -53,7 +55,7 @@ function readHidden() {
  */
 function hiddenKeys() {
   const keys = new Set([Defs.PROP_ID, Defs.PROP_MANAGED_OCCURRENCE, Defs.PROP_ORIGIN, ...readHidden()]);
-  console.log(`Hidden view properties (${HIDDEN_FILE}): ${[...keys].join(", ")}`);
+  Log.debug(`Hidden view properties (${HIDDEN_FILE}): ${[...keys].join(", ")}`);
   return keys;
 }
 

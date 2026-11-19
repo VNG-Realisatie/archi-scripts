@@ -19,8 +19,7 @@ const Config = require(__DIR__ + "config.default.js");
  *          Mapping object keys are used as ArchiObject attribute or property, values as CSV column header)
  */
 function exportObjects(objectType, exportFile, collection, headerMapping) {
-  Common.debugStackPush(false);
-  Common.debug(`objectType=${objectType}`);
+  Log.debug(`objectType=${objectType}`);
 
   try {
     // create an array with all selected objects.
@@ -89,7 +88,6 @@ function exportObjects(objectType, exportFile, collection, headerMapping) {
   } catch (error) {
     console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
   }
-  Common.debugStackPop();
 }
 
 /**
@@ -148,7 +146,7 @@ function _getPropertyLabels(objects) {
       // accumulate all unique property labels.
       if (typeof accumulator[propLabel] == "undefined") {
         accumulator[propLabel] = propLabel;
-        Common.debug(`add property to accumulator: ${accumulator[propLabel]}`);
+        Log.debug(`add property to accumulator: ${accumulator[propLabel]}`);
       }
     });
     return accumulator;
@@ -161,8 +159,7 @@ function _getPropertyLabels(objects) {
 function _createRow(headerRow, object, objectType, headerMapping) {
   let row = new Object();
 
-  Common.debugStackPush(false);
-  Common.debug(`\n ${object}`);
+  Log.debug(`\n ${object}`);
 
   // fill row with the attributes and property values of the object
   if (headerMapping == undefined) {
@@ -172,8 +169,8 @@ function _createRow(headerRow, object, objectType, headerMapping) {
   } else {
     Object.keys(headerMapping).forEach((headerKey) => {
       if (headerKey == ExportImport.PROP_ADD) {
-        Common.debug(`headerMapping[headerKey].key: ${headerMapping[headerKey].key}`);
-        Common.debug(`headerMapping[headerKey].value: ${headerMapping[headerKey].value}`);
+        Log.debug(`headerMapping[headerKey].key: ${headerMapping[headerKey].key}`);
+        Log.debug(`headerMapping[headerKey].value: ${headerMapping[headerKey].value}`);
         // fill row with in mapping defined function or value
         if (typeof headerMapping[headerKey].value === "function") {
           row[headerMapping[headerKey].key] = headerMapping[headerKey].value(); // Call the function
@@ -189,18 +186,17 @@ function _createRow(headerRow, object, objectType, headerMapping) {
   // fill folder column
   if (Config.FOLDER_COLUMN) {
     row[ExportImport.FOLDER_LABEL] = ArchiFolders.printFolderPath(object, "");
-    Common.debug(`row[${ExportImport.FOLDER_LABEL}]: ${row[ExportImport.FOLDER_LABEL]}`);
+    Log.debug(`row[${ExportImport.FOLDER_LABEL}]: ${row[ExportImport.FOLDER_LABEL]}`);
   }
 
   // GEMMA columns for checking which elements will be published
   if (Config.GEMMA_COLUMNS && objectType == Common.OBJECT_TYPE_ELEMENT) {
     // fill column with the 'highest' publiceren value of all the views with the object drawn
     row[ExportImport.GEMMA_PUBLICEREN_TOT_EN_MET_LABEL] = _getGEMMA_columns(object).publicerenTotEnMet;
-    Common.debug(`row[${ExportImport.GEMMA_PUBLICEREN_TOT_EN_MET_LABEL}]: ${row[ExportImport.GEMMA_PUBLICEREN_TOT_EN_MET_LABEL]}`);
+    Log.debug(`row[${ExportImport.GEMMA_PUBLICEREN_TOT_EN_MET_LABEL}]: ${row[ExportImport.GEMMA_PUBLICEREN_TOT_EN_MET_LABEL]}`);
     row[ExportImport.GEMMA_LIST_API_LABEL] = _getGEMMA_columns(object).GEMMA_ListAPI;
-    Common.debug(`row[${ExportImport.GEMMA_LIST_API_LABEL}]: ${row[ExportImport.GEMMA_LIST_API_LABEL]}`);
+    Log.debug(`row[${ExportImport.GEMMA_LIST_API_LABEL}]: ${row[ExportImport.GEMMA_LIST_API_LABEL]}`);
   }
-  Common.debugStackPop();
   return row;
 }
 

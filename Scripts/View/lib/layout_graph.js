@@ -4,12 +4,14 @@
  * nesting resolution it was built from. Pure: reads ids, types, names and ends only, so Node runs it
  * as it is.
  */
-console.log("Loading layout_graph.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading layout_graph.js");
 
 /** @type {typeof import("./defs")} */
 const Defs    = require(REPO_ROOT + "View/lib/defs");
@@ -85,7 +87,10 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
   // Name each nesting cycle so the user can find the relations to fix or exclude.
   for (const c of nesting.cycles) {
     const names = c.elements.map(el => `"${el.name || el.id}"`).join(", ");
-    console.log(`  Circular nesting (${c.rels.length} relations drawn as connections): ${names}`);
+    Log.debug(`  Circular nesting (${c.rels.length} relations drawn as connections): ${names}`);
+    Log.warn(`Circular nesting between ${names}.`, {
+      effect: `${c.rels.length} nesting relation${c.rels.length === 1 ? " is" : "s are"} drawn as connection${c.rels.length === 1 ? "" : "s"}.`,
+      action: "fix or exclude one of these relations in the nesting conditions." });
   }
 
   // Nesting relations not applied as containment (other parent, cycle) are drawn as
@@ -94,7 +99,9 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
   for (const r of circularNestingRels)  routedRels.push(r);
   for (const r of nesting.deepNestingRels) routedRels.push(r);
   if (nesting.deepNestingRels.length)
-    console.log(`  ${nesting.deepNestingRels.length} nesting relations drawn as connections: ${preset.algorithm} nests at most ${ALGORITHMS[preset.algorithm].nestingLevels} levels`);
+    Log.warn(`${preset.algorithm} nests at most ${ALGORITHMS[preset.algorithm].nestingLevels} levels.`, {
+      effect: `${nesting.deepNestingRels.length} nesting relations deeper than that are drawn as connections.`,
+      action: "choose an algorithm that nests deeper, or fewer nesting levels." });
 
   // Nodes: one per occurrence (paired visuals and unpaired user visuals included).
   /** @type {LayoutNode[]} */

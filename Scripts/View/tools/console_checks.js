@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 /**
- * Checks the console of a run in Archi's command line (tools/archi_cli.sh writes it to <out dir>/<script>.console.txt):
+ * Checks the log file of a run in Archi's command line (tools/archi_cli.sh copies it to <out dir>/<script>.log):
  *   - count promise: per written view the pipeline's "Total to view" equals the writer's "Objects on view"
  *     (elements with their extra occurrences, connections, nestings, diagram objects, diagram connections);
- *   - no line marked "ERROR: " (the test script marks console.error, which the command line does not);
- *   - the ⚠ and "Warning:" lines equal test/expected/<script>-warnings.txt (expected.js: --check / --write);
+ *   - no ERROR line;
+ *   - the WARN lines equal test/expected/<script>-warnings.txt (expected.js: --check / --write);
  *   - prints Archi's time per view (the "Timing" lines), for the record only.
+ * Each log line is "<LEVEL> [<context>] <text>" (Scripts/_lib/log.js); the header and footer have no level.
  *
- * Run: node Scripts/View/tools/console_checks.js <script.console.txt> [--check | --write]
+ * Run: node Scripts/View/tools/console_checks.js <script.log> [--check | --write]
  * Exit 1 on a count difference, an error line, or (with --check) other warnings.
  */
 const fs = require("fs");
@@ -17,11 +18,12 @@ const Expected = require(path.join(__dirname, "expected.js"));
 const FIELDS = ["elements", "connections", "nestings", "diagram objects", "diagram connections"];
 
 const file = process.argv.slice(2).find(a => !a.startsWith("--"));
-if (!file) { console.error("usage: node Scripts/View/tools/console_checks.js <script.console.txt> [--check | --write]"); process.exit(2); }
-const lines = fs.readFileSync(file, "utf8").split("\n");
-const scriptLine = lines.find(l => l.startsWith("Running script:"));
-if (!scriptLine) { console.error(`${file}: no "Running script:" line, not a jArchi script's console`); process.exit(2); }
-const script = scriptLine.replace(/^Running script:\s*/, "").replace(/\.ajs\s*$/, "");
+if (!file) { console.error("usage: node Scripts/View/tools/console_checks.js <script.log> [--check | --write]"); process.exit(2); }
+const LINE = /^(DEBUG|INFO|WARN|ERROR) +\[[^\]]*\] ?(.*)$/;
+const lines = fs.readFileSync(file, "utf8").split("\n").map(l => { const m = l.match(LINE); return m ? { level: m[1], text: m[2] } : { level: "", text: l }; });
+const scriptLine = lines.find(l => l.level === "INFO" && l.text.startsWith("Script:"));
+if (!scriptLine) { console.error(`${file}: no "Script:" line, not the log file of a jArchi script`); process.exit(2); }
+const script = scriptLine.text.replace(/^Script:\s*/, "").replace(/\.ajs\s*$/, "");
 
 const { views, errors, warnings, timings } = parse(lines);
 const mismatches = views.filter(v => FIELDS.some(f => v.predicted[f] !== v.written[f]));
@@ -41,9 +43,9 @@ Expected.report(warnings, `${script}-warnings.txt`, s => console.log(s));
 if (mismatches.length || unpredicted.length || errors.length) process.exitCode = 1;
 
 /**
- * Walks the console once: the current run (a "##### <name>" header), the last "Total to view" block,
+ * Walks the log once: the current run (a "##### <name>" header), the last "Total to view" block,
  * each "Objects on view" line with the view written after it.
- * @param {string[]} lines
+ * @param {{ level: string, text: string }[]} lines
  */
 function parse(lines) {
   /** @type {{run: string, view: string, predicted: Record<string, number> & {found?: boolean}, written: Record<string, number>}[]} */
@@ -55,8 +57,9 @@ function parse(lines) {
   let run = "", predicted = /** @type {Record<string, number> & {found?: boolean}} */ ({});
   /** @type {Record<string, number> | null} */
   let written = null;
-  for (const line of lines) {
-    const t = line.trim();
+  for (const { level, text } of lines) {
+    const t = text.trim();
+    const advice = /^(Effect|Action):/.test(t);
     if (t.startsWith("##### ")) run = t.slice(6);
     else if (t === "Total to view:") predicted = { found: true };
     else if (t.startsWith("elements:") && predicted.found) predicted.elements = _sum(t);
@@ -67,8 +70,8 @@ function parse(lines) {
       views.push({ run, view: t.slice(6, -9), predicted, written });
       predicted = {}; written = null;
     }
-    else if (t.startsWith("ERROR: ")) errors.push(`${run}: ${t.slice(7)}`);
-    else if (t.includes("⚠") || t.startsWith("Warning:")) { if (!warnings.includes(`${run}: ${t}`)) warnings.push(`${run}: ${t}`); }
+    else if (level === "ERROR" && !advice) errors.push(`${run}: ${t}`);
+    else if (level === "WARN" && !advice) { if (!warnings.includes(`${run}: ${t}`)) warnings.push(`${run}: ${t}`); }
     else if (t.startsWith("Timing:")) { const m = t.match(/\(total ([\d.]+) (ms|s)\)/); if (m) timings.push({ run, view: views.length ? views[views.length - 1].view : "", ms: Math.round(Number(m[1]) * (m[2] === "s" ? 1000 : 1)) }); }
   }
   return { views, errors, warnings, timings };

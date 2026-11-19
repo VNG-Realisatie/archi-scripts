@@ -3,12 +3,14 @@
  *
  * openSaveAs(opts) — Save As… dialog (name + folder + description)
  */
-console.log("Loading dialog_presets.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading dialog_presets.js");
 
 /** @type {typeof import("../preset_io")} */
 const PresetIO = require(REPO_ROOT + "View/lib/preset_io");

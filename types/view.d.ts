@@ -460,6 +460,26 @@ interface ComposedObjectSet {
   view: ViewCounts;
 }
 
+/** What plan() counted for the console: the selection, the filtered base, the step adds, the view. */
+interface PlanCounts {
+  /** Elements read from the selection, before the filter. */
+  selected: number;
+  base: { elements: number; relations: number };
+  steps: { elements: number; relations: number };
+  view: ViewCounts;
+  /** The view size generated, px. */
+  size: { width: number; height: number };
+}
+
+/** Objects on a written view (view_writer), in the fields of the count promise. */
+interface ObjectsOnView {
+  elements: number;
+  connections: number;
+  nestings: number;
+  diagramObjects: number;
+  diagramConnections: number;
+}
+
 /** Predicted counts on the generated view (predictViewCounts); SPEC § Vocabulary. */
 interface ViewCounts {
   elements: number;
@@ -804,6 +824,8 @@ type RunOrigin = Pick<ViewOrigin, "preset" | "direction" | "modified" | "script"
 type ViewTarget = { name?: string; folder?: () => Folder; view?: ArchimateView; origin?: ViewOrigin };
 type GenerateOptions = {
   origin?: RunOrigin;
+  /** The preset's name for the console and the log file, when the run leaves no origin (a session run). */
+  presetName?: string;
   /** Regenerate: this view, with this origin. */
   regenerate?: ViewTarget;
   /** Regenerate with siblings: the views of the group by element id. */

@@ -2,12 +2,14 @@
  * Archi side of the selection pipeline: reads what an action works on from the selection and the
  * model (jArchi `$` calls), once, into a Snapshot that selection_pipeline.js composes from.
  */
-console.log("Loading selection_read.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading selection_read.js");
 
 /** @type {typeof import("../../_lib/selection")} */
 const Selection = require(REPO_ROOT + "_lib/selection");
@@ -42,7 +44,7 @@ function readSelection(uiSelection, actionId) {
   const isExpand = actionId === ACTION.EXPAND_VIEW.id;
 
   // Model objects from the selection (uniform for canvas + model tree).
-  console.log("Current selection:");
+  Log.debug("Current selection:");
   const raw = Selection.getSelection(uiSelection, "*", INDENT);
   const expanded = _expandViews(raw, INDENT);
 
@@ -203,7 +205,7 @@ function _expandViews(collection, logPrefix = "") {
     });
   });
 
-  console.log(`${logPrefix}Expanded ${viewColl.size()} view(s) → ${expanded.size()} model objects · ${diagramObjects.length} diagram objects`);
+  Log.debug(`${logPrefix}Expanded ${viewColl.size()} view(s) → ${expanded.size()} model objects · ${diagramObjects.length} diagram objects`);
   return { modelCollection: expanded, diagramObjects };
 }
 
@@ -353,7 +355,7 @@ function _collectExistingVisuals(uiSelection, actionId, logPrefix = "") {
     }
   }
 
-  console.log(`${logPrefix}Existing on view: ${visualElements.length} VEs · ${visualRelations.length} VRs · view: "${existingView && existingView.name || "none"}"`);
+  Log.debug(`${logPrefix}Existing on view: ${visualElements.length} VEs · ${visualRelations.length} VRs · view: "${existingView && existingView.name || "none"}"`);
   const positions = existingView ? _readPositions(existingView) : new Map();
   return { existingView, visualElements, visualRelations, positions, viewFromTree: viewFound };
 }

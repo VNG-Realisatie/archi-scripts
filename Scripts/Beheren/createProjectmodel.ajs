@@ -36,15 +36,17 @@
  * Author:  Mark Backer
  * Version: 1 (2021-03)
  */
+if (typeof require !== "function") { const m = "This script needs jArchi 1.11 or later, with CommonJS on: in Archi, open Preferences > Scripting and tick \"Enable CommonJS Support\" (no such option: update jArchi first). Then run the script again."; try { window.alert(m); } catch (e) { console.error(m); } exit(); }
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
 const Common = require(REPO_ROOT + "_lib/Common.js");
+const Log    = require(REPO_ROOT + "_lib/log");
 const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders.js");
 const Selection = require(REPO_ROOT + "_lib/selection.js");
 
 const PROP_ID = "Object ID";
 const MODEL_TYPE = "Type model";
 
-Common.initConsoleLog(__FILE__, true);
+Log.start(__FILE__, true);
 try {
   let projectFolders = $(selection).filter("folder");
   if (projectFolders.size() == 1) {
@@ -76,7 +78,7 @@ try {
 } catch (error) {
   console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
-Common.finishConsoleLog();
+Log.finish();
 
 /**
  * Save a copy of the current model, prompt for a file name

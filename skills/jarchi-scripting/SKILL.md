@@ -5,7 +5,7 @@ description: Use when writing or changing jArchi scripts for Archi (.ajs files, 
 
 # jArchi scripting
 
-**Runtime.** jArchi 1.12 runs scripts in GraalJS (ECMAScript 2024) through JSR-223 with nashorn-compat. Modules: CommonJS `require` (preference "Enable CommonJS", jArchi ≥ 1.6). No Node APIs, no timers, no event loop — work synchronously; Java via `Java.type`. Java getters read as properties (`vo.fillColor`), Java lists are array-like.
+**Runtime.** jArchi 1.12 runs scripts in GraalJS (ECMAScript 2024) through JSR-223 with nashorn-compat. Modules: CommonJS `require` (preference "Enable CommonJS Support", key `commonJSEnabled`, jArchi ≥ 1.6; off, jArchi does not set `js.commonjs-require` and `require` does not exist). No Node APIs, no timers, no event loop — work synchronously; Java via `Java.type`. Java getters read as properties (`vo.fillColor`), Java lists are array-like.
 
 ## Pitfalls
 
@@ -42,7 +42,7 @@ Archi's command line runs a script without Archi's window, so the agent can run 
 - **Needs** jArchi's command-line plugin: `com.archimatetool.script.commandline_*.jar` in Archi's `dropins` folder.
 - **Archi** on the user's machines: Linux `~/Tools/Archi/Archi`, Windows (scoop) `~/scoop/apps/archi/current/Archi.exe`.
 - **Next to an open Archi.** The run leaves the user's open models (`models.xml`) alone, but a model open in Archi does not see a file the script saves: the user closes that model first, or the script runs on a copy.
-- **Console** goes to stdout; `console.error` is not marked, so a script that must be checked afterwards marks its errors itself.
+- **Console** goes to stdout; `console.error` is not marked, so a run that must be checked afterwards is read from its log file (`_lib/log.js`: every line has its level). No workbench: no `shell`, so `window.alert` fails.
 - **No `shell`.** The global `shell` (Archi's main window) is not defined on the command line: a script that parents a dialog on it needs another parent there (`Scripts/View/tools/gui_timing.ajs`).
 - **Bare module names.** A bare `require("chroma-js")` from a script outside `Scripts/` is not resolved: require it by path.
 - **Closing a dialog from the script.** `Window.close()` returns OK, so the dialog's OK action runs; close the dialog's shell instead to end it as its close button does (Cancel).

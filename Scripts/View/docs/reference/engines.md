@@ -105,9 +105,23 @@ An option outside the active set is greyed in the dialog, keeps its value, and i
 
 Engines meet a target by arranging elements differently, never by scaling coordinates. A target that cannot be met is reported, not forced.
 
-## Console logging
+## Console and log file
 
-Each orchestration phase is a step: one blank line, a header at root indent (`Step name:`), and detail lines indented two spaces. The final `View "…" written` line is at root indent.
+The console is for the user, the log file for troubleshooting. Levels: INFO (progress and results) and WARN and ERROR go to both; DEBUG only to the log file.
+
+**Console.** A line of `=` opens and closes every run; lines wrap at 80 characters (a path is never broken).
+
+| Block | Lines |
+|---|---|
+| Start of the script | `Script:`, `Platform:` (Archi, jArchi, JavaScript engine, platform) |
+| `View generation: <action>` | `Preset:` (modified, direction from the script name), `Selection:` (what is selected in Archi: kinds, where, and for *One view each* the number of views), `Settings:` (algorithm, direction, nesting, view size; preset values not in the dialog), `Target:`, `Log file:` (its name) |
+| Per view: `✓` / `⚠` / `–` / `✗` and *New*, *Updated*, *Overwritten*, *Skipped* or *Failed*, the view and its folder | `Filtered base:` (or `Base:` for a Modify action), `Step adds:`, `On view:` (elements with containers and nested elements, nestings, connections, diagram objects), `Size:` (px and time); then the view's warnings and errors |
+| End | `Result:` (generated, with warnings, skipped, failed), `Duration:`, `Log file:` with the full path on the line after it |
+
+- A warning or error has three parts, each on its own line: what happened, `Effect:` and `Action:`. A warning repeated within a view (a layout run again) is shown once.
+- `⚠` before a view: it has warnings. The dialog's settings and the engine's options are in the log file only.
+
+**Log file.** One file per run in `logs/archi-scripts/` under Archi's workspace folder (`~/.archi` on Linux), named `<yyyyMMdd-HHmmss>-<preset>.log` (the script's name when a run has no single preset); the newest 20 are kept, and above 10 MB a file takes only WARN and ERROR. The first line has the start time, the last the end time and duration; every other line is `<LEVEL> [<context>] <text>`, the context `run` or `view <n> "<name>"`. It holds every console line and the orchestration steps below, each with one blank line, a header and detail lines indented two spaces:
 
 | Step header | Covers |
 |---|---|
@@ -117,8 +131,9 @@ Each orchestration phase is a step: one blank line, a header at root indent (`St
 | `View target:` | Modify actions: the view identified (before the layout graph) |
 | `Layout:` | Engine passes, width alignment, where the layout ran (`Layout in Node: … ms layout · … ms process`, or `Layout in Archi:` with the reason), layout result, view size |
 | `View target:` | Create actions: the view created or overwritten, after the layout succeeded |
-| `Write:` | Nodes written (extra occurrences included), connections, final counts |
+| `Write:` | Nodes written (extra occurrences included), connections, final counts, `View "…" written`; each write step that failed |
 | `Timing:` | Time per phase: selection, view target, layout graph, layout, write, appearance; then `generate_view:` with the total |
 
 - The dialog logs one block before it opens (Selected / Containing / Filtered), not on widget changes.
 - There is no debug flag. Width-alignment and container-offset mismatches are always logged with `⚠`.
+- A failure's stack is in the log file only.

@@ -14,8 +14,9 @@
  * - styled de views
  * - set de eigenschappen van de views
  */
+if (typeof require !== "function") { const m = "This script needs jArchi 1.11 or later, with CommonJS on: in Archi, open Preferences > Scripting and tick \"Enable CommonJS Support\" (no such option: update jArchi first). Then run the script again."; try { window.alert(m); } catch (e) { console.error(m); } exit(); }
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
-const Common = require(REPO_ROOT + "_lib/Common.js");
+const Log    = require(REPO_ROOT + "_lib/log");
 const Selection = require(REPO_ROOT + "_lib/selection.js");
 const PresetIO = require(REPO_ROOT + "View/lib/preset_io");
 const GenView  = require(REPO_ROOT + "View/lib/generate_view");
@@ -26,7 +27,7 @@ const GgmGemma = require(__DIR__ + "include_ggm_gemma.js");
 const FOLDER_SYNC_GGM_VIEWS = GgmGemma.FOLDER_SYNC_GGM + "/GGM naar GEMMA";
 const SCRIPT_NAME = "4_ggm_gemma_views.ajs";   // Regenerate refuses these views and names this script: styleLabelsProperties works on after the run
 
-Common.initConsoleLog(__FILE__, true);
+Log.start(__FILE__, true);
 
 try {
   let GEMMA_Beleidsdomeinen = Selection.getSelection($(selection), "grouping");
@@ -66,7 +67,7 @@ try {
   console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
 
-Common.finishConsoleLog();
+Log.finish();
 
 // generate_view returns an array of views; the styling helpers below work on a collection.
 function _toCollection(views) {
@@ -82,7 +83,7 @@ function _toCollection(views) {
 function styleLabelsProperties(views) {
   console.log(`\nStyling, labels and properties`);
   console.log(`==============================`);
-  Common.debug(`views: ${views}`);
+  Log.debug(`views: ${views}`);
 
   console.log("\nStyle view");
   styleView(views);

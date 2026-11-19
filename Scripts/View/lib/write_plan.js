@@ -10,12 +10,14 @@
  * new bendpoints, else a new one or a copy. Pure: reads ids, types, ends and concepts only, so Node
  * runs it as it is.
  */
-console.log("Loading write_plan.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading write_plan.js");
 
 /** @type {typeof import("./defs")} */
 const Defs    = require(REPO_ROOT + "View/lib/defs");

@@ -7,6 +7,7 @@
  */
 
 const Common = require(REPO_ROOT + "_lib/Common.js");
+const Log    = require(REPO_ROOT + "_lib/log");
 
 // Label of the property with the ID
 const PROP_ID = "Object ID";
@@ -31,8 +32,7 @@ function collectobjectArray() {
  * @returns {Boolean} true if all Object ID's are set
  */
 function setObjectID(objectArray) {
-  Common.debugStackPush(false);
-  Common.debug(`start ${objectArray}`);
+  Log.debug(`start ${objectArray}`);
   const objectsWithID = objectArray.filter((object) => object.prop(PROP_ID));
   const objectsWithoutID = objectArray.filter((object) => !object.prop(PROP_ID));
 
@@ -41,16 +41,15 @@ function setObjectID(objectArray) {
     console.log(`Total number of objects to check: \t${objectArray.length}`);
   }
 
-  Common.debug(`voor checkduplicate ${objectsWithID}`);
+  Log.debug(`voor checkduplicate ${objectsWithID}`);
   // Check for duplicates
   const objectsWithDuplicateID = _checkDuplicateID(objectsWithID);
   if (objectsWithDuplicateID.length > 0) {
     console.log(`Not all objects have a valid ${PROP_ID}\n`);
     console.log(`Resolve the reported duplicate ${PROP_ID} by deleting one of them\n`);
-    Common.debugStackPop();
     return false;
   } else {
-    Common.debug(`voor _checkUnvalidID ${objectsWithID}`);
+    Log.debug(`voor _checkUnvalidID ${objectsWithID}`);
     // Check for invalid IDs
     const objectsWithUnvalidID = _checkUnvalidID(objectsWithID);
     if (objectsWithUnvalidID.length > 0) {
@@ -67,7 +66,7 @@ function setObjectID(objectArray) {
           return { Object: o.toString(), "Old Object ID": oldID, "New Object ID": id_generated };
         }
       });
-      Common.logInColumns(replacedIDs, ["Object", "Old Object ID", "New Object ID"]);
+      Log.columns(replacedIDs, ["Object", "Old Object ID", "New Object ID"]);
       console.log();
     }
 
@@ -83,7 +82,7 @@ function setObjectID(objectArray) {
       });
       if (objectArray.length > 1) {
       console.log(`\nAdding ${PROP_ID} to ${objectsWithoutID.length} object${objectsWithoutID.length > 1 ? "s" : ""}\n`);
-      Common.logInColumns(newIDs, ["Object", "New Object ID"]);
+      Log.columns(newIDs, ["Object", "New Object ID"]);
       console.log();
       } 
     }
@@ -93,7 +92,6 @@ function setObjectID(objectArray) {
       console.log(`- replaced ${PROP_ID}: \t${objectsWithUnvalidID.length}`);
       console.log(`All objects now have a valid ${PROP_ID}\n`);
     }
-    Common.debugStackPop();
     return true;
   }
 }
@@ -120,7 +118,7 @@ function _checkDuplicateID(objects) {
   if (objWithDupID.length > 0) {
     console.log(`\nDuplicates found`);
     console.log(`- ${objWithDupID.length} object${objWithDupID.length > 1 ? "s" : ""} with duplicate ${PROP_ID}`);
-    Common.logInColumns(objWithDupID, ["Object ID", "Objects"]);
+    Log.columns(objWithDupID, ["Object ID", "Objects"]);
   }
 
   return objWithDupID;
@@ -147,7 +145,7 @@ function _checkUnvalidID(objects) {
   if (objectsWithUnvalidID.length > 0) {
     console.log(`\nInvalid GUIDs found`);
     console.log(`- ${objectsWithUnvalidID.length} object${objectsWithUnvalidID.length > 1 ? "s" : ""} with invalid GUID`);
-    Common.logInColumns(objectsWithUnvalidID, ["Object ID", "Object"]);
+    Log.columns(objectsWithUnvalidID, ["Object ID", "Object"]);
   }
 
   return objectsWithUnvalidID;

@@ -11,13 +11,13 @@ The baseline is what Archi's writer puts on the views of the test model for a fi
 
 - **Test model** `Scripts/View/test/model/view-test.archimate`, one file: `Views/Test` holds the test views (input, built by `Scripts/View/test/build_test_model.ajs` with `test_model_views.js`), `Views/Baseline` the written views of the last run (output). The committed file is the baseline.
 - **Run** `Scripts/View/test/run_baseline.ajs`: deletes what `Views/Baseline` holds, runs 2 presets (`presets/Test/baseline/`) × 5 runs and 2 runs on view 4, saves the model in place.
-- **Archi's command line** `Scripts/View/tools/archi_cli.sh <script.ajs> [model] [out dir]` (Linux; the command line itself: skill `jarchi-scripting` § Running headless): runs the script on a copy in the out dir, with the display settings of the user's Archi; the console goes to `<out dir>/<script>.console.txt`.
+- **Archi's command line** `Scripts/View/tools/archi_cli.sh <script.ajs> [model] [out dir]` (Linux; the command line itself: skill `jarchi-scripting` § Running headless): runs the script on a copy in the out dir, with the display settings of the user's Archi; the console goes to `<out dir>/<script>.console.txt` and the run's log file to `<out dir>/<script>.log`.
 
 ## Steps (agent)
 
 1. Make sure the change is in the working tree and the typecheck and Node checks pass.
 2. `OUT=$(mktemp -d)` in the scratch folder; `Scripts/View/tools/archi_cli.sh Scripts/View/test/run_baseline.ajs "" $OUT`.
-3. `node Scripts/View/tools/console_checks.js $OUT/run_baseline.console.txt --check`: count promise, errors, warnings, time.
+3. `node Scripts/View/tools/console_checks.js $OUT/run_baseline.log --check`: count promise, errors, warnings, time (the run's log file, which `archi_cli.sh` copies next to the console).
 4. `node Scripts/View/tools/compare-views.js Scripts/View/test/model/view-test.archimate $OUT/view-test.archimate "Views/Baseline"` and the same for `"Views/Test"`, then judge:
    - `Views/Test` differs: a run changed the test views; a bug, never commit it.
    - `Views/Baseline` the same: the change leaves the written views as they were; nothing to commit.

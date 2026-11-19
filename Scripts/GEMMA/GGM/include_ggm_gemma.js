@@ -145,21 +145,19 @@ function updateBusinessObjects(dataObjects, businessObjectFolder, realizesBedrij
  * Delete business object for GGM data-object with changed ArchiMate-type
  */
 function deleteBusinessObjects(dataObjects, stats) {
-  Common.debugStackPush(false);
   console.log(`Delete business object for GGM data-object with changed ArchiMate-type:`);
 
   dataObjects
     .filter((dataObject) => dataObject.prop(PROP_ARCHIMATE_TYPE) == "Data object")
     .outRels("realization-relationship")
     .each((rel) => {
-      Common.debug(`rel.target: ${rel.target}`);
+      Log.debug(`rel.target: ${rel.target}`);
       if (rel.name == REALIZATION_LABEL) {
         console.log(`> delete business-object ${rel.target}`);
         rel.target.delete();
         stats.nr_delete += 1;
       }
     });
-  Common.debugStackPop();
 }
 
 /**
@@ -168,7 +166,6 @@ function deleteBusinessObjects(dataObjects, stats) {
  * - copy properties
  */
 function updateBusinessObjectRelations(dataObjects, relsFolder, stats) {
-  Common.debugStackPush(false);
   let index = [];
 
   console.log(`\n=============================================================`);
@@ -182,7 +179,7 @@ function updateBusinessObjectRelations(dataObjects, relsFolder, stats) {
     .filter((rel) => rel.target.prop(PROP_ARCHIMATE_TYPE) == "Business object")
     .each((rel) => {
       // check if relation is already processed
-      Common.debug(`Processing relation ${rel} (${rel.type}) from ${rel.source} to ${rel.target})`);
+      Log.debug(`Processing relation ${rel} (${rel.type}) from ${rel.source} to ${rel.target})`);
       if (!index.some((r) => r.id == rel.id)) {
         index.push(rel);
 
@@ -212,7 +209,6 @@ function updateBusinessObjectRelations(dataObjects, relsFolder, stats) {
         }
       }
     });
-  Common.debugStackPop();
 }
 
 /**
@@ -404,7 +400,7 @@ function updateAlternateName(archiObjColl) {
 
       if (relBeleidsdomein.size() == 1) {
         let alternateName = `${duplicateItem.archiObj.name} (${relBeleidsdomein.first().source.name})`;
-        Common.debug(`- ${duplicateItem.archiObj.name} > ${alternateName}`);
+        Log.debug(`- ${duplicateItem.archiObj.name} > ${alternateName}`);
         // log als alternateName is gewijzigd
         console.log(`  > ${duplicateItem.archiObj.name} => ${alternateName}`);
         duplicateItem.archiObj.prop(PROP_ALTERNATE_NAME, alternateName);

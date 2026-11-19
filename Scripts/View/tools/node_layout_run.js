@@ -2,7 +2,7 @@
 /**
  * Node layout, the process side (lib/node_layout.js starts it): reads { engine, config, graph } as JSON
  * from stdin, runs the adapter's layout, writes { lines, ms, result } or { lines, ms, error } as JSON
- * to stdout. `lines` are the adapter's console lines in order; the caller replays them. Exit code 0
+ * to stdout. `lines` are the adapter's log lines with their level, in order; the caller replays them. Exit code 0
  * for both: a non-zero exit means this process itself failed (stderr says why).
  *
  * The layout runs in a worker thread, so this thread stays free to watch the caller: Archi stops the
@@ -62,10 +62,11 @@ function _runLayout(input) {
   const runProcess = ViewConfig.programRunner(require("./process_runner_node").runProcess, input.config);
   const adapter = require("../lib/engines/registry").adapterOf(input.engine);
 
-  /** @type {{ text: string, error: boolean }[]} */
+  /** @type {{ level: string, text: string }[]} */
   const lines = [];
-  console.log   = (...a) => lines.push({ text: a.join(" "), error: false });
-  console.error = (...a) => lines.push({ text: a.join(" "), error: true });
+  require("../../_lib/log").setSink((level, text) => lines.push({ level, text }));
+  console.log   = (...a) => lines.push({ level: "DEBUG", text: a.join(" ") });   // a library's own output
+  console.error = (...a) => lines.push({ level: "ERROR", text: a.join(" ") });
 
   const t0 = Date.now();
   let output;

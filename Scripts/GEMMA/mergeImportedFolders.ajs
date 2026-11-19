@@ -25,10 +25,11 @@
  *    - merge the imported folders with the original folders
  *      - run this script
  */
+if (typeof require !== "function") { const m = "This script needs jArchi 1.11 or later, with CommonJS on: in Archi, open Preferences > Scripting and tick \"Enable CommonJS Support\" (no such option: update jArchi first). Then run the script again."; try { window.alert(m); } catch (e) { console.error(m); } exit(); }
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
-const Common = require(REPO_ROOT + "_lib/Common.js");
+const Log    = require(REPO_ROOT + "_lib/log");
 
-Common.initConsoleLog(__FILE__, true);
+Log.start(__FILE__, true);
 
 const FOLDER_PREFEX = "(import) ";
 
@@ -47,7 +48,7 @@ console.log(
 );
 console.log(`${nrFoldersRemaining} folders remaining`);
 
-Common.finishConsoleLog();
+Log.finish();
 
 /**
  * mergeImportedFolders()

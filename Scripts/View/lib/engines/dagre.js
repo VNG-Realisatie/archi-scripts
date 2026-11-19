@@ -4,12 +4,14 @@
  * Accepts a normalized LayoutGraph, runs Dagre layout, returns a LayoutResult.
  * Docs: https://github.com/dagrejs/dagre/wiki
  */
-console.log("Loading engines/dagre.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading engines/dagre.js");
 
 /** @type {typeof import("../defs")} */
 const Defs = require(REPO_ROOT + "View/lib/defs");
@@ -96,7 +98,7 @@ function _loadDagre() {
   if (_dagre) return _dagre;
   try {
     _dagre = require(REPO_ROOT + "node_modules/dagre-cluster-fix/index.js");
-    console.log("Dagre layout engine loaded.");
+    Log.debug("Dagre layout engine loaded.");
   } catch (e) {
     throw new Error("dagre-cluster-fix not loaded. Check node_modules/dagre-cluster-fix/index.js.");
   }
@@ -179,11 +181,11 @@ function layout(graph) {
 
   if (selfLoops.length === 0) {
     g = _buildDagreGraph(dagre, engineOpts, nodes, regularEdges);
-    console.log("Calculating Dagre layout...");
+    Log.debug("Calculating Dagre layout...");
     dagre.layout(g);
   } else {
     g = _buildDagreGraph(dagre, engineOpts, nodes, [...regularEdges, ...selfLoops]);
-    console.log("Calculating Dagre layout (with self-loops)...");
+    Log.debug("Calculating Dagre layout (with self-loops)...");
     try {
       dagre.layout(g);
       // Extract self-loop results — use routed points if dagre-cluster-fix routed them
@@ -207,7 +209,7 @@ function layout(graph) {
         }
       }
     } catch (e) {
-      console.log("Dagre self-loop routing failed (" + /** @type {Error} */ (e).message + "); retrying without self-loops.");
+      Log.debug("Dagre self-loop routing failed (" + /** @type {Error} */ (e).message + "); retrying without self-loops.");
       g = _buildDagreGraph(dagre, engineOpts, nodes, regularEdges);
       dagre.layout(g);
       for (const edge of selfLoops) selfLoopEdgeResults.push(selfLoopResult(edge));

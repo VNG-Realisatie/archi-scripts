@@ -4,12 +4,14 @@
  * These functions operate on the LayoutGraph data structure (engine-agnostic)
  * and are used by elk.js, dagre.js and graphviz.js (the column snap and the width alignment by elk.js only).
  */
-console.log("Loading engines/engine-utils.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading engines/engine-utils.js");
 
 /** @type {typeof import("../defs")} */
 const { LABEL_SIZING_DEFAULTS, compareNames, ALGORITHMS, PARAM_LABELS, SORT_MODE } = require(REPO_ROOT + "View/lib/defs");

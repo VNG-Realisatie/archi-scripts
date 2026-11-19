@@ -20,12 +20,14 @@
  *
  * Also here: the column sets of the dialog's condition tables (filter, step, nesting, reverse, style, nesting style).
  */
-console.log("Loading condition_table.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading condition_table.js");
 
 /** @type {typeof import("../rel_filter")} */
 const ConditionLists = require(REPO_ROOT + "View/lib/rel_filter");

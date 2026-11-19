@@ -17,12 +17,14 @@
  *   7. Collect existing view contents (existingView, visualElements, visualRelations)
  *      for actions that target an existing view (EXPAND_VIEW, LAYOUT_ONLY)
  */
-console.log("Loading selection_pipeline.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading selection_pipeline.js");
 
 /** @type {typeof import("./defs")} */
 const Defs        = require(REPO_ROOT + "View/lib/defs");
@@ -37,7 +39,7 @@ const { ACTION } = Defs;
  * @param {Snapshot}     snapshot
  * @param {MaskedPreset} preset
  * @param {string}       actionId  ACTION.*.id
- * @returns {ObjectSet}  visuals: visualElements described (chain, managed; describeVisuals)
+ * @returns {ComposedObjectSet}  objectSet.visuals: visualElements described (chain, managed; describeVisuals)
  */
 function buildObjectSet(snapshot, preset, actionId) {
   // The filter is skipped for the "Modify selected view" group — EXPAND_VIEW and LAYOUT_ONLY
@@ -45,12 +47,12 @@ function buildObjectSet(snapshot, preset, actionId) {
   // element types, causing containers to be sized for only the filtered subset while excluded
   // elements remain at positions outside those bounds.
   if (!_isModifyAction(actionId)) _logFilter(preset.filter);
-  else console.log("  Modify-selected-view action: element-type filter skipped");
+  else Log.debug("  Modify-selected-view action: element-type filter skipped");
 
   const composed = composeObjectSet(snapshot, preset, actionId);
   _logSteps(preset.relatedElements.steps, composed.stepCounts);
   _logComposed(composed, _isModifyAction(actionId));
-  return composed.objectSet;
+  return composed;
 }
 
 /**
@@ -201,7 +203,7 @@ function _logComposed(composed, isModifyAction) {
   logCountBlock("Pipeline — build object set:", rows);
 
   if (diagramBlockOf && diagramBlockOf.size > 0) {
-    console.log(`  Diagram-blocks: ${new Set(diagramBlockOf.values()).size} diagram objects with contents, moved as one with ${diagramBlockOf.size} objects inside`);
+    Log.debug(`  Diagram-blocks: ${new Set(diagramBlockOf.values()).size} diagram objects with contents, moved as one with ${diagramBlockOf.size} objects inside`);
   }
 }
 
@@ -267,12 +269,13 @@ function _logSteps(steps, stepCounts) {
   for (const sc of stepCounts) {
     const step = steps[sc.idx - 1];
     const repeatStr = step.repeat === Defs.REPEAT_UNTIL_NOTHING_NEW ? "until nothing new" : `${Defs.repeatMaxRuns(step.repeat)}×`;
-    console.log(`Step ${sc.idx} conditions:  repeat: ${repeatStr}`);
+    Log.debug(`Step ${sc.idx} conditions:  repeat: ${repeatStr}`);
     _logConditions(step.conditions, _describeStepCondition, "    ");
     if (step.repeat === Defs.REPEAT_UNTIL_NOTHING_NEW) {
-      console.log(sc.capped
-        ? `Step ${sc.idx}: stopped at the maximum of ${Defs.REPEAT_MAX} runs — more elements may be reachable`
-        : `Step ${sc.idx}: nothing new after ${sc.runs}×`);
+      if (sc.capped) Log.warn(`Step ${sc.idx} stopped at its maximum of ${Defs.REPEAT_MAX} runs.`, {
+        effect: "more related elements may be reachable than the view shows.",
+        action: "give the step a fixed number of runs, or narrow its conditions." });
+      else Log.debug(`Step ${sc.idx}: nothing new after ${sc.runs}×`);
     }
   }
 }
@@ -331,16 +334,16 @@ function logCountBlock(title, rows) {
   }
 
   const labelW = rows.filter(r => !r.rule && !r.group).reduce((m, r) => Math.max(m, (r.label || "").length), 0);
-  console.log(title);
+  Log.debug(title);
   for (const r of rows) {
-    if (r.rule) { console.log("  " + RULE); continue; }
+    if (r.rule) { Log.debug("  " + RULE); continue; }
     if (r.group) {
-      console.log(`  ${r.label || ""}`);
+      Log.debug(`  ${r.label || ""}`);
       const subW = r.group.reduce((m, g) => Math.max(m, (g.sublabel || "").length), 0);
       for (const g of r.group) {
         const sub = (g.sublabel || "").padEnd(subW);
         const parts = (g.fields || []).map(([key, v]) => fmtField(key, v));
-        console.log(`    ${sub}  ${parts.join(" · ")}`);
+        Log.debug(`    ${sub}  ${parts.join(" · ")}`);
       }
       continue;
     }
@@ -351,18 +354,18 @@ function logCountBlock(title, rows) {
       if (v == null) continue;
       parts.push(fmtField(key, v));
     }
-    console.log(`  ${lbl}  ${parts.join(" · ")}`);
+    Log.debug(`  ${lbl}  ${parts.join(" · ")}`);
   }
 }
 
 /** @param {Preset["filter"] | undefined} filter */
 function _logFilter(filter) {
-  if (!filter) { console.log("Filter: none"); return; }
-  console.log("Filter element conditions:");
+  if (!filter) { Log.debug("Filter: none"); return; }
+  Log.debug("Filter element conditions:");
   _logConditions(filter.elementConditions, r => `${r.elementType || "all"}${r.property ? `  ${r.property}=${r.value}` : ""}`, "  ");
-  console.log("Filter relation conditions:");
+  Log.debug("Filter relation conditions:");
   _logConditions(filter.relationConditions, _describeRelationCondition, "  ");
-  console.log("Filter diagram conditions:");
+  Log.debug("Filter diagram conditions:");
   _logConditions(filter.diagramConditions, r => r.diagramType || "all", "  ");
 }
 
@@ -385,9 +388,9 @@ function _describeStepCondition(r) {
  * @param {string}               indent
  */
 function _logConditions(conditions, describe, indent) {
-  if (!conditions || conditions.length === 0) { console.log(`${indent}all`); return; }
+  if (!conditions || conditions.length === 0) { Log.debug(`${indent}all`); return; }
   for (const r of conditions) {
-    console.log(`${indent}${r.mode === "exclude" ? "exclude" : "include"}${r.on === false ? " (off)" : ""}  ${describe(r)}`);
+    Log.debug(`${indent}${r.mode === "exclude" ? "exclude" : "include"}${r.on === false ? " (off)" : ""}  ${describe(r)}`);
   }
 }
 

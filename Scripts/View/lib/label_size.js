@@ -9,12 +9,14 @@
  * (calculateTextControlBounds): centred text by `iconOffset − margin` on both sides, right-aligned
  * text on the right only, left-aligned text not at all.
  */
-console.log("Loading label_size.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading label_size.js");
 
 /** @type {typeof import("./appearance")} */
 const Appearance = require(REPO_ROOT + "View/lib/appearance");

@@ -7,12 +7,14 @@
  * dialog_main.js reads the conditions from its tables, calls it and puts the numbers on the widgets.
  * Also here: selection counts, property lists, the style condition sentence and the saved-preset compare.
  */
-console.log("Loading counts.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading counts.js");
 
 /** @type {typeof import("../defs")} */
 const Defs      = require(REPO_ROOT + "View/lib/defs");

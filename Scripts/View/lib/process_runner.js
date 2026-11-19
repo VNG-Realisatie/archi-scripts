@@ -3,7 +3,10 @@
  * both keep to the ProcessRunner contract (types/layout.d.ts): input and output through temp files,
  * a time limit, the files deleted again.
  */
-console.log("Loading process_runner.js");
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+/** @type {typeof import("../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading process_runner.js");
 
 /** @type {ProcessRunner} */
 function runProcess(command, args, input, timeoutSeconds) {

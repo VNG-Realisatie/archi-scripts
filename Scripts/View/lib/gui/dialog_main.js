@@ -10,12 +10,14 @@
  *   Actions    — Create new view (New view, One view each; Folder, Name; what it writes) ·
  *                Modify selected view (Expand view, Layout only; View; what it writes); Run and Cancel below
  */
-console.log("Loading dialog_main.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
+/** @type {typeof import("../../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+Log.debug("Loading dialog_main.js");
 
 /** @type {typeof import("../../../_lib/Common")} */
 const Common = require(REPO_ROOT + "_lib/Common");
@@ -95,6 +97,7 @@ function _appearanceDialogWidth(ctx, shell) {
  * @param {ArchiCollection<ArchiObject>} uiSelection  $(selection) captured before dialog opens
  */
 function open(uiSelection) {
+  RunPreset.requireModel();
   /** @type {DialogConfig} */
   const config = PresetIO.readSession();
 
@@ -213,7 +216,7 @@ function open(uiSelection) {
       else if (t in Defs.DIAGRAM_TYPES)  _lDiag++;
       else                               _lEl++;
     }
-    console.log("");
+    Log.debug("");
     Pipeline.logCountBlock("GUI — before dialog:", [
       // "Selected" reflects the raw UI pick — show views and folders too so users
       // who clicked a view see "1 view" instead of all-zeros.
@@ -278,7 +281,7 @@ function open(uiSelection) {
       let saved = null;   // preset file gone: nothing to compare with
       if (PresetIO.listPresets().includes(name)) {
         try { saved = PresetIO.readPreset(name, () => {}); }   // its keys are reported when it is loaded
-        catch (e) { console.error(`Preset "${name}" not compared with the session: ${/** @type {Error} */ (e).message}`); }
+        catch (e) { Log.warn(`Preset "${name}" not compared with the session: ${/** @type {Error} */ (e).message}`); }
       }
       if (saved && Counts.differsFromSaved(saved, ctx.config)) PresetRow.markModified(ctx);  // session changed since the last save
 
@@ -344,10 +347,11 @@ function open(uiSelection) {
   // Dialog is fully closed here — safe to run generate_view
   if (result === IDialogConstants.CANCEL_ID || result < 0) return;
 
-  if (!RunPreset.confirmViewCount(ctx.uiSelection, ctx._actionId, ctx.config.filter)) { console.log("One view each cancelled: nothing written."); return; }
+  if (!RunPreset.confirmViewCount(ctx.uiSelection, ctx._actionId, ctx.config.filter)) { RunPreset.cancelled(); return; }
   try {
     const run = { ...ctx.config, view: { ...ctx.config.view, ...ctx.runFolder } };
     GenView.generate_view(run, ctx.uiSelection, ctx._actionId, { origin: { preset: PresetRow.presetName(ctx), ...(ctx.modified ? { modified: true } : {}) } });
+    RunPreset.reportOutcome();
   } catch (e) {
     RunPreset.showFailure(e);
   }
@@ -492,7 +496,8 @@ function _updateFilteredCount(ctx) {
   try {
     _showCounts(ctx, Counts.dialogCounts(_countInput(ctx, objects)));
   } catch (e) {
-    console.error(`Counts failed: ${/** @type {Error} */ (e).stack || e}`);
+    Log.error(`The dialog's counts failed: ${/** @type {Error} */ (e).message || e}`, { effect: "the counts in the dialog may be wrong.", action: "details in the log file (search for ERROR)." });
+    Log.detail("ERROR", String(/** @type {Error} */ (e).stack || e));
     (ctx.relBlocks || []).forEach(b => _setStepAdds(b, 0, 0));
   }
   TabAppearance.updateStyleWarnings(ctx);

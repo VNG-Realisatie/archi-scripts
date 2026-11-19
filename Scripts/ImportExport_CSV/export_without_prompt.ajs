@@ -3,9 +3,11 @@
  * 	for fast roundtripping with one export and import CSV file
  * 	configure path and filename in config.js
  */
+if (typeof require !== "function") { const m = "This script needs jArchi 1.11 or later, with CommonJS on: in Archi, open Preferences > Scripting and tick \"Enable CommonJS Support\" (no such option: update jArchi first). Then run the script again."; try { window.alert(m); } catch (e) { console.error(m); } exit(); }
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
 const Common = require(REPO_ROOT + "_lib/Common.js");
-Common.initConsoleLog(__FILE__, true);
+const Log    = require(REPO_ROOT + "_lib/log");
+Log.start(__FILE__, true);
 
 const Export = require(__DIR__ + "include_export.js");
 const Config = require(__DIR__ + "config.default.js");
@@ -13,4 +15,4 @@ const Config = require(__DIR__ + "config.default.js");
 // Export.exportObjects(Common.OBJECT_TYPE_RELATION, dir + fileName);
 Export.exportObjects(Config.exportType, Config.exportfile);
 
-Common.finishConsoleLog();
+Log.finish();

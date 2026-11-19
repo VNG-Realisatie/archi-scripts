@@ -14,7 +14,7 @@ Started from "generate views using graphlib" by Hervé Jouin (<https://forum.arc
 
 ## Requirements
 
-- **Archi with jArchi** (tested: Archi 5, jArchi 1.12). In *Preferences › Scripting*: *Enable CommonJS* on, and GraalVM as the JavaScript engine where jArchi offers a choice.
+- **Archi with jArchi 1.11 or later** (tested: Archi 5, jArchi 1.12). In *Preferences › Scripting*: *Enable CommonJS Support* on, and GraalVM as the JavaScript engine where jArchi offers a choice. A script says so when jArchi is older or CommonJS is off.
 - **Graphviz** on the PATH (the `dot` program), only for the algorithms Dot, Neato, FDP, SFDP, Twopi and Circo. The others need nothing outside this repository.
 - **Node.js** on the PATH (the `node` program, current LTS), recommended: the layout then runs in Node, for a large view often more than ten times faster. Without it the layout runs in Archi, and the console says so.
 - When Archi does not find `node` or `dot` on its PATH (macOS, Node from nvm or fnm), set their paths in `Scripts/View/config.js`: an example is in `config.default.js` next to it. The file is your own and is not in git.
@@ -86,13 +86,14 @@ The console says what a regenerate uses and does not use. Hand edits on the view
 **Named preset**: put a script in `shortcuts/` (or a sub-folder; `presets/` holds only the JSON), name it `<preset>_<action>_<direction>.ajs` and give it these lines:
 
 ```js
+if (typeof require !== "function") { const m = "This script needs jArchi 1.11 or later, with CommonJS on: in Archi, open Preferences > Scripting and tick \"Enable CommonJS Support\" (no such option: update jArchi first). Then run the script again."; try { window.alert(m); } catch (e) { console.error(m); } exit(); }
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
-const Common    = require(REPO_ROOT + "_lib/Common");
+const Log       = require(REPO_ROOT + "_lib/log");
 const RunPreset = require(REPO_ROOT + "View/lib/run_preset");
 
-Common.initConsoleLog(__FILE__, true);
+Log.start(__FILE__, true);
 RunPreset.fromFilename(__FILE__, $(selection), { folder: "GEMMA" });  // folder optional
-Common.finishConsoleLog();
+Log.finish();
 ```
 
 - `<preset>` — preset name (with `folder`: `presets/<folder>/<preset>.json`)
@@ -115,7 +116,13 @@ preset.view.suffix = " (GGM)";                       // One view each: appended 
 const views = GenView.generate_view(preset, $(selection), ACTION.ONE_EACH.id);  // → view[]
 ```
 
-`ACTION`: `NEW_VIEW`, `ONE_EACH`, `EXPAND_VIEW`, `LAYOUT_ONLY`. See `Scripts/GEMMA/GGM/4_ggm_gemma_views.ajs` for a complete example.
+`ACTION`: `NEW_VIEW`, `ONE_EACH`, `EXPAND_VIEW`, `LAYOUT_ONLY`. A view that fails is reported and left out of the result; a failure before the views throws. See `Scripts/GEMMA/GGM/4_ggm_gemma_views.ajs` for a complete example.
+
+## Console and log file
+
+The console shows what a run does and its result: the action, preset, selection, settings and target; per view a status line (✓ new, updated · ⚠ with warnings or overwritten · – skipped · ✗ failed) with what is on it; at the end the result, the duration and the log file. Each warning says what happened, its effect and what to do. When a view failed or was skipped, or no view was written, a message box says so.
+
+Everything else, for troubleshooting, is in the run's log file: `logs/archi-scripts/<date-time>-<preset>.log` in Archi's workspace folder (`~/.archi` on Linux); the console ends with its full path. The newest 20 are kept. Format: [reference/engines.md § Console and log file](docs/reference/engines.md#console-and-log-file).
 
 ## Files
 
