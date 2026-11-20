@@ -7,14 +7,15 @@
  *
  * A script starts and finishes a run:
  *   const Log = require(REPO_ROOT + "_lib/log");
- *   Log.start(__FILE__, true);   // shows (and clears) the console, prints Script and Platform
+ *   Log.start(__FILE__, true);   // shows (and clears) the console, prints Script and Platform, then an empty line
  *   …
  *   Log.finish();                // prints Duration and Log file, closes the file
  *
  * Lines before start() (the "Loading …" lines of required modules) and before the file is named are
  * kept and written when the file is made: at name(), or at finish() with the script's name. A line of
  * "=" marks the start and the end of a run on the console; the end gives the log file's full path on a
- * line of its own, to copy.
+ * line of its own, to copy. An empty line follows the header; an empty line right after another is
+ * left out, so a script can start its own block with one.
  * A run can consist of items (a script's units of work, e.g. the views of a View run): inside an item
  * (beginItem … endItem) the console lines are held and printed under the item's status line, and the
  * run counts its items as done, skipped or failed (summary()). The core is pure: in Node (harness, layout process) every line goes to the console,
@@ -63,6 +64,7 @@ let _bytes = 0;
 let _full = false;
 let _fileFailed = false;
 let _context = "run";
+let _blank = false;               // the last console line was empty: an empty line after it is left out
 /** @type {string[] | null} */
 let _held = null;                 // console blocks of the current item
 let _itemWarnings = 0;
@@ -101,6 +103,7 @@ function start(scriptFile, clear = false) {
   info(field("Script:", _script));
   info(field("Platform:", _platform()));
   if (_inArchi() && !_sink) _requireJArchi();
+  info("");                         // the header stands apart from what the script prints
 }
 
 /**
@@ -197,6 +200,10 @@ function detail(level, text) { _file(text, level); }
  * @param {string} text
  */
 function write(level, text) {
+  if (level !== "DEBUG" && !_held) {
+    if (text === "" && _blank) return;
+    _blank = text === "";
+  }
   if (level === "WARN") {
     if (_warned.has(text)) { _file(text, level); return; }   // a layout run again repeats its warnings
     _warned.add(text);
@@ -278,6 +285,7 @@ function endItem(status, headline, details = []) {
     else _nodeConsole("INFO", lines.join("\n"));   // Node printed the held lines already
   }
   _held = null;
+  _blank = false;
   _itemName = "";
   _context = "run";
   _warned = new Set();
@@ -365,6 +373,7 @@ function _nodeConsole(level, text) {
 function _flushItem() {
   for (const block of _held || []) console.log(_wrap(_indent(block, 4)));
   _held = null;
+  _blank = false;
   _itemName = "";
   _context = "run";
 }
@@ -452,7 +461,7 @@ function _reset() {
   _close();
   _t0 = Date.now();
   _pending = []; _path = ""; _bytes = 0; _full = false; _fileFailed = false;
-  _context = "run"; _held = null; _itemWarnings = 0; _itemIndex = 0; _warned = new Set();
+  _context = "run"; _held = null; _blank = false; _itemWarnings = 0; _itemIndex = 0; _warned = new Set();
   _itemName = ""; _itemReason = "";
   _counts = { done: 0, withWarnings: 0, skipped: 0, failed: 0, ms: 0, problems: [] };
 }
