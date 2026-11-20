@@ -24,7 +24,7 @@ const NODE_LAYOUT_SCRIPT = REPO_ROOT + "View/tools/node_layout_run.js";
 const NODE_LAYOUT_TIMEOUT_S = 120;
 // The layout graph fields an adapter reads; the other fields are the pipeline's own (write plan, logging).
 const ADAPTER_FIELDS = /** @type {const} */ ([
-  "algorithm", "nodes", "edges", "options", "engineParams", "alignWidthSameType", "columnsAcrossContainers", "sort", "arrangements", "_parentMap",
+  "algorithm", "nodes", "edges", "options", "engineParams", "sameWidth", "columnsAcrossContainers", "sort", "arrangements", "_parentMap",
 ]);
 
 /**

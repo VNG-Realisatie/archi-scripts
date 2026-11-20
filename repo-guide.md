@@ -7,10 +7,10 @@ Where things are and how scripts are put together. Rules: `AGENTS.md`. jArchi it
 | Folder | Domain |
 |---|---|
 | `Scripts/` (root) | Frequent utilities: merge, reverse, add properties, link to view |
-| `Scripts/Appearance/` | View formatting: colour by property, reset format, toggle figure |
+| `Scripts/Appearance/` | View formatting: color by property, reset format, toggle figure |
 | `Scripts/Beheren/` | Bulk model management: unused elements / folders, duplicates |
 | `Scripts/Convert to/` | Change the ArchiMate type of concepts |
-| `Scripts/Develop/` | Development aids: plot ids and colours, `probeJArchiApi.ajs` |
+| `Scripts/Develop/` | Development aids: plot ids and colors, `probeJArchiApi.ajs` |
 | `Scripts/GEMMA/` | GEMMA model management |
 | `Scripts/ImportExport_CSV/`, `Scripts/Sync from CSV/` | CSV import / export / sync |
 | `Scripts/Layout/` | Connection layout: L/S-shaped, orthogonal, spread |
@@ -18,7 +18,7 @@ Where things are and how scripts are put together. Rules: `AGENTS.md`. jArchi it
 | `Scripts/View/` | View generation with ELK, Dagre, Graphviz (`Scripts/View/AGENTS.md`) |
 | `Scripts/_lib/` | Shared modules (below) |
 | `Scripts/node_modules/` | Vendored runtime libraries (elkjs, dagre, chroma-js, papaparse, …) — no npm at runtime |
-| `_ConfigFiles/` | Archi configuration, not loaded by scripts: colour preferences (`.prefs`); `linux/Adwaita-Archi/`, the GTK theme Archi runs in on Linux (install and launch: comment in its `gtk.css`) |
+| `_ConfigFiles/` | Archi configuration, not loaded by scripts: color preferences (`.prefs`); `linux/Adwaita-Archi/`, the GTK theme Archi runs in on Linux (install and launch: comment in its `gtk.css`) |
 | `types/`, `jsconfig.json`, `package.json`, `tools/` | Static type checking and its verification tools (`types/README.md`) — development only |
 
 Any script may use `Scripts/_lib/`; domain folders do not depend on each other.
@@ -43,7 +43,7 @@ Runtime libraries are copied into the repo, not installed (rule 6). Versions are
 |---|---|---|---|
 | `elkjs` | 0.11.1 | npm `elkjs` (github.com/kieler/elkjs), EPL-2.0 | `View/lib/engines/elk.js` |
 | `dagre-cluster-fix` | 0.9.0 (`lib/version` in `index.js`) | A fork of dagre with compound-graph placement. `dagre8.5.js` beside it is not loaded | `View/lib/engines/dagre.js` |
-| `chroma-js` | 2.1.0 | chroma.js by Gregor Aisch | `View/lib/appearance.js`, `View/lib/gui/widgets.js`, `Appearance/`, `GEMMA/` colour scripts |
+| `chroma-js` | 2.1.0 | chroma.js by Gregor Aisch | `View/lib/appearance.js`, `View/lib/gui/widgets.js`, `Appearance/`, `GEMMA/` color scripts |
 | `papaparse` | 5.0.2 | github.com/mholt/PapaParse, MIT | `ImportExport_CSV/`, `Sync from CSV/` |
 | `showdown` | 2.1.0 | | `Report/generate_report.ajs` |
 | `ascii-table` | 0.0.8 | | `Report/generate_report.ajs`, `Beheren/find_Id_or_Name_InModels.ajs` |

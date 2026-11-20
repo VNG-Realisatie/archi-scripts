@@ -51,6 +51,7 @@ const CIRCLES_TOOLTIPS        = Object.fromEntries(CIRCLES.map(c => [c.val, c.to
 const ACYCLICER_LABELS        = ACYCLICER.map(a => a.val);
 const SELECTION_ORDER_LABELS    = SELECTION_ORDER.map(o => o.val);
 const SORT_MODE_LABELS      = Object.values(Defs.SORT_MODE);
+const SAME_WIDTH_LABELS     = Object.values(Defs.SAME_WIDTH);
 const AR_LABELS               = AR_OPTIONS.map(a => a.label);
 const CONTAINER_ALGO_LABELS   = Defs.ALGORITHMS.Layered.supportedOptions.containerAlgorithm;
 const CONNECTIONS_MODE_LABELS = Defs.ALGORITHMS.Layered.supportedOptions.connectionsMode;
@@ -87,10 +88,10 @@ const PARAM_WIDGETS = Object.freeze({
   connectionsMode:          { w: "cmbConnectionsMode",           kind: "combo", items: CONNECTIONS_MODE_LABELS },
   padding:                  { w: "spinPadding",                  kind: "spin" },
   sort:     { w: "cmbSort",      kind: "combo", items: SORT_MODE_LABELS },
-  alignWidthSameType:       { w: "chkAlignWidthSameType",        kind: "check" },
+  sameWidth:                { w: "cmbSameWidth",                 kind: "combo", items: SAME_WIDTH_LABELS },
   columnsAcrossContainers:        { w: "chkColumnsAcrossContainers",               kind: "check" },
   backgroundView:           { w: "txtBackgroundView",            kind: "view" },
-  backgroundEveryBox:       { w: "chkBackgroundEveryBox",        kind: "check" },
+  backgroundLeavesInPlace:  { w: "chkBackgroundLeavesInPlace",   kind: "check" },
 });
 
 /**
@@ -227,18 +228,19 @@ function buildLayoutTab(tabFolder, ctx) {
 
   // ── Containers ────────────────────────────────────────────────────────────────
   const grpCtr = Widgets.group(page, "Containers", 1);
-  row = Widgets.formRow(grpCtr, "Layout:", formRows);
+  // Two lines, one raster: how a container lays out its contents, then how they are ordered and sized.
+  row = Widgets.formRow(grpCtr, "Layout:", formRows, "ctrLayout");
   Widgets.addCombo(row, "Layout inside", CONTAINER_ALGO_LABELS,   0, SWT.DEFAULT, "cmbContainerAlgorithm", w);
   Widgets.addCombo(row, "Connections",   CONNECTIONS_MODE_LABELS, 0, SWT.DEFAULT, "cmbConnectionsMode", w);
   Widgets.addSpinnerRow(row, "Padding", "spinPadding", DP.padding, 0, 200, 5, w);
   w.cmbContainerAlgorithm.addListener(SWT.Selection, () => updateAlgorithmControls(ctx));
   w.cmbConnectionsMode.addListener(SWT.Selection, () => updateAlgorithmControls(ctx));
 
-  row = Widgets.formRow(grpCtr, "Sort:", formRows, "ctrOptions");
-  Widgets.addCombo(row, null, SORT_MODE_LABELS, 0, SWT.DEFAULT, "cmbSort", w);
+  row = Widgets.formRow(grpCtr, "", formRows, "ctrLayout");
+  Widgets.addCombo(row, "Sort", SORT_MODE_LABELS, 0, SWT.DEFAULT, "cmbSort", w);
   w.cmbSort.addListener(SWT.Selection, () => updateAlgorithmControls(ctx));
-  row = Widgets.formRow(grpCtr, "Options:", formRows, "ctrOptions");
-  Widgets.addCheck(row, "Same width per level", null, 2, w, "chkAlignWidthSameType");
+  Widgets.addCombo(row, "Same width", SAME_WIDTH_LABELS, 0, SWT.DEFAULT, "cmbSameWidth", w);
+  w.cmbSameWidth.addListener(SWT.Selection, () => updateAlgorithmControls(ctx));
   Widgets.addCheck(row, "Columns across containers", null, 2, w, "chkColumnsAcrossContainers");
   row = Widgets.formRow(grpCtr, "Background:", formRows);
   w.txtBackgroundView = new TextWidget(row, SWT.BORDER);
@@ -248,7 +250,7 @@ function buildLayoutTab(tabFolder, ctx) {
   // Read the view when the path is complete: Enter or leaving the field, not at every key.
   w.txtBackgroundView.addListener(SWT.DefaultSelection, () => ctx.backgroundChanged());
   w.txtBackgroundView.addListener(SWT.FocusOut, () => ctx.backgroundChanged());
-  Widgets.addCheck(row, "Every box in place", null, 2, w, "chkBackgroundEveryBox");
+  Widgets.addCheck(row, "Leaves in place", null, 2, w, "chkBackgroundLeavesInPlace");
 
   // ── Flow ──────────────────────────────────────────────────────────────────────
   const grpFlow = Widgets.group(page, "Flow", 1);

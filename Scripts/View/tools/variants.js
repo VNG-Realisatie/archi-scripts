@@ -15,7 +15,7 @@ const EXTRA = [
   { aspectRatio: 0.5, viewSizeMode: "aspectRatio" },
   { aspectRatio: 3, viewSizeMode: "aspectRatio" },
   { maxWidth: 400, viewSizeMode: "maxWidth" },   // narrower than every test view
-  { alignWidthSameType: true },
+  ...Object.values(Defs.SAME_WIDTH).filter(v => v !== Defs.SAME_WIDTH.OFF).map(sameWidth => ({ sameWidth })),
   { columnsAcrossContainers: true },
   { labelSizing: true },
   { connectionLabelSpacing: false },

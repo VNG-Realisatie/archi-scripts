@@ -26,7 +26,7 @@ LayoutGraph {
              weight }]                                // weight: hint per relation type
   options : object                                    // per-algorithm parameters
   maxWidth, aspectRatio : number                      // only the active one non-zero
-  alignWidthSameType, columnsAcrossContainers : boolean
+  sameWidth : string, columnsAcrossContainers : boolean
   sort? : string                                      // None | Elements | Containers, then elements | All together; absent: no Sort
 }
 LayoutResult {
@@ -63,10 +63,10 @@ An option outside the active set is greyed in the dialog, keeps its value, and i
 | Connections `connectionsMode` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — | — |
 | Padding `padding` | ✓ | ✓ | — | — | ✓ | ✓ | ✓ | — | ✓ | — | ✓ | — | — | — |
 | Sort `sort` | — | — | — | — | ✓ | ✓ | ✓ | — | — | — | — | — | — | — |
-| Same width per level `alignWidthSameType` | ✓ | ✓ | — | — | ✓ | ✓ | ✓ | — | — | — | — | — | — | — |
+| Same width `sameWidth` | ✓ | ✓ | — | — | ✓ | ✓ | ✓ | — | — | — | — | — | — | — |
 | Columns across containers `columnsAcrossContainers` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — | — |
 | Background `backgroundView` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — | — |
-| Every box in place `backgroundEveryBox` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — | — |
+| Leaves in place `backgroundLeavesInPlace` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — | — |
 | Direction `direction` | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — |
 | Cycles `acyclicer` | — | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
 | Ranking `ranking` | — | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |

@@ -111,13 +111,13 @@ function describe(arrangement, name) {
 }
 
 /**
- * The arrangements of the containers that hold a frame: a box with boxes of its own on the background
- * view. Their boxes keep their places; the children of the other containers are only there, and the
- * layout places them. One frame among the children is enough to keep a container's arrangement.
+ * The arrangements of the containers that hold a container of the background view. Their children
+ * keep their places; the children of the other containers are only there, and the layout places them.
+ * One container among the children is enough to keep a container's arrangement.
  * @param {Arrangements} arrangements
  * @returns {Arrangements}
  */
-function framesOnly(arrangements) {
+function arrangementsWithContainers(arrangements) {
   /** @type {Arrangements} */
   const out = {};
   for (const [key, a] of Object.entries(arrangements)) if (idsOf(a).some(id => id in arrangements)) out[key] = a;
@@ -125,11 +125,11 @@ function framesOnly(arrangements) {
 }
 
 /**
- * Every box of the background view the arrangements name: the containers and their children.
+ * Every element of the background view the arrangements name: the containers and their children.
  * @param {Arrangements | undefined} arrangements
  * @returns {Set<string>}
  */
-function boxesOf(arrangements) {
+function elementsOf(arrangements) {
   /** @type {Set<string>} */
   const out = new Set();
   for (const [key, a] of Object.entries(arrangements || {})) {
@@ -140,5 +140,5 @@ function boxesOf(arrangements) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { ROOT, arrangementOf, arrangementsOf, idsOf, framesOnly, boxesOf, describe };
+  module.exports = { ROOT, arrangementOf, arrangementsOf, idsOf, arrangementsWithContainers, elementsOf, describe };
 }

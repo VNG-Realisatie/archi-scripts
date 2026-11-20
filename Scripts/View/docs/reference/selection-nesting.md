@@ -116,7 +116,7 @@ Each visual's container is decided anew in every run, by the nesting conditions 
 
 | Kept | Decided anew |
 |---|---|
-| Appearance (colours, fonts, line styles): the writer never touches it. The styling pass may reset colours ([SPEC § 10](../SPEC.md#10-colouring--appearance)), never inside a diagram-block | Element size (from the Layout tab) |
+| Appearance (colors, fonts, line styles): the writer never touches it. The styling pass may reset colors ([SPEC § 10](../SPEC.md#10-coloring--appearance)), never inside a diagram-block | Element size (from the Layout tab) |
 | The size of diagram objects and diagram-blocks | Parenthood |
 | The style of laid-out connections | Their bendpoints, from the layout result |
 | Lines inside a diagram-block | — |
@@ -135,12 +135,12 @@ A preset names a background view by its path in the dialog; it is kept by its id
 
 Only these relations are drawn. An element the selection put under one of its own elements does not also go under another element of the background view the model nests it in.
 
-**Arrangement.** The boxes of every container on the background view, and of the view itself, are cut by lines that cross no box: a vertical line first, so the boxes form columns, left to right; else a horizontal line, so they form rows, top to bottom; each part is cut again the same way. A band across its container leaves no vertical cut, so bands become rows, and a column of bands beside another column stays a column. Boxes no line separates form one stack in reading order. No tolerance in pixels decides it, only overlap.
+**Arrangement.** The children of every container on the background view, and the roots of the view itself, are cut by lines that cross no element: a vertical line first, so the children form columns, left to right; else a horizontal line, so they form rows, top to bottom; each part is cut again the same way. A band across its container leaves no vertical cut, so bands become rows, and a column of bands beside another column stays a column. Children no line separates form one stack in reading order. No tolerance in pixels decides it, only overlap.
 
 **Places.**
-- A container keeps its arrangement when one of its children on the background view is a frame. The children of the other containers are only there: the layout places them, sorted and compact. With **Every box in place** every container keeps its arrangement.
-- In a kept arrangement the boxes one above the other form a band: as wide as each other, and with nothing beside them as wide as their container, also a box with nothing in it. A diagram object keeps its size. The extra width costs nothing, so the layout gives the boxes of an arrangement their wide shapes too.
-- A child the background view does not hold in a kept arrangement comes last, tiled freely; an arranged box not on the view drops out, and an emptied part with it.
+- A container keeps its arrangement when one of its children on the background view is a container. The children of the other containers are only there: the layout places them, sorted and compact. With **Leaves in place** every container keeps its arrangement.
+- In a kept arrangement the children one above the other form a band: as wide as each other, and with nothing beside them as wide as their container, also a leaf. A diagram object keeps its size. The extra width costs nothing, so the layout gives the children of an arrangement their wide shapes too.
+- A child the background view does not hold in a kept arrangement comes last, tiled freely; an arranged element not on the view drops out, and an emptied part with it.
 - An element of the background view is styled as a container (*Style by nesting level*), also with nothing in it.
 
 **Model and background view differ.** The model leads. A child the background view has under another parent goes where the model puts it; a child of a kept arrangement that is not on the background view comes last. Both are warned on the console, with what to move on the background view.
@@ -149,20 +149,20 @@ Only these relations are drawn. An element the selection put under one of its ow
 
 ## Sizing refinements
 
-### Same width per level
+### Same width
 
-Boxes at the same nesting depth get a common width, so a nested view reads as telescoping frames instead of ragged boxes. It never changes parent or child. *Level*: root boxes are 0; the children of a level-*N* container are *N+1*.
+*Off*, *Per level* or *Per level and type* (the last in Tiles only). It is available only where the engine sizes containers from content ([capability matrix](engines.md#capability-matrix)); the widths are set before the layout, never after it.
+
+**Per level.** Elements at one nesting depth get one width, so nested containers telescope. *Level*: roots are 0; the children of a level-*N* container are *N+1*.
 
 ```
 W[L] = W[L+1] + ring          (ring = left + right container padding)
 ```
-The whole stack is as narrow as it can be while every level is at least as wide as its widest leaf: with equal leaf widths the deepest level is the leaf width; with *Use label width* the widest label of a level sets the stack, so no label is cut.
+- The stack is as narrow as it can be while every level holds its widest leaf (with *Use label width*: its widest label).
+- A leaf takes its level width; a container takes it as a minimum and grows for its contents.
+- A diagram object keeps its size: it neither takes nor sets a level width.
 
-A **leaf** takes exactly its level width. A **container** treats it as a floor: if its side-by-side content needs more, it stays wider. In Tiles a leaf beside a container takes the width and left edge of the narrowest sibling container in its column (the boxes stacked with it), after *Columns across containers*, so a leaf among containers reads as one of them. A diagram object keeps its size: it neither takes nor sets a level width.
-
-A band of a [background view](#background-view) is widened after *Columns across containers*, as the last step; its width is no minimum for the next layout that fits the container labels, so the grid gets no column for it.
-
-Example: the deepest branch is `B ⊃ B1 ⊃ B1a ⊃ Bx`; the level-0 container `A` holds two boxes side by side, `A1 ⊃ A1a` and the leaf `A2`; `C` is a lone level-0 leaf. Leaf width 200, ring 20:
+Example, leaf width 200, ring 20: deepest branch `B ⊃ B1 ⊃ B1a ⊃ Bx`; `A` holds `A1 ⊃ A1a` and the leaf `A2` side by side; `C` is a lone root leaf.
 
 | Level | `W[L]` | Leaves | Containers |
 |---|---|---|---|
@@ -171,15 +171,23 @@ Example: the deepest branch is `B ⊃ B1 ⊃ B1a ⊃ Bx`; the level-0 container 
 | 2 | 220 | `A1a` → 220 | `B1a` → 220 |
 | 3 | 200 (deepest leaf) | `Bx` → 200 | — |
 
-The widths come from the leaf widths of the layout graph, so no sizing pass is needed. The widths are set before the layout, never after it. It is available only where the engine sizes containers from content ([capability matrix](engines.md#capability-matrix)).
+**Per level and type.** As Per level, and at the last [nesting type change](../SPEC.md#2-vocabulary) one width per element type, as narrow as it allows.
+- A **block** is an element at a nesting type change with no container at a nesting type change inside it, and not a root's child. In GEMMA: an application service under a business function.
+- Every element of a type in a block gets one width: a leaf its own width (a component 240), a container one column of its children plus padding (a service 270, also without children). A block with more columns of children is wider.
+- Inside a block, children stacked in one column are centred in their container.
 
 ### Columns across containers
 
-Puts every leaf column of the tiles on one shared grid, so columns line up top to bottom across the whole view (Tiles only; independent of the option above).
-- Leaves at one x under one parent form a stack. From left to right, each stack takes the leftmost column right of every stack whose box stands beside its own (side by side under a common container), so no stack keeps a column of its own just because it stood further right.
-- Built as CSS Grid subgrids: box edges lie on the column lines, so neighbours at every depth stand *Distance* apart. A container's padding counts in the column at its edge and adds up through containers that share that edge; each column is as wide as its widest leaf plus those paddings.
-- A container spans the columns of its leaves. Leaves are centred in their column, never resized. A leaf beside containers spans the columns of the narrowest container in its column.
-- Where a box shares an edge with its parent, the boxes of its level with an edge on that column line take the deepest inset among them, so they line up there (narrowed to the narrowest). An edge that faces a sibling keeps its own position: aligning it would open a strip between neighbours.
+One set of columns over the whole view, so columns line up top to bottom (Tiles only). Built on the CSS Grid subgrid model.
+- **Columns.** Every leaf stands in one column; a container spans the columns of its contents. Leaves at one x under one parent form a stack; each stack takes the leftmost column right of every stack whose branch stands beside its own.
+- **Spacing.** Elements side by side stand *Distance* apart at every depth. A column is as wide as its widest leaf plus the padding of each container edge in it.
+- **Padding.** An element lies the paddings of its own ancestors in from a column line where they share that edge; an edge facing a sibling lies on the line. A container drawn to its parent's edge afterwards (a band of a background view with nothing beside it) counts as reaching that edge.
+- **Leaves fill their column**, so a row has *Distance* between its leaves. The last leaf of a row at its container's edge is narrower by that container's padding.
+- **A leaf beside containers** takes the columns of the narrowest container stacked with it, unless its nearest neighbour left or right is a leaf: then it belongs to that row and fills its own column.
+- **A leaf beside a spanning leaf** stays out of the columns that leaf spans.
+- **Blocks** (Per level and type) keep their width. A block whose children stand in one column is one element to the grid, centred in its column; one with more columns spans them and closes around its children with its padding, its children each in their column.
+- **Centring.** An element that does not fill its column is centred in the part of the column inside its nearest ancestor that is no block, and never in its own parent's padding. So the components of the services in one column line up.
+- A container narrower than its label needs widens its last column.
 
 ### Sort
 

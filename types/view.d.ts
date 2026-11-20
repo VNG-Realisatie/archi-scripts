@@ -64,7 +64,7 @@ type NestingStyleCondition = {
   relation: string;
   /** A type id, "" = All, "same" = the parent's type. */
   child: string;
-  /** A colour name of the chosen palette; "" = Default (the element type's default fill). */
+  /** A color name of the chosen palette; "" = Default (the element type's default fill). */
   color: string;
   /** Font size (pt) of the container where the condition starts; 0 = continue from the parent. */
   fontSize: number;
@@ -82,30 +82,30 @@ interface ConditionByKind {
 }
 type AnyCondition = ConditionByKind[ConditionKind];
 
-/** A palette: a named list of named colours (presets/_palettes.json, Scripts/View/lib/palettes.js). */
+/** A palette: a named list of named colors (presets/_palettes.json, Scripts/View/lib/palettes.js). */
 interface Palette {
   name: string;
   colors: { name: string; hex: string }[];
   ranges: PaletteRange[];
 }
 
-/** A colour range of a palette: interpolated between its colours, `padding` left out at both ends (palettes.rangeColors). */
+/** A color range of a palette: interpolated between its colors, `padding` left out at both ends (palettes.rangeColors). */
 interface PaletteRange {
   name: string;
   colors: string[];
   padding: [number, number];
 }
 
-/** One choice of a colour picker (gui/widgets.js colorPicker). colors: one hex = a swatch, several = a gradient, none = an empty frame. */
+/** One choice of a color picker (gui/widgets.js colorPicker). colors: one hex = a swatch, several = a gradient, none = an empty frame. */
 interface ColorPickerItem { value: string; label: string; colors: readonly string[] }
-/** What a colour control offers (gui/widgets.js paletteColorChoice, colorRangeChoice): the items and how a value outside them shows. */
+/** What a color control offers (gui/widgets.js paletteColorChoice, colorRangeChoice): the items and how a value outside them shows. */
 interface ColorChoice {
   items: () => readonly ColorPickerItem[];
   /** The item shown for a value that is not among the items (and that `fallback` does not replace). */
   missing: (value: string) => ColorPickerItem;
   /** A value that is not among the items is replaced by the one this returns (reported through onChange). */
   fallback?: (items: readonly ColorPickerItem[]) => string;
-  /** End the menu with "Other…": the system colour dialog, chosen as a hex value. */
+  /** End the menu with "Other…": the system color dialog, chosen as a hex value. */
   other?: boolean;
   /** px; default 16. */
   swatchWidth?: number;
@@ -204,7 +204,7 @@ type PresetParams = {
   sort: string;
   selectionOrder: string;
   cycleSelectionOrder: boolean;
-  alignWidthSameType: boolean;
+  sameWidth: string;
   columnsAcrossContainers: boolean;
   containerAlgorithm: string;
   connectionsMode: ConnectionsMode;
@@ -222,8 +222,8 @@ type PresetParams = {
   connectionLabelSpacing: boolean;
   /** Tiles: the view the selection fills (lib/background.js); empty id and path = none. */
   backgroundView: BackgroundRef;
-  /** Tiles: every box of the background view keeps its place; false: only a box with boxes inside it there. */
-  backgroundEveryBox: boolean;
+  /** Tiles: the leaves of the background view keep their place too; false: only its containers. */
+  backgroundLeavesInPlace: boolean;
 };
 
 /** A background view as a preset names it: found by id; the path (folders and name) is a label, and finds it when the id is empty. */
@@ -756,7 +756,7 @@ interface CheckBox {
   isEnabled(): boolean;
 }
 
-/** A drawn control the dialog drives (colour picker, drawn checkbox). */
+/** A drawn control the dialog drives (color picker, drawn checkbox). */
 interface ConditionTableCell {
   set(value: any): void;
   enable(on: boolean): void;
@@ -782,7 +782,7 @@ interface ConditionTableChoiceColumn<R = AnyCondition> extends ConditionTableCol
   items: readonly ConditionTableItem[];
 }
 
-/** A colour cell: a swatch and name, edited through the palette menu of the choice. */
+/** A color cell: a swatch and name, edited through the palette menu of the choice. */
 interface ConditionTableColorColumn<R = AnyCondition> extends ConditionTableColumnBase<R>, ColorChoice {
   kind: "color";
 }
@@ -921,7 +921,7 @@ type DialogWidgets = {
   cmbConnectionsMode: Swt.Combo;
   spinPadding: Swt.Spinner;
   cmbSort: Swt.Combo;
-  chkAlignWidthSameType: CheckBox;
+  cmbSameWidth: Swt.Combo;
   chkColumnsAcrossContainers: CheckBox;
   cmbDirection: Swt.Combo;
   cmbAcyclicer: Swt.Combo;
@@ -984,7 +984,7 @@ type DialogWidgets = {
   lblCustomUnder: Swt.Label;
   txtViewFolder: Swt.Text;
   txtBackgroundView: Swt.Text;
-  chkBackgroundEveryBox: CheckBox;
+  chkBackgroundLeavesInPlace: CheckBox;
   rdoMirrored: Swt.Button;
   lblMirroredUnder: Swt.Label;
   lblMirrored: Swt.Label;

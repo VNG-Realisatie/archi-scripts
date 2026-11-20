@@ -11,7 +11,7 @@
  */
 
 declare namespace Swt {
-  /** org.eclipse.swt.SWT — the style bits, event types and colour ids used. */
+  /** org.eclipse.swt.SWT — the style bits, event types and color ids used. */
   interface Constants {
     // styles
     readonly NONE: number; readonly BORDER: number; readonly PUSH: number; readonly CHECK: number;
@@ -39,7 +39,7 @@ declare namespace Swt {
     readonly TRAVERSE_RETURN: number; readonly TRAVERSE_ESCAPE: number;
     // GC
     readonly ON: number; readonly DRAW_TRANSPARENT: number; readonly LINE_SOLID: number; readonly LINE_DOT: number;
-    // system colours
+    // system colors
     readonly COLOR_DARK_GRAY: number; readonly COLOR_WIDGET_BACKGROUND: number; readonly COLOR_WHITE: number;
     readonly COLOR_LIST_BACKGROUND: number; readonly COLOR_LIST_SELECTION: number;
     readonly COLOR_WIDGET_NORMAL_SHADOW: number; readonly COLOR_WIDGET_DARK_SHADOW: number; readonly COLOR_WIDGET_FOREGROUND: number;

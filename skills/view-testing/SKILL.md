@@ -61,7 +61,7 @@ The agent checks a dialog change in Archi itself, without the user: `Scripts/Vie
 
 **Judge.**
 - Text first: what a label says, whether it is grey or bold, which radio is chosen, the text in a field and a table's height against its rows are logged as text (`logActionArea`, the `open` suite's table sizes); read those in the console. Read a screenshot only for the shape: alignment, cut-off, overlap. Crop it to the part that matters and stack several steps in one image (PIL): an image costs about width × height / 750 tokens.
-- Read the screenshots (`NN_<name>.png`); for detail crop and enlarge with Python PIL (`python -I`). A downscaled glyph shows ClearType colour fringes (a red or blue ✕): zoom before calling it a colour.
+- Read the screenshots (`NN_<name>.png`); for detail crop and enlarge with Python PIL (`python -I`). A downscaled glyph shows ClearType color fringes (a red or blue ✕): zoom before calling it a color.
 - The console: `[check] ERROR: step …` is a step that threw (often the script's own assumption: a table on another tab, a table without rows); `key … → focus <control>` shows where each key went, so a key that reached the wrong control shows.
 - Before blaming the code, check the step was valid in the screenshot before it (a greyed cell does not open; a list that never opened cannot close), then isolate: log the event with a `display.addFilter`, try a variant in a scratch copy of the script (a fixed text, another widget). Fix the code only on a confirmed cause.
 - Timing and widget counts: `Scripts/View/tools/gui_timing.ajs`, same command line (plan `view-dialog-open-and-counts-performance.md` § Comparable run).
@@ -71,7 +71,7 @@ The agent checks a dialog change in Archi itself, without the user: `Scripts/Vie
 - A native tooltip lies over the controls below it and takes a click: move the mouse away (`away`) before clicking a cell under a header that showed its tooltip.
 - Win32 hides focus cues (`GC.drawFocus`) until the keyboard is used for navigation (Tab, Alt): after mouse steps a focus frame shows only after a Tab.
 - Win32 `List` sends `DefaultSelection` on a double click only, not on Enter; a Win32 `Table` shows its own tooltip over its header, never over its rows.
-- GTK: `Display.post` is not OS input. It puts a GDK event itself: a button event has no position (`gui_check.ajs` sets it from the pointer, `fixButtonPositionGTK`), a click moves no focus (a popup list never gets `Deactivate`, so it stays open), and keys never reach a popup shell (a cell's list, the colour menu). On Linux the check judges clicks on cells, tooltips over cells, the table itself; a list or menu after it opens (keys in it, closing, choosing) is judged by the user in Archi. No window manager in `:97`; on the KDE desktop runs did not repeat.
+- GTK: `Display.post` is not OS input. It puts a GDK event itself: a button event has no position (`gui_check.ajs` sets it from the pointer, `fixButtonPositionGTK`), a click moves no focus (a popup list never gets `Deactivate`, so it stays open), and keys never reach a popup shell (a cell's list, the color menu). On Linux the check judges clicks on cells, tooltips over cells, the table itself; a list or menu after it opens (keys in it, closing, choosing) is judged by the user in Archi. No window manager in `:97`; on the KDE desktop runs did not repeat.
 - GTK tooltips are centred on the pointer: a long one runs off the left of a `shotTable` crop.
 - A click right after a recount can be lost: move to the control first (`moveToControl`), click a step later (`clickControl`).
 

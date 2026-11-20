@@ -26,7 +26,7 @@ Log.debug("Loading engines/tiles.js");
 /** @type {typeof import("./engine-utils")} */
 const EngineUtils = require(REPO_ROOT + "View/lib/engines/engine-utils");
 const { containerTop, selfLoopResult, sortedNodes, alignWidthsByLevel, alignColumnsAcrossContainers } = EngineUtils;
-const { DIAGRAM_TYPES } = require(REPO_ROOT + "View/lib/defs");
+const { DIAGRAM_TYPES, SAME_WIDTH } = require(REPO_ROOT + "View/lib/defs");
 
 /** Width / height the whole view is shaped toward (portrait: the tiles read down). */
 const VIEW_RATIO = 0.75;
@@ -238,6 +238,36 @@ function chunksOf(tiles, gap, widthCap, maxWaste = MAX_WASTE) {
 }
 
 /**
+ * Same width (Per level and type): one width per element type at a nesting type change, as narrow as
+ * the boxes of that type there allow: a leaf its own width, a block with contents one column of them
+ * and its padding (or its label's minWidth). A wider block widens for its contents.
+ * @param {LayoutNode[]}                    leaves      the leaves at a nesting type change
+ * @param {LayoutNode[]}                    containers  the blocks with only leaves inside
+ * @param {Record<string, LayoutNode[]>}    childrenOf
+ * @param {Record<string, number>}          levelWidth  per node: its level width
+ * @param {number}                          pad
+ * @param {(msg: string) => void}           log
+ * @returns {Record<string, number>} per box: its type's width (a container: its least width)
+ */
+function typeWidths(leaves, containers, childrenOf, levelWidth, pad, log) {
+  /** @type {Map<string, number>} */
+  const need = new Map();
+  const widen = (/** @type {string} */ type, /** @type {number} */ w) => need.set(type, Math.max(need.get(type) || 0, w));
+  for (const n of leaves) widen(n.elementType, n.width);
+  /** @param {LayoutNode} k */
+  const kidWidth = k => leaves.includes(k) ? /** @type {number} */ (need.get(k.elementType)) : levelWidth[k.id] || k.width;
+  for (const n of containers) widen(n.elementType, Math.max(n.minWidth, Math.max(...childrenOf[n.id].map(kidWidth)) + 2 * pad));
+  /** @type {Record<string, number>} */
+  const out = {};
+  for (const n of [...leaves, ...containers]) out[n.id] = /** @type {number} */ (need.get(n.elementType));
+  for (const type of [...need.keys()].sort()) {
+    const count = [...leaves, ...containers].filter(n => n.elementType === type).length;
+    log(`Tiles: Same width per level and type — ${type}: ${count} at a nesting type change, ${need.get(type)} px`);
+  }
+  return out;
+}
+
+/**
  * Tiles in the sorted order of their nodes: a leaf at its size, a container with the shapes its
  * children give it (padding added, never narrower than its level).
  * @param {LayoutGraph} graph
@@ -265,16 +295,24 @@ function layout(graph) {
         `tiled in chunks of at most ${CHUNK_SIZE}, a little less compact`);
   }
 
-  // Same width per level: leaves get the level width, containers a minimum; a leaf beside a
+  // Same width (Per level): leaves get the level width, containers a minimum; a leaf beside a
   // container takes the width of the narrowest container of its column (widenToColumns).
+  // Per level and type: a box at a nesting type change with no container at a nesting type change
+  // inside it is a block (the last nesting type change), unless it is a root's child (a root holds
+  // the rest): one width per type, as narrow as its type allows, also for the boxes of that type inside
+  // it; to the grid one box with its contents, centred in its column.
   /** @type {Record<string, number>} */
   const levelWidth = {};
   /** @type {Set<string>} */
   const columnWide = new Set();
+  /** @type {Set<string>} */
+  const typeChange = new Set();   // leaves at a nesting type change
+  /** @type {Set<string>} */
+  const blocks = new Set();
   /** @type {Record<string, number>} */
   const columnOf = {};   // per placed tile: its column (parts one above the other share one)
   let columns = 0;
-  if (graph.alignWidthSameType && Object.keys(parentMap).length) {
+  if (graph.sameWidth !== SAME_WIDTH.OFF && Object.keys(parentMap).length) {
     // A diagram object keeps its size: it neither takes nor sets a level width (a legend beside the
     // containers would otherwise widen every level).
     const sized = graph.nodes.filter(n => !(n.elementType in DIAGRAM_TYPES));
@@ -282,9 +320,29 @@ function layout(graph) {
     const widths = {};
     for (const node of sized) widths[node.id] = node.width;
     Object.assign(levelWidth, alignWidthsByLevel(sized, parentMap, widths, 2 * pad, log));
+    if (graph.sameWidth === SAME_WIDTH.LEVEL_AND_TYPE) {
+      const byId = new Map(sized.map(n => [n.id, n]));
+      /** @param {LayoutNode} n */
+      const atChange = n => { const parent = n.parent ? byId.get(n.parent) : null; return !!parent && parent.elementType !== n.elementType; };
+      /** @type {(id: string) => LayoutNode[]} */
+      const below = id => (childrenOf[id] || []).flatMap(k => [k, ...below(k.id)]);
+      for (const n of sized) {
+        if (!childrenOf[n.id] && atChange(n)) typeChange.add(n.id);
+        const underRoot = !byId.get(/** @type {string} */ (n.parent))?.parent;
+        if (atChange(n) && !underRoot && !below(n.id).some(d => childrenOf[d.id] && atChange(d))) blocks.add(n.id);
+      }
+      /** @type {(n: LayoutNode) => boolean} */
+      const inBlock = n => { for (let p = n.parent; p; p = byId.get(p)?.parent || null) if (blocks.has(p)) return true; return false; };
+      for (const id of [...blocks]) if (inBlock(/** @type {LayoutNode} */ (byId.get(id)))) blocks.delete(id);   // the outermost only
+      const width = typeWidths(sized.filter(n => typeChange.has(n.id)),
+        sized.filter(n => blocks.has(n.id) && childrenOf[n.id] && childrenOf[n.id].every(k => !childrenOf[k.id])), childrenOf, levelWidth, pad, log);
+      // Every element of a block takes its type's width (a container: as its least).
+      const ofType = new Map(sized.filter(n => n.id in width).map(n => [n.elementType, width[n.id]]));
+      for (const n of sized) if ((blocks.has(n.id) || inBlock(n)) && ofType.has(n.elementType)) levelWidth[n.id] = /** @type {number} */ (ofType.get(n.elementType));
+    }
     for (const kids of Object.values(childrenOf)) {
       if (!kids.some(k => childrenOf[k.id])) continue;
-      for (const k of kids) if (!childrenOf[k.id] && !(k.elementType in DIAGRAM_TYPES)) columnWide.add(k.id);
+      for (const k of kids) if (!childrenOf[k.id] && !(k.elementType in DIAGRAM_TYPES) && !typeChange.has(k.id)) columnWide.add(k.id);
     }
   }
 
@@ -395,8 +453,10 @@ function layout(graph) {
     bands = [];
     placeRun(out, table, 0, table.tiles.length - 1, index, diagramPad, diagramPad, null, ++columns, table.arranged ? _newBand(true) : null);
     const sharers = columnSharers(out);
-    // On the grid a leaf beside a container fills its track; without it, it takes its column's width.
-    if (gridOn) alignColumnsAcrossContainers(out, o, names, quiet ? () => {} : log, sharers, minWidths);
+    // On the grid every leaf fills its track (a leaf beside a container those of its column); without it, a leaf beside a container takes its column's width.
+    // A band with nothing beside it is drawn to its container's edge (fillBands): the grid knows it beforehand.
+    const stretch = new Set(bands.filter(b => b.full).flatMap(b => b.ids));
+    if (gridOn) alignColumnsAcrossContainers(out, o, names, quiet ? () => {} : log, sharers, minWidths, blocks, stretch);
     else widenToColumns(out, sharers);
     fillBands(out);
     return out;
@@ -420,16 +480,28 @@ function layout(graph) {
     }
   };
   /**
-   * Per leaf beside a container: the containers in its column.
+   * Per leaf, the containers whose tracks it fills on the grid: a leaf beside a container fills those
+   * of the containers in its column; any other leaf, also one beside a container whose nearest sibling
+   * to its left or right (overlapping in height) is a leaf (a row of leaves), none: its own track.
+   * A diagram object and a leaf at a nesting type change (Per level and type) keep their size.
    * @param {LayoutResultNode[]} out
    * @returns {Map<string, string[]>}
    */
   const columnSharers = out => {
     /** @type {Map<string, string[]>} */
     const sharers = new Map();
+    /** @param {LayoutResultNode} leaf */
+    const inRow = leaf => {
+      const row = out.filter(n => n !== leaf && n.parentId === leaf.parentId && !isDiagram.has(n.id) &&
+        n.y < leaf.y + leaf.height && leaf.y < n.y + n.height);
+      const left = row.filter(n => n.x < leaf.x).sort((a, b) => b.x - a.x)[0];
+      const right = row.filter(n => n.x > leaf.x).sort((a, b) => a.x - b.x)[0];
+      return [left, right].some(n => n && !childrenOf[n.id]);
+    };
     for (const leaf of out) {
-      if (!columnWide.has(leaf.id)) continue;
-      sharers.set(leaf.id, out.filter(n => childrenOf[n.id] && columnOf[n.id] === columnOf[leaf.id]).map(n => n.id));
+      if (childrenOf[leaf.id] || isDiagram.has(leaf.id) || typeChange.has(leaf.id)) continue;
+      sharers.set(leaf.id, columnWide.has(leaf.id) && !inRow(leaf)
+        ? out.filter(n => childrenOf[n.id] && columnOf[n.id] === columnOf[leaf.id]).map(n => n.id) : []);
     }
     return sharers;
   };

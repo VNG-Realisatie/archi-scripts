@@ -34,7 +34,7 @@ Preset {
     palette : string                 // name of a palette in presets/_palettes.json; default "Brewer"
     styleByProperty {
       conditions : StyleCondition[]  // in order; the later condition wins on one object
-      mixedValuesColor : string      // fill for an object with several values: a colour name of the palette, or a hex
+      mixedValuesColor : string      // fill for an object with several values: a color name of the palette, or a hex
       lineWidth : 0..3               // 0 = no change; 1 Normal, 2 Medium, 3 Heavy
     }
     nestingLevel {
@@ -42,7 +42,7 @@ Preset {
       fontEnabled : boolean
       fontDecreasePerLevel : number (pt)
       colorEnabled : boolean
-      darkenStart : 0..3             // levels darker a segment starts than its colour
+      darkenStart : 0..3             // levels darker the fill starts at a nesting type or color change
       lightenPerLevel : number (%, 5–40)
     }
     highlightRepeated { enabled : boolean, colorRange : string }   // a range name of the palette
@@ -126,7 +126,7 @@ One condition model for every list. A list keeps what matches **any active Inclu
 | relation | on, mode, source, relation, target, propertyOf (`relation`/`source`/`target`), property, value, everyContainer (nesting conditions only) | `filter.relationConditions`, `params.nestingConditions`, `params.reverseConditions` | filter: keep all · nesting / reverse: none |
 | step     | on, mode, previous, direction (`either`/`outgoing`/`incoming`), relation, added, propertyOf (`added`/`relation`/`previous`), property, value | `steps[].conditions` | follow all, as a pass-all condition `{}`; a step without any active Include match adds nothing |
 | style    | on, applyTo (`element`/`relation`/`source`/`target`), source, relation, target, propertyOf (`element`/`relation`/`source`/`target`), property, colorRange (a range name of the palette) | `appearance.styleByProperty.conditions` | no styling |
-| nestingStyle | on, parent, direction (`either`/`outgoing`/`incoming`, seen from the parent), relation, child (a type, `""` = All or `"same"` = the parent's type; default `"same"`), color (a colour name of the palette, a hex, or `""` = Default), fontSize (pt of the container where the condition starts; `0` = continues from its parent), bold (that container bold) | `appearance.nestingLevel.conditions` | no styling |
+| nestingStyle | on, parent, direction (`either`/`outgoing`/`incoming`, seen from the parent), relation, child (a type, `""` = All or `"same"` = the parent's type; default `"same"`), color (a color name of the palette, a hex, or `""` = Default), fontSize (pt of the container where the condition starts; `0` = continues from its parent), bold (that container bold) | `appearance.nestingLevel.conditions` | no styling |
 
 **Step conditions are written from the previous step's elements.**
 - `direction`: `outgoing` = the previous-step element is the relation's source; `incoming` = it is the target; `either` (default) = both.
@@ -134,7 +134,7 @@ One condition model for every list. A list keeps what matches **any active Inclu
 - Which relations a step *draws*: an Include condition matches on relation type, direction and `previous` only; `added` and the property only decide which elements join. An Exclude condition matches in full.
 
 **Style conditions.**
-- `color` says what gets the colour:
+- `color` says what gets the color:
   - `element`: the element, by its own property; `source` holds its type;
   - `relation`: the relation;
   - `source` / `target`: that end of a matching relation. Relations are taken model-wide, so the relation need not be on the view.
@@ -144,11 +144,11 @@ One condition model for every list. A list keeps what matches **any active Inclu
 
 **File form.** Fields at their default are omitted, a pass-all filter list is written as `[]` (a step list is not: there `[]` adds nothing), and every condition sits on one line, so a diff shows one changed condition as one changed line.
 
-**Nesting style conditions.** No Mode column: every condition is an Include condition. `child` is always written, so the default condition reads `{"child": "same"}`. Matching and colours: [gui.md § Appearance tab](gui.md#appearance-tab).
+**Nesting style conditions.** No Mode column: every condition is an Include condition. `child` is always written, so the default condition reads `{"child": "same"}`. Matching and colors: [gui.md § Appearance tab](gui.md#appearance-tab).
 
 ## Palettes
 
-`presets/_palettes.json` holds the palettes a preset picks from (`appearance.palette`). A palette is a set of colours and colour ranges that belong together: every colour and colour range of the Appearance tab comes from the preset's palette. There is always one; the first palette of the file is the default.
+`presets/_palettes.json` holds the palettes a preset picks from (`appearance.palette`). A palette is a set of colors and color ranges that belong together: every color and color range of the Appearance tab comes from the preset's palette. There is always one; the first palette of the file is the default.
 
 ```
 { "palettes": [ { "name": "Brewer",
@@ -156,18 +156,18 @@ One condition model for every list. A list keeps what matches **any active Inclu
     "ranges": [ { "name": "Blues", "colors": ["#f7fbff", …, "#08306b"], "padding": [0.1, 0.4] }, … ] } ] }
 ```
 
-- **colors**: named colours, for *Mixed values color* and the nesting style colours. A setting names a colour; a colour of its own (*Other…*) is a hex.
-- **ranges**: named ranges, for the style conditions and *Highlight repeated elements*. A range interpolates between two or more colours; `padding` (optional, `[start, end]`, each below 0.5) leaves out that fraction at either end, so a dark end does not hide black text.
-- Names are unique within the file, and colour and range names within a palette.
+- **colors**: named colors, for *Mixed values color* and the nesting style colors. A setting names a color; a color of its own (*Other…*) is a hex.
+- **ranges**: named ranges, for the style conditions and *Highlight repeated elements*. A range interpolates between two or more colors; `padding` (optional, `[start, end]`, each below 0.5) leaves out that fraction at either end, so a dark end does not hide black text.
+- Names are unique within the file, and color and range names within a palette.
 
-| Palette | Colours | Ranges | Source |
+| Palette | Colors | Ranges | Source |
 |---|---|---|---|
 | Brewer | the 9 Pastel1 tints | Pastel1, Pastel2, Set2, Set3 (qualitative); Blues, Greens, Oranges, Purples, Reds, Greys, OrRd, PuBu (sequential); RdYlBu, RdYlGn, Spectral (diverging) | ColorBrewer, as chroma-js bundles it |
-| Tol | *light*: 9 colours made to fill labelled cells | Light, Pale (qualitative); Sunset, BuRd, PRGn (diverging); YlOrBr, Iridescent (sequential) | Paul Tol's schemes, colour-blind safe (`tol_colors`, BSD) |
+| Tol | *light*: 9 colors made to fill labelled cells | Light, Pale (qualitative); Sunset, BuRd, PRGn (diverging); YlOrBr, Iridescent (sequential) | Paul Tol's schemes, color-blind safe (`tol_colors`, BSD) |
 | Open Color | step 2 of each of 13 hues | Light (qualitative); steps 0–6 of each hue; Blue–Red, Teal–Orange (diverging) | Open Color 1.9.1 (MIT): equal brightness per step across hues |
-| GEMMA | the default fill colours of the GEMMA Archi preferences, one per group of element types | Lagen (one colour per layer); Bedrijf, Applicatie, Technologie, Strategie, Motivatie | GEMMA |
+| GEMMA | the default fill colors of the GEMMA Archi preferences, one per group of element types | Lagen (one color per layer); Bedrijf, Applicatie, Technologie, Strategie, Motivatie | GEMMA |
 
-The file is read when the dialog builds its Appearance tab and at a run with styling. An unusable or missing file stops it with a message naming what is wrong. A palette, colour or range a preset names that the file does not hold is replaced by the first one, in the dialog and at the run (which says so in the console).
+The file is read when the dialog builds its Appearance tab and at a run with styling. An unusable or missing file stops it with a message naming what is wrong. A palette, color or range a preset names that the file does not hold is replaced by the first one, in the dialog and at the run (which says so in the console).
 
 ## Hidden properties
 

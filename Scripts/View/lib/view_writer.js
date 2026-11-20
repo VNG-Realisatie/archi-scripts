@@ -228,7 +228,7 @@ function _addConnection(view, c, end) {
 }
 
 /**
- * Set the label position and replace the bendpoints. Colour and line width are untouched.
+ * Set the label position and replace the bendpoints. Color and line width are untouched.
  * @param {VisualConnection} connection
  * @param {ConnectionStyle}  style
  */

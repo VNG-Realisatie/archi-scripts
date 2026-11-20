@@ -72,13 +72,13 @@ eq(Arrangement.arrangementOf([box("Only", 0, 0, 10, 10)]), "Only", "one box");
 
 // Frames only: a container keeps its arrangement when one of its children holds boxes of its own on
 // the background view; a container of leaves leaves its children to the layout.
-eq(Object.keys(Arrangement.framesOnly({
-  "": V("Besturend", "Primair", "Legenda"),   // holds frames
-  Besturend: "Sturing",                        // Sturing is a frame
-  Primair: V("Uitvoering", "Bewaking"),        // one frame (Uitvoering) is enough
+eq(Object.keys(Arrangement.arrangementsWithContainers({
+  "": V("Besturend", "Primair", "Legenda"),   // holds containers
+  Besturend: "Sturing",                        // Sturing is a container
+  Primair: V("Uitvoering", "Bewaking"),        // one container (Uitvoering) is enough
   Sturing: H("Besturing", "Strategie"),        // leaves only
   Uitvoering: H("Sociaal", "Fysiek"),          // leaves only
-})).sort(), ["", "Besturend", "Primair"], "frames only: containers that hold a frame");
+})).sort(), ["", "Besturend", "Primair"], "with containers: the containers that hold a container");
 eq(Arrangement.idsOf(H("A", V("B", "C"), "D")), ["A", "B", "C", "D"], "reading order");
 eq(Arrangement.describe(H("A", V("B", "C")), id => id.toLowerCase()), "a | [b / c]", "log line");
 

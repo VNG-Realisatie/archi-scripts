@@ -16,7 +16,7 @@
  *               property, colorRange }
  *   nestingStyle { on, parent, direction, relation, child, color,         Appearance › Style by nesting level
  *               fontSize, bold }
- *               (child "same" = the parent's type; color: a colour name of the palette, "" = Default;
+ *               (child "same" = the parent's type; color: a color name of the palette, "" = Default;
  *               fontSize, bold: the container where the condition starts; fontSize 0 = continue from the parent)
  *
  * Empty list: filter lists (global, step) keep everything (emptyMeansAll); feature lists (nesting,
@@ -127,7 +127,7 @@ function normalizeCondition(kind, raw, valid, where) {
       out[key] = val;
     } else if (key === "colorRange") {
       // A range of the preset's palette: checked at the run (appearance), where the palette is read.
-      if (typeof val !== "string" || !val.trim()) return bad(`"colorRange" must name a colour range of the palette`);
+      if (typeof val !== "string" || !val.trim()) return bad(`"colorRange" must name a color range of the palette`);
       out.colorRange = val;
     } else {
       out[key] = val === undefined || val === null ? "" : String(val);   // property, value
@@ -166,7 +166,7 @@ function serializeCondition(kind, condition) {
   for (const key of Object.keys(d)) {
     if (condition[key] !== undefined && condition[key] !== d[key]) out[key] = condition[key];
   }
-  // A style condition with only defaults would serialise to {}; colour range is always informative.
+  // A style condition with only defaults would serialise to {}; color range is always informative.
   if (kind === "style" && out.colorRange === undefined) out.colorRange = condition.colorRange || d.colorRange;
   // Likewise the child of a nesting style condition: the default row reads "child: same", not {}.
   if (kind === "nestingStyle" && out.child === undefined) out.child = condition.child || d.child;

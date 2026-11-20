@@ -45,26 +45,29 @@ One name per concept across UI, docs, logs and code, grouped by subject.
 - **diagram connection**: a line on a view with no relation behind it, between a diagram object and another object, such as a note's line to an element.
 
 **VisualElement roles**
-- **container**: drawn as a box around other VisualElements.
-- **nested element**: drawn inside a container; not itself a container.
+- **container**: a VisualElement with other VisualElements drawn inside it.
+- **leaf**: a VisualElement with nothing inside it: a nested element or a standalone.
+- **parent** / **child**: the container a VisualElement is directly inside / a VisualElement directly inside a container.
+- **root**: a VisualElement without a parent.
+- **nested element**: a leaf inside a container.
 - **standalone**: contains nothing and is nested by no relation: drawn at view root, or only inside a diagram-block.
 - **extra occurrence**: the 2nd to Nth appearance of one element under different containers; a managed occurrence or user content.
 
 **VisualRelation roles**
-- **nesting**: drawn as containment (box-in-box, no line).
-- **connection**: drawn as a line between two boxes. Every VisualRelation is one or the other.
+- **nesting**: drawn as containment (the child inside its parent, no line).
+- **connection**: drawn as a line between two VisualElements. Every VisualRelation is one or the other.
 - **self-loop**: a connection whose source and target are the same element. Whether it is drawn, and how, is an algorithm capability ([§ 8](#8-engine-contract)).
 
 **Existing view contents**: what *Expand view* and *Layout only* keep of what is already on the view ([§ 5](#5-actions)).
 - **user content**: every object on the view that the system did not place itself: elements, connections and diagram objects. It is always kept; the layout decides whether it is nested and where it goes.
 - **managed occurrence**: an extra occurrence the system placed itself for an *every container* condition and recorded on the view. It follows the settings. Only managed occurrences are ever removed.
-- **diagram-block**: a diagram object with contents, together with everything inside it, such as a legend, or a frame with a title and elements. The layout decides only its position.
+- **diagram-block**: a diagram object with contents, together with everything inside it, such as a legend, or a group with a title and elements. The layout decides only its position.
 
 **Background**
 - **background view**: a view a preset names as the map a generated view is drawn on: its elements are always on the view, the selection fills it.
-- **arrangement**: which boxes of a container stand side by side and which one above the other on the background view; it holds no sizes or positions.
-- **frame**: a box with boxes of its own on the background view. A frame keeps its place; a box without is only always there.
-- **band**: boxes of an arrangement one above the other, drawn as wide as each other.
+- **arrangement**: which children of a container stand side by side and which one above the other on the background view; it holds no sizes or positions.
+- **background container**: a container on the background view. It keeps its place; a leaf of the background view is only always there, unless *Leaves in place*.
+- **band**: children of an arrangement one above the other, drawn as wide as each other.
 
 **Subsystem**
 - **Layout**: algorithmic positioning of all visible objects on a view.
@@ -79,8 +82,11 @@ One name per concept across UI, docs, logs and code, grouped by subject.
 - **VisualSet**: the existing visual objects of one target view, captured before a run.
 
 **Appearance**
-- **palette**: a named set of colours and colour ranges that belong together, shared by the presets; a preset always names one, and every colour of its styling comes from it.
-- **segment**: a run of nested elements of one type inside a chain of *Style by nesting level*; a nesting step to another type starts the next segment.
+- **palette**: a named set of colors and color ranges that belong together, shared by the presets; a preset always names one, and every color of its styling comes from it.
+- **nesting type change**: a nesting step from a container to a child of another element type.
+- **nesting color change**: a nesting step where *Style by nesting level* gives the child another color than its container.
+
+**Box** is no term: the dialog and the docs say container, leaf or element. In engine code a box is the rectangle of a layout node (geometry).
 
 **Counter rule.** *Relations* is a model word. Selection counters (filtered base, step adds) use it; on the view, count **nestings** and **connections**, never "relations". Internal data-structure names (`parentMap`, `childIds`, `occurrenceMap`, …) are code-only and never surface in the UI or logs. GUI labels for internal terms: [display-label map](reference/gui.md#display-label-map).
 
@@ -247,7 +253,7 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
 **Algorithm styles.** Algorithms are grouped by the insight they give: Flow, Hierarchy, Network, Circular and Compact, all visible at once ([styles and algorithms](reference/gui.md#layout-tab)).
 
 **Relations: nesting and reversal.**
-- **Nesting.** Relations matching a nesting condition are drawn as containment: the child sits **inside** its parent's box. The view then expresses **hierarchy and ownership directly**. Because containment removes the line, **double relations and unexpected structure** stand out.
+- **Nesting.** Relations matching a nesting condition are drawn as containment: the child sits **inside** its parent. The view then expresses **hierarchy and ownership directly**. Because containment removes the line, **double relations and unexpected structure** stand out.
 - A condition's source and target types restrict which elements may be a container (e.g. source *Grouping*). An optional property value, on the relation, its source or its target, narrows a condition further.
 - **Reversal.** Relations matching a reverse condition are flipped: the flow lays them out from target to source, and a nested one has its target as parent. The model relation and its arrows stay unchanged.
 - Each condition counts the relations it hits and how many become a nesting; the dialog says why the others are drawn as a line.
@@ -260,8 +266,8 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
   - *Across*: the whole hierarchy is one layout, and connections run straight to the inner element.
   - Across is unavailable, and *between* is used, when the inner layout is a packing layout or a view size is set; otherwise unconnected elements would stack in one column.
 - **Padding**: the space between a container's border and its contents. Above its contents a container keeps room for its label: its lines wrapped at the width the container is drawn, and below them half the padding, more in proportion for a larger font.
-- **Sort**, **same width per level** and **columns across containers** are refinements: they order the boxes, make nested frames telescope cleanly, and align columns across the view. They only position or derive sizes and never scale a leaf ([§ 8](#8-engine-contract), [sizing refinements](reference/selection-nesting.md#sizing-refinements)).
-- **Background** (Tiles): a background view the selection fills, so every view of one map reads alike. Its elements and diagram objects are always on the view. An element of the selection that hangs under nothing there brings its nesting parents, up to the background view; one that reaches it by no path is left out, and the console says so. The selection decides where an element nests: another parent the model gives it on the background view is not drawn. The frames keep their places in its arrangement, as bands; the other boxes are placed by the layout, sorted and compact. **Every box in place** keeps the place of every box. The model leads: a box the model puts elsewhere goes there, with a warning ([background view](reference/selection-nesting.md#background-view)).
+- **Sort**, **same width** and **columns across containers** are refinements: they order the elements, give a nesting level (and, after the last nesting type change, an element type) one width, and align columns across the view. They only position or derive sizes and never scale a leaf ([§ 8](#8-engine-contract), [sizing refinements](reference/selection-nesting.md#sizing-refinements)).
+- **Background** (Tiles): a background view the selection fills, so every view of one map reads alike. Its elements and diagram objects are always on the view. An element of the selection that hangs under nothing there brings its nesting parents, up to the background view; one that reaches it by no path is left out, and the console says so. The selection decides where an element nests: another parent the model gives it on the background view is not drawn. The background containers keep their places in its arrangement, as bands; its leaves are placed by the layout, sorted and compact. **Leaves in place** keeps the place of its leaves too. The model leads: an element the model puts elsewhere goes there, with a warning ([background view](reference/selection-nesting.md#background-view)).
 - **Sort** (Grid, Pack, Tiles) orders a view with containers, at every level, always ascending by type and name: *None* keeps the selection order, *Elements* (default) orders the elements, *Containers, then elements* the containers too and first, *All together* both in one list. A visible sort wins over **Selection order**. A view without containers is not sorted: Selection order orders it. Directed views have no Sort: the elements inside a container are ordered by type and name.
 
 **Consequences** (not separate controls). For a nesting relation the **source is the parent** and the **target the child**; they are swapped if the type is also reversed. Container-ness is **derived**: an element is a container exactly when something resolves to be its child.
@@ -357,7 +363,7 @@ The dialog defines a selection, a layout and styling, previews the result live, 
 **Tabs.** Four tabs, each owning one concern, in separate modules:
 - **Selection**: the live counts (selected → containing; per filter condition, per step), the global filter, and the ordered steps. Every condition list is a table with one condition per row. Each step shows its name (or its number), its repeat and what it adds, per condition and in total, with controls to rename, collapse, reorder and remove it. When a preset loads, all steps start expanded.
 - **Layout**: the algorithm radio table (all styles always visible), then the groups of [§ 7](#7-layout-options). Options the chosen algorithm does not use are greyed, with their values kept.
-- **Appearance**: the three styling groups of [§ 10](#10-colouring--appearance).
+- **Appearance**: the three styling groups of [§ 10](#10-coloring--appearance).
 - **Properties**: key/value properties of each generated view: a ticked row is written, an unticked row is removed. Keys the tool owns or an installation lists as hidden are not shown and never touched.
 
 **Actions.** Below the tabs, always visible, two equal groups: **Create new view** (*New view*, *One view each*; name, folder) and **Modify selected view** (*Expand view*, *Layout only*; the view), the latter available only when the selection identifies a view. The user chooses one action; what it does not use is greyed. Each group shows what its action writes: the predicted totals of *New view* and *Expand view*, grey when not chosen, and the folder and name it writes, or the view it changes, in bold. A Create action with nothing to place cannot run and says why. One run button names the result (*Create 12 views*, *Replace view*). The last action is remembered; with a view selected the dialog opens on *Layout only*, so replacing a view is a deliberate choice. **Cancel** keeps the UI state.
@@ -374,14 +380,14 @@ The dialog defines a selection, a layout and styling, previews the result live, 
 
 ---
 
-## 10. Colouring — Appearance
+## 10. Coloring — Appearance
 
-A **post-write styling pass** that sets fill colours, fonts and line widths. It runs **after** positioning and **never moves or resizes** anything, so it is exempt from the no-scaling rule.
+A **post-write styling pass** that sets fill colors, fonts and line widths. It runs **after** positioning and **never moves or resizes** anything, so it is exempt from the no-scaling rule.
 
 Three groups, applied in this order; on the same object the later wins: **nesting level → highlight repeated → style by property**.
-- **Style by property**: style conditions, applied in order. A condition says what gets the colour (an element by its own property, a relation, or the source / target element of a matching relation), whose property gives the value, and a colour scale. Several different values on one object give a *mixed values* colour; styled relations may take a fixed line width. When two conditions style one object the dialog flags it, and the last wins.
-- **Style by nesting level**: emphasizes significant nesting levels by container font size and fill colour, each switched on separately. Its conditions select the nesting steps (parent type, relation and direction, child type) it follows from each root container; a step no condition selects stops it for that element and everything inside, which leaves that element its default fill. The font comes per condition: the container where a condition starts takes its size and bold, and each level deeper is smaller and not bold; a leaf beside a container counts as a container. The font is the tool's default view font of the run with that size and style, so the next re-layout of a view follows a changed default; switched off, a re-layout resets the font to the default view font; switched on, a re-layout gives every element the style gives no font the default view font, so a narrowed condition leaves no font of an earlier run. The fill comes per condition: the child it selects takes its colour from the preset's palette, or the type's default fill; when several conditions select one element the most specific wins, whatever their order. Each **segment** starts a set number of levels darker and lightens per level, with hue and saturation kept. A new preset follows the same-type chain from every root. It is active only when nesting conditions are configured.
-- **Highlight repeated**: gives each element that appears more than once on the view its own colour. It needs a nesting condition set to *every container*.
+- **Style by property**: style conditions, applied in order. A condition says what gets the color (an element by its own property, a relation, or the source / target element of a matching relation), whose property gives the value, and a color scale. Several different values on one object give a *mixed values* color; styled relations may take a fixed line width. When two conditions style one object the dialog flags it, and the last wins.
+- **Style by nesting level**: emphasizes significant nesting levels by container font size and fill color, each switched on separately. Its conditions select the nesting steps (parent type, relation and direction, child type) it follows from each root container; a step no condition selects stops it for that element and everything inside, which leaves that element its default fill. The font comes per condition: the container where a condition starts takes its size and bold, and each level deeper is smaller and not bold; a leaf beside a container counts as a container. The font is the tool's default view font of the run with that size and style, so the next re-layout of a view follows a changed default; switched off, a re-layout resets the font to the default view font; switched on, a re-layout gives every element the style gives no font the default view font, so a narrowed condition leaves no font of an earlier run. The fill comes per condition: the child it selects takes its color from the preset's palette, or the type's default fill; when several conditions select one element the most specific wins, whatever their order. At a nesting type change or a nesting color change the fill starts a set number of levels darker than its color and lightens per level deeper, with hue and saturation kept. A new preset follows the same-type chain from every root. It is active only when nesting conditions are configured.
+- **Highlight repeated**: gives each element that appears more than once on the view its own color. It needs a nesting condition set to *every container*.
 
 Detail: [Appearance tab](reference/gui.md#appearance-tab).
 
@@ -392,7 +398,7 @@ Detail: [Appearance tab](reference/gui.md#appearance-tab).
 System-wide, grouped by theme. Code reviews enforce them.
 
 **Layout integrity.**
-1. **No post-layout scaling**: result leaf sizes equal input sizes; the engine sizes containers; nothing is multiplied after layout. (Foundational.) Only the sizing refinements widen a leaf: *Same width per level*, and a band of a background view ([sizing refinements](reference/selection-nesting.md#sizing-refinements)).
+1. **No post-layout scaling**: result leaf sizes equal input sizes; the engine sizes containers; nothing is multiplied after layout. (Foundational.) Only the sizing refinements widen a leaf: *Same width*, *Columns across containers* (a leaf fills its column), and a band of a background view ([sizing refinements](reference/selection-nesting.md#sizing-refinements)).
 2. **Position spread only**: an outward centre-spread, with sizes frozen, is the only post-layout adjustment; compression is forbidden.
 3. **Parent-relative coordinates**: a nested visual's bounds are relative to its parent. The orchestrator converts them from the engine's absolute output.
 4. **Parent-first writing**: every node is written after its parent, so parent-relative conversion and draw order hold under any engine output order.

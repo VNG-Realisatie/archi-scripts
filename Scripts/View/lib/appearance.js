@@ -1,7 +1,7 @@
 /**
  * Appearance pass — post-write visual styling for generated views.
  *
- * Called from generate_view.js after _writeView. Applies fill colours, fonts,
+ * Called from generate_view.js after _writeView. Applies fill colors, fonts,
  * and line widths to VisualElements/VisualConnections based on preset.appearance.
  *
  * Condition precedence (later overrides earlier for the same VO):
@@ -9,8 +9,8 @@
  *
  * Reset on Modify (layout_only, expand_view): a disabled nesting-level or highlight feature
  * resets the elements it would have styled to Archi defaults (fillColor = null, font = Archi's
- * default view font); with style conditions, every element fill and relation line colour / width not styled
- * earlier in the pass is reset before the conditions colour (SPEC §10, Style by property).
+ * default view font); with style conditions, every element fill and relation line color / width not styled
+ * earlier in the pass is reset before the conditions color (SPEC §10, Style by property).
  */
 
 const REPO_ROOT = (() => {
@@ -30,7 +30,7 @@ const ConditionLists = require(REPO_ROOT + "View/lib/rel_filter");
 const Palettes  = require(REPO_ROOT + "View/lib/palettes");
 const { compareNames } = Defs;
 
-// Qualitative schemes are discrete colour sets; padding is meaningless on them.
+// Qualitative schemes are discrete color sets; padding is meaningless on them.
 
 /**
  * @typedef {object} NestingNode  an element visual, for followNestingChains
@@ -40,11 +40,11 @@ const { compareNames } = Defs;
  * @property {{ type: string, outgoing: boolean }[]} rels  model relations between parent and element; outgoing = the parent is the source
  * @property {number}        depth
  * @property {boolean}       isContainer
- * @property {boolean}       [isFrame]    an element of the background view: styled as a container, also with nothing in it
+ * @property {boolean}       [onBackground]  an element of the background view: styled as a container, also with nothing in it
  *
  * @typedef {object} NestingStyle  how followNestingChains styles a visual
- * @property {number}  segmentDepth  from the segment start: lightening
- * @property {string}  color         the colour name of the condition that selected it; "" = Default
+ * @property {number}  depthSinceChange  levels since the last nesting type or color change: lightening
+ * @property {string}  color         the color name of the condition that selected it; "" = Default
  * @property {number}  fontSize      pt; DEFAULT_FONT_SIZE = unchanged
  * @property {boolean} bold          the condition starts here and is bold
  * @property {number}  nr            the number of the condition that selected it
@@ -67,9 +67,9 @@ const DEFAULT_FONT_STYLE = "normal";
  * @param {string}        actionId
  * @param {TextFont}      defaultFont  Archi's default view font: the name of a nesting font, and a reset
  * @param {Map<string, string>} [diagramBlockOf]  visuals inside a diagram-block: they keep their appearance
- * @param {Set<string>} [frames]  elements of the background view: styled as containers
+ * @param {Set<string>} [backgroundElements]  elements of the background view: styled as containers
  */
-function applyAppearance(view, preset, actionId, defaultFont, diagramBlockOf, frames = new Set()) {
+function applyAppearance(view, preset, actionId, defaultFont, diagramBlockOf, backgroundElements = new Set()) {
   const keep = diagramBlockOf || new Map();
   const app  = preset.appearance;
   const isModify = actionId === "layout_only" || actionId === "expand_view";
@@ -102,7 +102,7 @@ function applyAppearance(view, preset, actionId, defaultFont, diagramBlockOf, fr
   /** @type {Set<string>} */
   const styledVoIds = new Set();
 
-  _applyNestingLevel(view, nl, palette, isModify, defaultFont, styledVoIds, keep, frames);
+  _applyNestingLevel(view, nl, palette, isModify, defaultFont, styledVoIds, keep, backgroundElements);
   _applyHighlightRepeated(view, hr, palette, isModify, styledVoIds, keep);
   _applyStyleConditions(view, sbp, palette, isModify, styledVoIds, keep);
 }
@@ -126,12 +126,12 @@ function _onView(view, selector, keep) {
 
 /**
  * Follow the nesting style conditions from every root container (pure). A condition selects the
- * nesting steps it matches; the child of a selected step takes the condition's colour, provided its
+ * nesting steps it matches; the child of a selected step takes the condition's color, provided its
  * parent is styled. A root container is styled by the conditions that would select it under a parent
  * of its own type; relation and direction do not count for it. An element no condition selects stops the chain for
  * itself and everything inside it. Of conditions that select the same element the most specific wins
- * (_specificity); of equally specific ones the last. A child with the colour and type of its parent
- * continues the parent's segment one level deeper; otherwise it starts a segment.
+ * (_specificity); of equally specific ones the last. A child with the color and type of its parent
+ * is one level further from the last nesting type or color change; otherwise it is at one (depth 0).
  * Font: where a condition starts (a root, or a child selected by another condition than its parent)
  * the element takes the condition's font size and bold; elsewhere, and where the condition has no
  * font size, the size is its parent's less fontDecreasePerLevel, never below DEFAULT_FONT_SIZE.
@@ -152,13 +152,13 @@ function followNestingChains(nodes, conditions, fontDecreasePerLevel) {
   const withContainer = new Set(nodes.filter(n => n.isContainer).map(n => n.parentId));
   // Stable sort: parents before children, view order within a depth.
   for (const n of nodes.slice().sort((a, b) => a.depth - b.depth)) {
-    const asContainer = n.isContainer || !!n.isFrame || withContainer.has(n.parentId);
+    const asContainer = n.isContainer || !!n.onBackground || withContainer.has(n.parentId);
     if (!n.parentId) {
       if (!asContainer) continue;
       const sel = active.filter(x => _selectsRoot(x.r, n.type));
       if (sel.length === 0) continue;
       const win = _mostSpecific(sel, conflicts, _rootSpecificity);
-      styles.set(n.id, Object.assign({ segmentDepth: 0, color: win.r.color, nr: win.nr, asContainer }, _font(win.r, DEFAULT_FONT_SIZE)));
+      styles.set(n.id, Object.assign({ depthSinceChange: 0, color: win.r.color, nr: win.nr, asContainer }, _font(win.r, DEFAULT_FONT_SIZE)));
       continue;
     }
     const ps = styles.get(n.parentId);
@@ -168,10 +168,10 @@ function followNestingChains(nodes, conditions, fontDecreasePerLevel) {
     if (sel.length === 0) continue;
     const win = _mostSpecific(sel, conflicts);
     const color = win.r.color;
-    const segmentDepth = n.type === parent.type && color === ps.color ? ps.segmentDepth + 1 : 0;
+    const depthSinceChange = n.type === parent.type && color === ps.color ? ps.depthSinceChange + 1 : 0;
     const smaller = Math.max(DEFAULT_FONT_SIZE, ps.fontSize - fontDecreasePerLevel);
     const font = win.nr === ps.nr ? { fontSize: smaller, bold: false } : _font(win.r, smaller);
-    styles.set(n.id, Object.assign({ segmentDepth, color, nr: win.nr, asContainer }, font));
+    styles.set(n.id, Object.assign({ depthSinceChange, color, nr: win.nr, asContainer }, font));
   }
   return { styles, conflicts: [...conflicts] };
 }
@@ -279,10 +279,10 @@ function _rootSpecificity(r) {
  * between the two elements.
  * @param {VisualObject} vo
  * @param {Map<string, string>} keep  visuals inside a diagram-block: not a parent
- * @param {Set<string>}         frames  elements of the background view
+ * @param {Set<string>}         backgroundElements  elements of the background view
  * @returns {NestingNode}
  */
-function _nestingNode(vo, keep, frames) {
+function _nestingNode(vo, keep, backgroundElements) {
   const parentVo = $(vo).parent().filter("element").first();
   const parentId = parentVo && !keep.has(String(parentVo.id)) ? String(parentVo.id) : null;
   /** @type {{ type: string, outgoing: boolean }[]} */
@@ -295,7 +295,7 @@ function _nestingNode(vo, keep, frames) {
   return {
     id: String(vo.id), parentId, type: (vo.concept && vo.concept.type) || "", rels,
     depth: _voDepth(vo), isContainer: $(vo).children("element").length > 0,
-    isFrame: !!vo.concept && frames.has(String(vo.concept.id)),
+    onBackground: !!vo.concept && backgroundElements.has(String(vo.concept.id)),
   };
 }
 
@@ -310,21 +310,21 @@ function _voDepth(vo) {
 /**
  * @param {ArchimateView}                          view
  * @param {Preset["appearance"]["nestingLevel"]}   settings
- * @param {Palette}                                palette  the run's palette: the colours
+ * @param {Palette}                                palette  the run's palette: the colors
  * @param {boolean}                                isModify
  * @param {TextFont}                               defaultFont  Archi's default view font
  * @param {Set<string>}                            styledVoIds
  * @param {Map<string, string>}                    keep  visuals inside a diagram-block: left out
- * @param {Set<string>}                            frames  elements of the background view
+ * @param {Set<string>}                            backgroundElements  elements of the background view
  */
-function _applyNestingLevel(view, settings, palette, isModify, defaultFont, styledVoIds, keep, frames) {
+function _applyNestingLevel(view, settings, palette, isModify, defaultFont, styledVoIds, keep, backgroundElements) {
   let fontSet = 0, fontReset = 0, colorSet = 0, colorReset = 0;
   const vos = _onView(view, "element", keep).filter(vo => !!vo.id);
-  const nodes = vos.map(vo => _nestingNode(vo, keep, frames));
+  const nodes = vos.map(vo => _nestingNode(vo, keep, backgroundElements));
   const { styles, conflicts } = followNestingChains(nodes, settings.conditions, settings.fontDecreasePerLevel);
   if (conflicts.length > 0)
     Log.warn(`Style by nesting level: conditions ${conflicts.join(" · ")} are equally specific and select the same elements with different styles; the last condition wins.`);
-  // One message per colour name the palette does not hold.
+  // One message per color name the palette does not hold.
   /** @type {Set<string>} */
   const reported = new Set();
   const reportOnce = (/** @type {string} */ m) => { if (!reported.has(m)) { reported.add(m); Log.warn(`Appearance: ${m}`); } };
@@ -344,13 +344,13 @@ function _applyNestingLevel(view, settings, palette, isModify, defaultFont, styl
       return;
     }
 
-    // Colour: the segment's colour (its condition's colour, or Default = the element type's default
-    // fill), shaded by segmentDepth − darkenStart levels: darkenStart levels darker at the segment start.
+    // Color: its condition's color, or Default = the element type's default fill, shaded by
+    // depthSinceChange − darkenStart levels: darkenStart levels darker at a nesting type or color change.
     if (settings.colorEnabled) {
       let start = st.color ? Palettes.colorOf(palette, st.color, reportOnce) : null;
       vo.fillColor = null;                       // reading it back gives the type's default fill
       if (!start) start = vo.fillColor;
-      vo.fillColor = _shadeHex(start, st.segmentDepth - settings.darkenStart, settings.lightenPerLevel / 100);
+      vo.fillColor = _shadeHex(start, st.depthSinceChange - settings.darkenStart, settings.lightenPerLevel / 100);
       styledVoIds.add(vo.id);
       colorSet++;
     } else if (isModify) {
@@ -509,7 +509,7 @@ function _applyStyleConditions(view, settings, palette, isModify, styledVoIds, k
   const elements  = Array.from(elementById.values());
   const relations = Array.from(relationById.values());
 
-  // Modify actions: reset every fill and line first, so a changed condition leaves no colours of an
+  // Modify actions: reset every fill and line first, so a changed condition leaves no colors of an
   // earlier run behind. Objects colored earlier in this pass (nesting level, highlight) are kept.
   if (isModify) {
     let n = 0;
@@ -528,7 +528,7 @@ function _applyStyleConditions(view, settings, palette, isModify, styledVoIds, k
     if (condition.on === false || !condition.property) return;
     const targets = computeConditionTargets(condition, elements, relations);
 
-    // One value → its colour from the range; several different values → the mixed-values colour.
+    // One value → its color from the range; several different values → the mixed-values color.
     const unique = Array.from(new Set(
       Array.from(targets.values()).filter(h => h.values.size === 1).map(h => Array.from(h.values)[0])
     )).sort(compareNames);
@@ -566,7 +566,7 @@ function _applyStyleConditions(view, settings, palette, isModify, styledVoIds, k
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-// n evenly spaced colours of a range of the run's palette; a range the palette does not hold is
+// n evenly spaced colors of a range of the run's palette; a range the palette does not hold is
 // reported and its first range used.
 /**
  * @param {Palette} palette
@@ -578,7 +578,7 @@ function _colorScale(palette, rangeName, n) {
   let range = palette.ranges.find(r => r.name === rangeName);
   if (!range) {
     range = palette.ranges[0];
-    Log.warn(`Appearance: colour range "${rangeName}" is not in palette "${palette.name}"; its first range "${range.name}" is used, as the dialog shows. Save the preset to keep it.`);
+    Log.warn(`Appearance: color range "${rangeName}" is not in palette "${palette.name}"; its first range "${range.name}" is used, as the dialog shows. Save the preset to keep it.`);
   }
   return Palettes.rangeColors(range, n);
 }
@@ -588,14 +588,14 @@ function _colorScale(palette, rangeName, n) {
 const YELLOW_HUES       = [40, 80];   // HSL hue range that shifts; the shift stops at its lower end
 const OCHRE_DEG_PER_LEVEL = 4;
 // A darker level never goes below the lighter of: the exact inverse of a lighter level, and closing the same
-// fraction of the distance to this HSL lightness. Light colours follow the inverse (KK01); a middle
-// colour such as orange #f9c268 stays light (#f8bd5a, #f8b951) instead of turning brown.
+// fraction of the distance to this HSL lightness. Light colors follow the inverse (KK01); a middle
+// color such as orange #f9c268 stays light (#f8bd5a, #f8b951) instead of turning brown.
 const DARKEN_FLOOR = 0.6;
 
 /**
- * Shade a colour by nesting levels in HSL lightness, saturation kept: each level up closes `step`
+ * Shade a color by nesting levels in HSL lightness, saturation kept: each level up closes `step`
  * of the distance to white, each level down (levels < 0) is the exact inverse, bounded by
- * DARKEN_FLOOR, and a darker yellow also shifts toward ochre. So the colour itself sits at level 0; yellow #ffffcc goes
+ * DARKEN_FLOOR, and a darker yellow also shifts toward ochre. So the color itself sits at level 0; yellow #ffffcc goes
  * #fff197 → #fffab6 → #ffffcc → #ffffdb at 30 %.
  * @param {string} hex
  * @param {number} levels  > 0 lighter, < 0 darker

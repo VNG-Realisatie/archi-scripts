@@ -27,7 +27,7 @@ eq(norm("relation", [{ relation: "serving-relationship" }]),
 eq(norm("relation", [{ relaton: "serving-relationship" }]), [], "unknown key rejects the condition");
 eq(norm("relation", [{ relation: "nonsense-relationship" }]), [], "unknown type rejects the condition");
 eq(norm("step", [{ direction: "sideways" }]), [], "unknown enum rejects the condition");
-eq(norm("style", [{ colorRange: "" }]), [], "an empty colour range rejects the condition");
+eq(norm("style", [{ colorRange: "" }]), [], "an empty color range rejects the condition");
 eq(RF.serializeCondition("step", norm("step", [{ relation: "serving-relationship", added: "business-object" }])[0]),
    { relation: "serving-relationship", added: "business-object" }, "serialise omits defaults");
 eq(RF.serializeCondition("relation", norm("relation", [{ on: false, relation: "serving-relationship" }])[0]),
@@ -179,7 +179,7 @@ const NS = raw => raw.map(r => Object.assign(RF.defaultCondition("nestingStyle")
 const depthOf = new Map(chainNodes.map(n => [n.id, n.depth]));
 const chains = rules => {
   const { styles, conflicts } = Appearance.followNestingChains(chainNodes, NS(rules), 2);
-  const out = {}; styles.forEach((v, k) => { out[k] = `${depthOf.get(k)}/${v.segmentDepth}/${v.color}`; });
+  const out = {}; styles.forEach((v, k) => { out[k] = `${depthOf.get(k)}/${v.depthSinceChange}/${v.color}`; });
   return { out, conflicts };
 };
 const fonts = rules => {
@@ -188,13 +188,13 @@ const fonts = rules => {
 };
 eq(chains([{ parent: "grouping", color: "Grijs" }]).out, { g0: "0/0/Grijs", g1: "1/1/Grijs" }, "chains: same-type chain stops at another type");
 eq(chains([{}]).out, { g0: "0/0/", o0: "0/0/", g1: "1/1/", o1: "1/1/" }, "chains: default condition = same-type chain from every root");
-// the user's case: a condition's colour goes to the children it selects; the component is not selected
+// the user's case: a condition's color goes to the children it selects; the component is not selected
 eq(chains([
   { parent: "grouping", color: "Grijs" },
   { parent: "", child: "business-function", relation: "aggregation-relationship", color: "Geel" },
   { parent: "business-function", child: "application-service", direction: "incoming", relation: "serving-relationship", color: "Blauw" },
 ]).out, { g0: "0/0/Grijs", g1: "1/1/Grijs", f1: "2/0/Geel", f2: "3/1/Geel", s1: "4/0/Blauw" },
-   "chains: colour per condition to its selection; unselected step (component) stops; a root only by a condition for its type");
+   "chains: color per condition to its selection; unselected step (component) stops; a root only by a condition for its type");
 eq(chains([{ parent: "", color: "A" }, { parent: "grouping", child: "", color: "B" }, { parent: "", child: "", color: "C" }]).out.g0,
    "0/0/B", "chains: a root takes its own type's condition before parent All");
 eq(chains([{ parent: "grouping", child: "", color: "A" }, { parent: "grouping", color: "B" }]).out,
@@ -208,9 +208,9 @@ eq(chains([{ parent: "grouping", child: "", relation: "aggregation-relationship"
 eq(chains([{ parent: "grouping", child: "", relation: "aggregation-relationship", color: "A" }, { parent: "grouping", child: "", direction: "outgoing", color: "B" }]),
    { out: { g0: "0/0/B", g1: "1/1/B", f1: "2/0/B" }, conflicts: ["1, 2"] }, "chains: equally specific conditions (and a root's): the last wins, conflict reported");
 eq(chains([{ parent: "", child: "grouping", relation: "aggregation-relationship", color: "B" }, { parent: "grouping", color: "A" }]),
-   { out: { g0: "0/0/A", g1: "1/0/B" }, conflicts: ["1, 2"] }, "chains: another colour starts a segment; a root does not count the relation");
+   { out: { g0: "0/0/A", g1: "1/0/B" }, conflicts: ["1, 2"] }, "chains: another color is a nesting color change; a root does not count the relation");
 eq(chains([{ parent: "grouping", child: "", relation: "aggregation-relationship" }]).out,
-   { g0: "0/0/", g1: "1/1/", f1: "2/0/" }, "chains: Default continues a same-type segment, another type starts one");
+   { g0: "0/0/", g1: "1/1/", f1: "2/0/" }, "chains: Default continues under the same type, a nesting type change starts again");
 eq(fonts([{ fontSize: 14, bold: true }]), { g0: "14b", o0: "14b", g1: "12", o1: "12" }, "fonts: a root takes its condition's font, deeper levels smaller and not bold");
 eq(fonts([{ parent: "grouping", fontSize: 16, bold: true }, { parent: "", child: "business-function", relation: "aggregation-relationship" },
           { parent: "business-function", child: "application-service", direction: "incoming", relation: "serving-relationship", fontSize: 14, bold: true }]),

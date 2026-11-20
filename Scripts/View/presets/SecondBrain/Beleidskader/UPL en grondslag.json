@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "name": "Beleidskader/UPL en grondslag",
   "algorithm": "Layered",
   "params": {
@@ -20,7 +20,7 @@
     "padding": 20,
     "diagramPadding": 10,
     "sort": "Containers, then elements",
-    "alignWidthSameType": false,
+    "sameWidth": "Off",
     "columnsAcrossContainers": false,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Between containers",

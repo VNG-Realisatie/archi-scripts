@@ -1,5 +1,5 @@
 /**
- * SWT helpers of the View dialog: tab pages, groups, form rows, combos, checks, spinners, colour pickers, fonts.
+ * SWT helpers of the View dialog: tab pages, groups, form rows, combos, checks, spinners, color pickers, fonts.
  * No dialog state; the tabs and dialog_main.js build on them.
  */
 
@@ -254,23 +254,23 @@ function hasNestingConditions(w) {
   return !!w.tblNestingConditions && w.tblNestingConditions.getConditions().some(r => r.on !== false && r.mode !== "exclude");
 }
 
-// ── Colour picker ─────────────────────────────────────────────────────────────
-// The one control for choosing a colour or a colour range: a button that shows the chosen item's
+// ── Color picker ─────────────────────────────────────────────────────────────
+// The one control for choosing a color or a color range: a button that shows the chosen item's
 // swatch (or gradient strip) and name, and a menu that shows every item with its own swatch. An SWT
-// Combo shows text only on GTK, so a menu is the way to see the colours before choosing.
+// Combo shows text only on GTK, so a menu is the way to see the colors before choosing.
 
 const SWATCH_H = 14;
 const SWATCH_W = 16;
 
 /**
- * Draw a swatch: one colour, a gradient of several, or none (an empty frame).
+ * Draw a swatch: one color, a gradient of several, or none (an empty frame).
  * @param {Swt.GC} gc
  * @param {Swt.Display} display
  * @param {number} x
  * @param {number} y
  * @param {number} width
  * @param {readonly string[]} colors  hex values; [] = none
- * @param {boolean} on  false: an empty frame (a disabled control shows no colour)
+ * @param {boolean} on  false: an empty frame (a disabled control shows no color)
  */
 function drawSwatch(gc, display, x, y, width, colors, on) {
   gc.setBackground(display.getSystemColor(SWT.COLOR_WIDGET_BACKGROUND));
@@ -304,7 +304,7 @@ function _swatchImage(display, colors, width, on) {
 }
 
 /**
- * The item a colour choice shows for a value. A value the items do not hold: with `fallback` it is
+ * The item a color choice shows for a value. A value the items do not hold: with `fallback` it is
  * replaced (`value` differs from the one given), so the control always shows what the run uses; else
  * it is shown as `missing` gives it. A hex value chosen with Other… is kept.
  * @param {ColorChoice} choice
@@ -324,8 +324,8 @@ function colorItemFor(choice, value) {
 }
 
 /**
- * Open the menu of a colour choice at a display point: every item with its swatch, the current one
- * ticked, and with `other` "Other…" (the system colour dialog, whose choice is a hex value). The
+ * Open the menu of a color choice at a display point: every item with its swatch, the current one
+ * ticked, and with `other` "Other…" (the system color dialog, whose choice is a hex value). The
  * caller disposes the menu (the images go with it) before opening the next.
  * @param {Swt.Control} control  the control the menu belongs to
  * @param {Swt.Point} at  display coordinates
@@ -369,7 +369,7 @@ function openColorMenu(control, at, choice, value, choose) {
 }
 
 /**
- * Colour picker (see above). Items are read each time the menu opens or the value is set, so a
+ * Color picker (see above). Items are read each time the menu opens or the value is set, so a
  * changed list (another palette) shows at once (colorItemFor).
  * @param {Swt.Composite} parent
  * @param {ColorPickerOptions} opts
@@ -420,9 +420,9 @@ function colorPicker(parent, opts) {
 }
 
 /**
- * The choice of one colour (nesting style conditions, Mixed values color): the palette's colours by
- * name, Other… for a colour of its own (hex), and with `withDefault` the type's default fill ("").
- * A name the palette does not hold becomes its first colour, as the run uses it (palettes.colorOf).
+ * The choice of one color (nesting style conditions, Mixed values color): the palette's colors by
+ * name, Other… for a color of its own (hex), and with `withDefault` the type's default fill ("").
+ * A name the palette does not hold becomes its first color, as the run uses it (palettes.colorOf).
  * @param {() => readonly { name: string, hex: string }[]} colors
  * @param {boolean} [withDefault]
  * @returns {ColorChoice}
@@ -438,7 +438,7 @@ function paletteColorChoice(colors, withDefault) {
 }
 
 /**
- * The choice of a colour range (style conditions, highlight repeated): the ranges of the active palette.
+ * The choice of a color range (style conditions, highlight repeated): the ranges of the active palette.
  * @param {() => ColorPickerItem[]} items  the palette's ranges with their gradient (rangeItems)
  * @returns {ColorChoice}
  */
@@ -451,7 +451,7 @@ function colorRangeChoice(items) {
 }
 
 /**
- * Picker of one colour as a button (paletteColorChoice).
+ * Picker of one color as a button (paletteColorChoice).
  * @param {Swt.Composite} parent
  * @param {{ colors: () => readonly { name: string, hex: string }[], value: string, onChange: (value: string) => void,
  *           withDefault?: boolean, tooltip?: string, width?: number }} opts
@@ -463,7 +463,7 @@ function paletteColorPicker(parent, opts) {
 }
 
 /**
- * Picker of a colour range as a button (colorRangeChoice).
+ * Picker of a color range as a button (colorRangeChoice).
  * @param {Swt.Composite} parent
  * @param {string} value
  * @param {(value: string) => void} onChange
@@ -475,7 +475,7 @@ function colorRangePicker(parent, value, onChange, items, tooltip) {
 }
 
 /**
- * The items of a colour-range picker: each range of a palette with its gradient.
+ * The items of a color-range picker: each range of a palette with its gradient.
  * @param {Palette | undefined} palette
  * @returns {ColorPickerItem[]}
  */
@@ -870,12 +870,12 @@ function addCombo(parent, label, items, selectedIdx, widthHint, key, w, tooltip)
 }
 
 /**
- * @param {any} widget  an SWT control, or a controller with enable() (condition table, colour-range cell)
+ * @param {any} widget  an SWT control, or a controller with enable() (condition table, color-range cell)
  * @param {boolean} enabled
  */
 function enable(widget, enabled) {
   if (!widget) return;
-  if (widget.enable) { widget.enable(enabled); return; }  // controller (condition table, colour-range cell)
+  if (widget.enable) { widget.enable(enabled); return; }  // controller (condition table, color-range cell)
   // silent: a dialog update on a widget that may be disposed
   try { widget.setEnabled(enabled); } catch (e) {}
   // The label in front of a combo / spinner greys with it (see addCombo, addSpinnerRow).

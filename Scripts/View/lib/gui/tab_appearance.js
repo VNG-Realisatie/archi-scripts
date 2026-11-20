@@ -145,7 +145,7 @@ function buildAppearanceTab(tabFolder, ctx) {
   /** @type {Swt.Composite[]} */
   const formRows = [];
 
-  // ── Colors: the palette every colour and colour range of the tab comes from ──
+  // ── Colors: the palette every color and color range of the tab comes from ──
   try { ctx.palettes = Palettes.readPalettes(); }
   catch (e) { ctx.palettes = []; Log.warn(`Appearance: ${/** @type {Error} */ (e).message}`); }
   const grpColors = Widgets.group(page, "Colors", 1);
@@ -252,8 +252,8 @@ function buildAppearanceTab(tabFolder, ctx) {
   chkNestColor.addListener(SWT.Selection, () => { updateNestingLevelState(ctx); onChange(); });
   w.chkNestColor = chkNestColor;
 
-  const lightenTip = "Per level inside a segment, the fill moves this percentage closer to white\n" +
-                     "(hue and saturation kept).";
+  const lightenTip = "Per level deeper, the fill moves this percentage closer to white (hue and saturation kept),\n" +
+                     "until the next nesting type or color change.";
   w.lblNestLighten = nestLabel("Lighter per level");
   w.lblNestLighten.setToolTipText(lightenTip);
   const lighten = _spinnerWithUnit(nestRow, "%");
@@ -263,7 +263,7 @@ function buildAppearanceTab(tabFolder, ctx) {
   w.spinNestLighten = lighten.spinner;
   w.lblNestLightenPct = lighten.unit;
 
-  const darkenTip = "A segment starts this many levels darker than its color,\n" +
+  const darkenTip = "At a nesting type or color change the fill starts this many levels darker than its color,\n" +
                     "so its color is reached this many levels in.";
   w.lblNestDarken = nestLabel("Start darker");
   w.lblNestDarken.setToolTipText(darkenTip);

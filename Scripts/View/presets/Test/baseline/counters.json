@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "name": "Test/baseline/counters",
   "algorithm": "Layered",
   "params": {
@@ -24,7 +24,7 @@
     "sort": "Elements",
     "selectionOrder": "Selection",
     "cycleSelectionOrder": false,
-    "alignWidthSameType": false,
+    "sameWidth": "Off",
     "columnsAcrossContainers": false,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Between containers",
@@ -88,8 +88,7 @@
   "engineParams": {},
   "viewProperties": {
     "addObjectId": false,
-    "properties": [
-    ]
+    "properties": []
   },
   "description": "Baseline runs on the test model (Scripts/View/test/model/view-test.archimate): nesting with every container and a reversed type, one step to the neighbours, style by the property domain"
 }

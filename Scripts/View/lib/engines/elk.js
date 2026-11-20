@@ -82,7 +82,7 @@ const { containerTop, selfLoopResult, sortedNodes, alignWidthsByLevel, applyPara
 //                           elk.aspectRatio; see _fitViewSize)
 //   nestingConditions     → graph structure (parentMap)
 //   sort  → node sort order via engine-utils.sortedNodes
-//   alignWidthSameType    → per-level target widths from the input widths
+//   sameWidth             → per-level target widths from the input widths
 //                           (engine-utils.alignWidthsByLevel): leaves get exact width,
 //                           containers a MINIMUM_SIZE floor (_boxSizes)
 
@@ -286,7 +286,7 @@ function _loadELK() {
 
 /**
  * Compute layout positions.
- * @param {LayoutGraph} graph  — { nodes, edges, options, algorithm, alignWidthSameType, sort }
+ * @param {LayoutGraph} graph  — { nodes, edges, options, algorithm, sameWidth, sort }
  * @returns {LayoutResult}     — { nodes, edges }
  */
 function layout(graph) {
@@ -468,7 +468,7 @@ function _layoutOnce(graph, log) {
   /** @type {Record<string, string>} */
   const names = {};
   for (const node of graph.nodes) names[node.id] = node.label || node.id;
-  if (graph.alignWidthSameType && nesting) _logWidthMismatches(nodes, boxes, containerIds, names, log);
+  if (graph.sameWidth !== Defs.SAME_WIDTH.OFF && nesting) _logWidthMismatches(nodes, boxes, containerIds, names, log);
   // Center-snap columns to a global grid (position-only; grows containers, never resizes
   // leaves). Aligns leaf columns top-to-bottom across the view. Gated on its own toggle.
   if (graph.columnsAcrossContainers && nesting) alignColumnsAcrossContainers(nodes, graph.options, names, log, new Map(), Object.fromEntries(graph.nodes.map(n => [n.id, n.minWidth])));
@@ -560,7 +560,7 @@ function _engineOptions(algorithm, o, elkParams, nesting) {
 
 /**
  * Boxes handed to ELK, per node id.
- * Same width per level: every box at one nesting level gets the level's width — exact on leaves,
+ * Same width (Per level): every element at one nesting level gets the level's width — exact on leaves,
  * a minimum on containers (MINIMUM_SIZE: never below content). The widths telescope from the
  * narrowest leaf at the deepest level, which is a leaf ELK does not resize, so the input widths
  * suffice. Tree layer distance: root-level boxes widened in the flow direction by treeExtra (a
@@ -576,7 +576,7 @@ function _engineOptions(algorithm, o, elkParams, nesting) {
 function _boxSizes(graph, parentMap, containerIds, treeExtra, vertical, log) {
   /** @type {Record<string, number>} */
   let levelWidth = {};
-  if (graph.alignWidthSameType && containerIds.size > 0) {
+  if (graph.sameWidth !== Defs.SAME_WIDTH.OFF && containerIds.size > 0) {
     /** @type {Record<string, number>} */
     const widths = {};
     for (const node of graph.nodes) widths[node.id] = node.width;
@@ -606,7 +606,7 @@ function _boxSizes(graph, parentMap, containerIds, treeExtra, vertical, log) {
 }
 
 /**
- * Same width per level: log every leaf whose final width differs from its box, and every
+ * Same width (Per level): log every leaf whose final width differs from its box, and every
  * container ELK left narrower than its minimum.
  * @param {LayoutResultNode[]}     nodes
  * @param {Record<string, ElkBox>} boxes
@@ -771,7 +771,7 @@ function _buildELKGraph(graph, eo, parentMap, boxes, edges, rootExtra) {
  */
 function _elkNode(id, box, isContainer, swapMinimum, eo) {
   if (isContainer) {
-    // Same width per level: floor the container width to its level width; MINIMUM_SIZE keeps it
+    // Same width (Per level): floor the container width to its level width; MINIMUM_SIZE keeps it
     // from shrinking below content. Otherwise ELK sizes it from children + padding.
     const size = swapMinimum ? `(0, ${box.width})` : `(${box.width}, 0)`;
     const minimum = box.width > 0 ? { "elk.nodeSize.constraints": "[MINIMUM_SIZE]", "elk.nodeSize.minimum": size } : {};
@@ -1461,7 +1461,7 @@ function checkEngineParams(preset) {
     { reads: ["PARENTS"],          by: [eo.algorithmId],
       options: byId(eo.root) },
     { reads: ["PARENTS", "NODES"], by: [eo.containerAlgorithmId],
-      options: byId(_elkNode("", { width: p.alignWidthSameType ? 1 : 0, height: 0 }, true, false, eo).layoutOptions || {}) },
+      options: byId(_elkNode("", { width: p.sameWidth !== Defs.SAME_WIDTH.OFF ? 1 : 0, height: 0 }, true, false, eo).layoutOptions || {}) },
     { reads: ["NODES"],            by: [eo.algorithmId, eo.containerAlgorithmId],
       options: byId(_elkNode("", { width: 1, height: 1 }, false, false, eo).layoutOptions || {}) },
   ];

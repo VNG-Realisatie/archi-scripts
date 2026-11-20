@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "name": "GEMMA/Referentiecomponenten/Bedrijfsfunctiemodel met referentiecomponenten background",
   "algorithm": "Tiles",
   "params": {
@@ -24,7 +24,7 @@
     "sort": "All together",
     "selectionOrder": "Selection",
     "cycleSelectionOrder": false,
-    "alignWidthSameType": true,
+    "sameWidth": "Per level and type",
     "columnsAcrossContainers": true,
     "containerAlgorithm": "Pack",
     "connectionsMode": "Between containers",
@@ -32,11 +32,11 @@
     "elementSpacing": 15,
     "connectionSpacing": 25,
     "connectionElementSpacing": 9,
-    "elementWidth": 300,
+    "elementWidth": 240,
     "elementHeight": 80,
-    "maxWidth": 2400,
+    "maxWidth": 3000,
     "aspectRatio": 0.75,
-    "viewSizeMode": "none",
+    "viewSizeMode": "maxWidth",
     "labelSizing": false,
     "labelMaxLineWidth": 400,
     "connectionLabelSpacing": false,
@@ -44,7 +44,7 @@
       "id": "id-123355daaee4455fbdbffefe921aa087",
       "path": "/Views/Beheer/Background views/Background bedrijfsfunctiemodel uitvoering"
     },
-    "backgroundEveryBox": false
+    "backgroundLeavesInPlace": false
   },
   "filter": {
     "elementConditions": [],
@@ -87,7 +87,7 @@
     ]
   },
   "view": {
-    "name": "Niet domeingebonden",
+    "name": "GEMMA domeinen",
     "folder": "/Referentiecomponenten/Background/Bedrijfsfuncties en referentiecomponenten",
     "suffix": "",
     "mirrored": false,

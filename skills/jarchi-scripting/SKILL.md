@@ -22,7 +22,7 @@ description: Use when writing or changing jArchi scripts for Archi (.ajs files, 
 11. **`console` is the jArchi Script Console**: `log`, `error`, `clear`, `show`, … — no `warn`/`info`; `error()` takes one argument.
 12. **Modal SWT dialog**: no console output inside its handlers (it blocks until close); open child dialogs on `dlg.getShell()`, not `shell`.
 13. **`prop(key, true)`** returns all values (a list) or null; `prop(key)` the first value or null.
-14. **`view.viewpoint`** reads `{ id, name }`; assign an id string. **`fillColor`** reads the effective colour (≥ 1.11); assign null to reset.
+14. **`view.viewpoint`** reads `{ id, name }`; assign an id string. **`fillColor`** reads the effective color (≥ 1.11); assign null to reset.
 15. **Relationship ends can be relationships** (`rel.source` / `rel.target`) — check `.type` before treating an end as an element.
 16. **`exit()`** stops the script by throwing; Archi shows "Exited".
 17. **Undo and UI**: changes to a model open in Archi go on its undo stack; changes to a model only loaded by the script are not shown until `model.openInUI()` / `view.openInUI()`.

@@ -1,8 +1,8 @@
 /**
  * Node tests for the Tiles engine (engines/tiles.js) on synthetic layout graphs: leaves keep
  * their size, containers wrap their children, siblings do not overlap, the order of the sorted
- * children reads left to right and down, Same width gives one width per level, Max width is
- * kept, the result is the same on every run. Run from the repo root:
+ * children reads left to right and down, Same width gives one width per level (and per type at a
+ * nesting type change), every leaf fills its column across containers, Max width is kept, the result is the same on every run. Run from the repo root:
  *   node Scripts/View/tools/tiles_test.js
  */
 const path = require("path");
@@ -38,7 +38,7 @@ function graph(groups, leaves, extra) {
   const parentMap = {};
   for (const n of nodes) if (n.parent) parentMap[n.id] = n.parent;
   const options = Object.assign({}, Defs.effectiveParams(Defs.validatePreset({ algorithm: "Tiles" })), extra);
-  return { algorithm: "Tiles", nodes, edges: [], options, engineParams: {}, alignWidthSameType: !!(extra && extra.alignWidthSameType),
+  return { algorithm: "Tiles", nodes, edges: [], options, engineParams: {}, sameWidth: (extra && extra.sameWidth) || "Off",
     columnsAcrossContainers: !!(extra && extra.columnsAcrossContainers), sort: (extra && extra.sort) || "Containers, then elements", _parentMap: parentMap };
 }
 
@@ -106,7 +106,7 @@ eq(run(graph(4, 7)), run(graph(4, 7)), "same graph, same result");
   const parentMap = { A: "P", B: "P", B1: "B", C: "P" };
   const readingOrder = sort => {
     const options = Defs.effectiveParams(Defs.validatePreset({ algorithm: "Tiles" }));
-    const g = { algorithm: "Tiles", nodes: mk(), edges: [], engineParams: {}, alignWidthSameType: false, columnsAcrossContainers: false, _parentMap: parentMap, options, sort };
+    const g = { algorithm: "Tiles", nodes: mk(), edges: [], engineParams: {}, sameWidth: "Off", columnsAcrossContainers: false, _parentMap: parentMap, options, sort };
     const by = boxes(run(g));
     return ["A", "B", "C"].sort((a, b) => by[a].y - by[b].y || by[a].x - by[b].x);
   };
@@ -120,27 +120,27 @@ eq(run(graph(4, 7)), run(graph(4, 7)), "same graph, same result");
 {
   const nodes = ["C", "A", "B"].map(id => ({ id, label: id, elementType: "business-function", width: 300, height: 60, parent: null }));
   const options = Defs.effectiveParams(Defs.validatePreset({ algorithm: "Tiles" }));
-  const by = boxes(run({ algorithm: "Tiles", nodes, edges: [], engineParams: {}, alignWidthSameType: false, columnsAcrossContainers: false, _parentMap: {}, options, sort: "All together" }));
+  const by = boxes(run({ algorithm: "Tiles", nodes, edges: [], engineParams: {}, sameWidth: "Off", columnsAcrossContainers: false, _parentMap: {}, options, sort: "All together" }));
   eq(["A", "B", "C"].sort((a, b) => by[a].y - by[b].y || by[a].x - by[b].x), ["C", "A", "B"], "no containers: the selection order stays");
 }
 
-// Same width per level: leaves of one level are equally wide, a container is as wide as its level.
+// Same width (Per level): leaves of one level are equally wide, a container is as wide as its level.
 {
-  const g = graph(2, 3, { alignWidthSameType: true, padding: 20 });
+  const g = graph(2, 3, { sameWidth: "Per level", padding: 20 });
   g.nodes.find(n => n.id === "G0L0").width = 220;   // a narrower leaf is brought to the level width
   const r = run(g), by = boxes(r);
   const widths = lvl => [...new Set(g.nodes.filter(n => lvl(n)).map(n => by[n.id].width))];
   eq(widths(n => n.parent && !g.nodes.some(c => c.parent === n.id) && n.parent !== "G1S"), [340], "leaves one level down share a width");
 }
 
-// Same width per level: a leaf beside a container takes the width of its column; without Same width it keeps its size.
+// Same width (Per level): a leaf beside a container takes the width of its column; without Same width it keeps its size.
 {
   const g = on => {
     const nodes = [{ id: "A", label: "A", width: 300, height: 60, parent: null }, { id: "Leaf", label: "Leaf", width: 300, height: 60, parent: null }];
     for (let i = 0; i < 12; i++) nodes.push({ id: `A${i}`, label: `A${i}`, width: 300, height: 60, parent: "A" });
     const parentMap = {}; for (const n of nodes) if (n.parent) parentMap[n.id] = n.parent;
     const options = Object.assign({}, Defs.effectiveParams(Defs.validatePreset({ algorithm: "Tiles" })), { padding: 20 });
-    return { algorithm: "Tiles", nodes, edges: [], options, engineParams: {}, alignWidthSameType: on, columnsAcrossContainers: false, sort: "None", _parentMap: parentMap };
+    return { algorithm: "Tiles", nodes, edges: [], options, engineParams: {}, sameWidth: on ? "Per level" : "Off", columnsAcrossContainers: false, sort: "None", _parentMap: parentMap };
   };
   const by = boxes(run(g(true)));
   ok(by.A.width > 340 && by.Leaf.x === by.A.x && by.Leaf.y > by.A.y, "column: the leaf sits below the wide container");
@@ -150,7 +150,7 @@ eq(run(graph(4, 7)), run(graph(4, 7)), "same graph, same result");
   eq([gb.Leaf.x, gb.Leaf.width], [gb.A.x, gb.A.width], "column: after Columns across containers the leaf still spans its column");
 }
 
-// Same width per level: a leaf takes the width of a container in its own column only, so no siblings overlap.
+// Same width (Per level): a leaf takes the width of a container in its own column only, so no siblings overlap.
 {
   const nodes = [{ id: "R", label: "R", width: 300, height: 60, parent: null }];
   [0, 6, 0, 0, 0, 0].forEach((n, c) => {
@@ -159,7 +159,7 @@ eq(run(graph(4, 7)), run(graph(4, 7)), "same graph, same result");
   });
   const parentMap = {}; for (const n of nodes) if (n.parent) parentMap[n.id] = n.parent;
   const options = Object.assign({}, Defs.effectiveParams(Defs.validatePreset({ algorithm: "Tiles" })), { padding: 20 });
-  const r = run({ algorithm: "Tiles", nodes, edges: [], options, engineParams: {}, alignWidthSameType: true, columnsAcrossContainers: false, sort: "None", _parentMap: parentMap });
+  const r = run({ algorithm: "Tiles", nodes, edges: [], options, engineParams: {}, sameWidth: "Per level", columnsAcrossContainers: false, sort: "None", _parentMap: parentMap });
   const kids = r.nodes.filter(n => n.parentId === "R");
   const hits = kids.flatMap((a, i) => kids.slice(i + 1).filter(b => overlap(a, b)).map(b => `${a.id}/${b.id}`));
   eq(hits, [], "column: leaves among containers do not overlap a sibling");
@@ -282,13 +282,65 @@ eq(run(graph(4, 7)), run(graph(4, 7)), "same graph, same result");
   eq([b1.legend.width, b1.legend.height], [200, 50], "arranged: a diagram object in a band keeps its size");
 }
 
-// Same width per level: a diagram object keeps its size; it neither takes nor sets a level width.
+// Same width (Per level): a diagram object keeps its size; it neither takes nor sets a level width.
 {
-  const g = graph(2, 2, { alignWidthSameType: true });
+  const g = graph(2, 2, { sameWidth: "Per level" });
   g.nodes.push({ id: "note", label: "", elementType: "diagram-model-note", width: 1500, height: 300, parent: null });
   const by = boxes(run(g));
   eq([by.note.width, by.note.height], [1500, 300], "diagram object: keeps its size");
   ok(by.G0.width < 1500, "diagram object: does not set the level width");
+}
+
+// Columns across containers: every leaf fills its column, so a row of leaves has the element distance
+// between its leaves; Per level and type: a box at the last nesting type change is a block, one width
+// per type as narrow as the type allows, centred in its column.
+{
+  const mk = (/** @type {string} */ sameWidth) => {
+    const n = (id, type, parent) => ({ id, label: id, elementType: type, width: 200, height: 60, parent });
+    const nodes = [
+      n("R", "grouping", null),
+      n("C", "business-function", "R"), n("C0", "business-function", "C"), n("C1", "business-function", "C"), n("C2", "business-function", "C"),
+      n("A", "business-function", "R"), n("B", "business-function", "R"),
+      n("D", "business-function", "R"), n("S1", "application-service", "D"),
+      n("E", "business-function", "D"), n("S2", "application-service", "E"),
+    ];
+    const parentMap = Object.fromEntries(nodes.filter(x => x.parent).map(x => [x.id, x.parent]));
+    const options = Object.assign({}, Defs.effectiveParams(Defs.validatePreset({ algorithm: "Tiles" })), { padding: 10, elementSpacing: 10, maxWidth: 1000, viewSizeMode: "maxWidth" });
+    return { algorithm: "Tiles", nodes, edges: [], options, engineParams: {}, sameWidth, columnsAcrossContainers: true, sort: "None", _parentMap: parentMap };
+  };
+  const level = boxes(run(mk("Per level"))), type = boxes(run(mk("Per level and type")));
+  for (const [by, name] of [[level, "Per level"], [type, "Per level and type"]]) {
+    for (const a of Object.values(by)) for (const b of Object.values(by)) {
+      if (a.parentId !== b.parentId || b.x <= a.x || !(a.y < bottom(b) && b.y < bottom(a))) continue;
+      if (Object.values(by).some(c => c.parentId === a.parentId && c.x > a.x && c.x < b.x && c.y < bottom(a) && a.y < bottom(c))) continue;
+      if (![a, b].some(n => Object.values(by).some(c => c.parentId === n.id)) && !["S1", "S2"].includes(a.id) && !["S1", "S2"].includes(b.id))
+        eq(b.x - right(a), 10, `columns ${name}: leaves ${a.id} → ${b.id} side by side the element distance apart`);
+    }
+    for (const p of ["C", "D", "E"]) for (const k of Object.values(by).filter(x => x.parentId === p))
+      for (const q of Object.values(by).filter(x => x.parentId === p && x !== k)) ok(!overlap(k, q), `columns ${name}: ${k.id} and ${q.id} apart`);
+  }
+  eq(type.S1.width, type.S2.width, "Per level and type: one width for the application services at a nesting type change");
+  eq(type.S1.width, 200, "Per level and type: as narrow as the type allows (its own width)");
+  ok(type.S1.x > type.D.x + 10, "Per level and type: a block is centred in its column, not at its left");
+}
+
+// Per level and type: a container at the last nesting type change is a block: its leaves of one type one
+// width, the block one column of them wide or more; a root's child is no block.
+{
+  const n = (id, type, parent) => ({ id, label: id, elementType: type, width: 200, height: 60, parent });
+  const nodes = [
+    n("R", "grouping", null), n("F", "business-function", "R"), n("G", "business-function", "F"),
+    n("P", "application-service", "F"), n("K1", "application-component", "P"), n("K2", "application-component", "P"),
+    n("Q", "application-service", "F"), n("K3", "application-component", "Q"),
+  ];
+  const parentMap = Object.fromEntries(nodes.filter(x => x.parent).map(x => [x.id, x.parent]));
+  const options = Object.assign({}, Defs.effectiveParams(Defs.validatePreset({ algorithm: "Tiles" })), { padding: 10, elementSpacing: 10, maxWidth: 1000, viewSizeMode: "maxWidth" });
+  const by = boxes(run({ algorithm: "Tiles", nodes, edges: [], options, engineParams: {}, sameWidth: "Per level and type", columnsAcrossContainers: true, sort: "None", _parentMap: parentMap }));
+  eq(["K1", "K2", "K3"].map(id => by[id].width), [200, 200, 200], "block: its components one width");
+  eq(by.Q.width, 220, "block: one column of components and the padding");
+  ok([220, 430].includes(by.P.width), "block: one or two columns of components wide");
+  for (const k of ["K1", "K2"]) ok(by[k].x >= by.P.x + 10 && right(by[k]) <= right(by.P) - 10, `block: ${k} inside its service`);
+  ok(by.F.width > 220, "a root's child is no block");
 }
 
 if (failed) { console.log(`${failed} tiles test(s) failed`); process.exit(1); }

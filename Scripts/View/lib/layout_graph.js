@@ -244,8 +244,8 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
   _orderEdges(nodes, edges, params.selectionOrder);
 
   const engineParams = preset.engineParams || {};
-  const frames = Arrangement.boxesOf(diagramBlocks && diagramBlocks.arrangements);
-  const fonts = _labelLayouts(nodes, elements, nesting, (diagramBlocks && diagramBlocks.visualElements) || [], preset, labels, frames);
+  const backgroundElements = Arrangement.elementsOf(diagramBlocks && diagramBlocks.arrangements);
+  const fonts = _labelLayouts(nodes, elements, nesting, (diagramBlocks && diagramBlocks.visualElements) || [], preset, labels, backgroundElements);
   if (params.labelSizing) _sizeToLabels(nodes, fonts, params, engineParams, labels.measure);
   expandNodeSizesForEdgeDensity(nodes, edges, params);   // after label sizing, which would overwrite it
   const { labelHeightAt, widthAt } = _fitLabels(nodes, nesting, fonts, preset, labels.measure);
@@ -255,7 +255,7 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
     nodes, edges,
     options:        params,
     engineParams,
-    alignWidthSameType: params.alignWidthSameType || false,
+    sameWidth:      params.sameWidth || "Off",
     columnsAcrossContainers: params.columnsAcrossContainers || false,
     sort: params.sort,
     _parentMap:     parentMap,
@@ -288,10 +288,10 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
  * @param {VisualObject[]}    visualElements  the element visuals on the target view
  * @param {MaskedPreset}      preset
  * @param {import("./label_size").LabelInput} labels
- * @param {Set<string>}       frames  elements of the background view: styled as containers
+ * @param {Set<string>}       backgroundElements  elements of the background view: styled as containers
  * @returns {NodeLabels}
  */
-function _labelLayouts(nodes, elements, nesting, visualElements, preset, labels, frames) {
+function _labelLayouts(nodes, elements, nesting, visualElements, preset, labels, backgroundElements) {
   const elementById = new Map(elements.map(e => [e.id, e]));
   /** @type {Map<string, ArchiElement>} */
   const elementOf = new Map();
@@ -304,7 +304,7 @@ function _labelLayouts(nodes, elements, nesting, visualElements, preset, labels,
     elementOf:    id => elementOf.get(id),
     visualOf:     id => { const v = nesting.visualOf[id]; return v ? visualById.get(v) : undefined; },
     nestingLevel: preset.appearance.nestingLevel,
-    frames,
+    backgroundElements,
     input:        labels,
   });
   return { layoutOf, isElement: id => elementOf.has(id) };

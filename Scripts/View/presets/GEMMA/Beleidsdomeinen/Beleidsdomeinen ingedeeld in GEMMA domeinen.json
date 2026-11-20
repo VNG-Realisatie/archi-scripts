@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "name": "Beleidsdomeinen/Beleidsdomeinen ingedeeld in GEMMA domeinen",
   "algorithm": "Tiles",
   "params": {
@@ -22,7 +22,7 @@
     "sort": "Containers, then elements",
     "selectionOrder": "Selection",
     "cycleSelectionOrder": false,
-    "alignWidthSameType": true,
+    "sameWidth": "Per level",
     "columnsAcrossContainers": true,
     "containerAlgorithm": "Pack",
     "connectionsMode": "Across containers",

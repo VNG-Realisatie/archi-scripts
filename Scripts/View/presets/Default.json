@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "name": "Default",
   "description": "The selection plus every element directly related to it. Start a new preset from here with Save As….",
   "algorithm": "Layered",
@@ -19,7 +19,7 @@
     "padding": 20,
     "diagramPadding": 10,
     "sort": "Elements",
-    "alignWidthSameType": false,
+    "sameWidth": "Off",
     "columnsAcrossContainers": false,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Between containers",

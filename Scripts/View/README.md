@@ -27,7 +27,7 @@ The scripts run straight from a clone: the layout libraries are included in `Scr
 2. Run **`_gui.ajs`**. The *Generate View* dialog opens:
    - **Selection** — filter the selection and add related elements in steps;
    - **Layout** — algorithm, nesting, flow, element size, connections, view size;
-   - **Appearance** — colour elements and relations by property or nesting level;
+   - **Appearance** — color elements and relations by property or nesting level;
 
    Every filter — global filter, steps, nesting, reverse, style by property — is a table of conditions: *Source type · Relation type · Target type*, each condition *Include* or *Exclude*. *All* matches any type. A step's conditions read from the previous step's elements: *Previous step elements · Direction · Added relations · Added elements*.
    - **Properties** — properties written to the generated view.
@@ -45,9 +45,9 @@ Hover over any setting for what it does and which algorithms use it. Settings th
 
 A preset is a saved set of dialog settings: `presets/<folder>/<name>.json` (plain JSON). Create and change presets in the dialog — *Save*, *Save As…*, *Rename…*, *Delete*. The last-used settings are kept in `presets/_session.json` (local, not in git). Files starting with `_` are not listed in the dialog. `Default.json` holds the code defaults: the selection plus one ring. It is read-only in the dialog (start a new preset from it with *Save As…*); edit the file for your own defaults, and the console lists where they differ from the code.
 
-Presets have a `schemaVersion`. A preset in an older format is refused with a message; bring a version 5 preset up to date with `node Scripts/View/tools/migrate_presets_nesting_font.js` (`--dry-run` first). A version 4 preset: check out commit `8e13b2e` and run its `tools/migrate_presets_nesting_style.js` first. A version 3 preset: check out commit `deb432c` and run its `tools/migrate_presets_conditions.js` first. Older: check out commit `61c9c52`, run its `tools/migrate_presets_relrows.js` (to version 2) and `migrate_presets_everycontainer.js` (to version 3), then continue with the newer steps.
+Presets have a `schemaVersion`. A preset in an older format is refused with a message; bring a version 6 preset up to date with `node Scripts/View/tools/migrate_presets_same_width.js` (`--dry-run` first). A version 5 preset: check out commit `0597840` and run its `tools/migrate_presets_nesting_font.js` first. A version 4 preset: check out commit `8e13b2e` and run its `tools/migrate_presets_nesting_style.js` first. A version 3 preset: check out commit `deb432c` and run its `tools/migrate_presets_conditions.js` first. Older: check out commit `61c9c52`, run its `tools/migrate_presets_relrows.js` (to version 2) and `migrate_presets_everycontainer.js` (to version 3), then continue with the newer steps.
 
-**Palettes** — `presets/_palettes.json` holds the palettes: colours and colour ranges that belong together (Brewer, the default; Tol; Open Color; GEMMA, the GEMMA default fill colours). Pick one in the *Colors* group of the Appearance tab; every colour and colour range of the tab comes from it. Add a palette, colour or range by editing the file ([presets.md](docs/reference/presets.md#palettes)).
+**Palettes** — `presets/_palettes.json` holds the palettes: colors and color ranges that belong together (Brewer, the default; Tol; Open Color; GEMMA, the GEMMA default fill colors). Pick one in the *Colors* group of the Appearance tab; every color and color range of the tab comes from it. Add a palette, color or range by editing the file ([presets.md](docs/reference/presets.md#palettes)).
 
 ## Shortcut scripts
 

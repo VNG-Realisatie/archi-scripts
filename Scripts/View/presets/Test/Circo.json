@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "name": "Test/Circo",
   "algorithm": "Circo",
   "params": {
@@ -24,7 +24,7 @@
     "sort": "Elements",
     "selectionOrder": "Selection",
     "cycleSelectionOrder": false,
-    "alignWidthSameType": false,
+    "sameWidth": "Off",
     "columnsAcrossContainers": false,
     "containerAlgorithm": "Grid",
     "connectionsMode": "Between containers",

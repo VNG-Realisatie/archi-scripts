@@ -166,7 +166,7 @@ interface VisualObject extends DiagramComponent {
   bringForward(): this;
   sendToBack(): this;
   sendBackward(): this;
-  /** Reads the effective colour (the user's default when unset, since 1.11); assign null to reset. */
+  /** Reads the effective color (the user's default when unset, since 1.11); assign null to reset. */
   get fillColor(): string;
   set fillColor(value: string | null);
   /** @since 1.5 */

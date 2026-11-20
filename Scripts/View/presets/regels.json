@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "name": "regels",
   "algorithm": "Layered",
   "params": {
@@ -10,7 +10,7 @@
     "acyclicer": "Default",
     "padding": 20,
     "sort": "Containers, then elements",
-    "alignWidthSameType": false,
+    "sameWidth": "Off",
     "columnsAcrossContainers": false,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Between containers",

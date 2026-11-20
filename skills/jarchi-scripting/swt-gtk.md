@@ -8,7 +8,7 @@ jArchi scripts build UI with SWT and JFace through `Java.type` (classes) and `Ja
 - **Parent child dialogs on the calling dialog's shell** (`dlg.getShell()`), not on the global `shell` (Archi's main window): with the main window as parent the child can open behind the modal dialog. `Display.getActiveShell()` is not reliable for this on GTK (it can report the main window).
 - **Do not add `SWT.ON_TOP`** to a dialog's shell style on GTK: the shell then does not show.
 
-## Colours and rendering
+## Colors and rendering
 
 - `setBackground()` / `setForeground()` in `createDialogArea` may not render until the first paint: re-apply them with `display.asyncExec(fn)` from the `create()` callback.
 - `setBackground(null)` resets to the system default, which on GTK looks like the *active* state of a toggle button: set `SWT.COLOR_WIDGET_BACKGROUND` explicitly for the inactive state.
@@ -23,7 +23,7 @@ jArchi scripts build UI with SWT and JFace through `Java.type` (classes) and `Ja
 
 ## Widgets
 
-- **TabFolder** on GTK has no per-tab colours; use `tabFolder.setFont(boldFont)` for emphasis or `CTabFolder` (`org.eclipse.swt.custom`) for per-tab styling.
+- **TabFolder** on GTK has no per-tab colors; use `tabFolder.setFont(boldFont)` for emphasis or `CTabFolder` (`org.eclipse.swt.custom`) for per-tab styling.
 - **Spinner**: lay out with `GridDataFactory.swtDefaults()`, not `fillDefaults()` (which stretches it); give all spinners of one kind the same `hint(width, SWT.DEFAULT)`.
 - **Small buttons**: GTK enforces a minimum button height; set an explicit height hint (e.g. `hint(28, 20)`) or rows grow taller than expected.
 

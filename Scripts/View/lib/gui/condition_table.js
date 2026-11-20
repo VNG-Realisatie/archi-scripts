@@ -9,7 +9,7 @@
  * The table keeps its conditions as plain objects and draws every cell from them (SWT owner draw), so a
  * changed value, count or enabled state is a redraw, not a widget update, and a table is one native
  * window whatever its size (plan/view-condition-table-as-native-table.md). A click edits a cell: a
- * choice, property or value cell opens a list under the cell, a check cell toggles, a colour cell opens
+ * choice, property or value cell opens a list under the cell, a check cell toggles, a color cell opens
  * the palette menu, ✕ removes the condition. Keyboard: ↑ ↓ row, ← → cell, Space or Enter edits.
  * Structural changes (add, remove, Match property) add or remove rows and columns; value changes redraw.
  *
@@ -252,7 +252,7 @@ function conditionTable(parent, opts) {
   const checked = (col, condition) => condition[col.key] === undefined ? col.default !== false : !!condition[col.key];
 
   /**
-   * The text of a cell; check and colour cells draw more than text (paintCell).
+   * The text of a cell; check and color cells draw more than text (paintCell).
    * @param {ConditionTableColumn<ConditionByKind[K]>} col
    * @param {ConditionByKind[K] & Record<string, any>} condition
    * @param {number} i
@@ -550,7 +550,7 @@ function conditionTable(parent, opts) {
     if (opts.onLayout) opts.onLayout();
   }
 
-  // A colour the palette does not hold is replaced as the run replaces it (colorItemFor), and reported.
+  // A color the palette does not hold is replaced as the run replaces it (colorItemFor), and reported.
   function normalizeColors() {
     let any = false;
     for (const col of cols) {
@@ -792,8 +792,8 @@ const FONT_SIZE_ITEMS = Object.freeze([{ value: 0, label: "" }, ...Array.from({ 
 const CHILD_ITEMS = Object.freeze([{ value: ConditionLists.SAME_TYPE, label: "Same as parent" }, ...ELEMENT_ITEMS]);
 
 /**
- * Columns of the nesting style table; the colour cell lists the colours of the chosen palette.
- * The colour and font cells are greyed while their switch (Color, Font) is off.
+ * Columns of the nesting style table; the color cell lists the colors of the chosen palette.
+ * The color and font cells are greyed while their switch (Color, Font) is off.
  * @param {() => readonly { name: string, hex: string }[]} colors
  * @param {{ color: () => boolean, font: () => boolean }} switches
  * @returns {readonly ConditionTableColumn<NestingStyleCondition>[]}

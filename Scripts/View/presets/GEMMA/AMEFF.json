@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "name": "GEMMA/AMEFF",
   "algorithm": "Layered",
   "params": {
@@ -12,7 +12,7 @@
     "padding": 20,
     "diagramPadding": 10,
     "sort": "Elements",
-    "alignWidthSameType": false,
+    "sameWidth": "Off",
     "columnsAcrossContainers": false,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Across containers",

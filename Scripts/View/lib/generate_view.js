@@ -452,7 +452,7 @@ function _generateSingle(preset, uiSelection, actionId, target, runtime) {
   if (failed.length) Log.warn(`${failed.length} write step${failed.length === 1 ? "" : "s"} failed: ${failed.slice(0, 3).join("; ")}${failed.length > 3 ? "; …" : ""}`, {
     effect: "the view is not complete.", action: "check the view; details in the log file (search for WARN)." });
 
-  // Appearance pass — post-write styling (colours, fonts). No-op when all features disabled.
+  // Appearance pass — post-write styling (colors, fonts). No-op when all features disabled.
   // Visuals inside a diagram-block keep their appearance: on a Create action, their copies.
   /** @type {Map<string, string>} */
   const keep = new Map();
@@ -460,7 +460,7 @@ function _generateSingle(preset, uiSelection, actionId, target, runtime) {
     const copy = written.get(id);
     keep.set(copy ? String(copy.id) : id, block);
   }
-  Appearance.applyAppearance(view, preset, actionId, TextMeasure.defaultViewFont(), keep, Arrangement.boxesOf(planned.objectSet.arrangements));
+  Appearance.applyAppearance(view, preset, actionId, TextMeasure.defaultViewFont(), keep, Arrangement.elementsOf(planned.objectSet.arrangements));
   _applyViewProperties(view, preset);
   _recordOrigin(view, actionId, target);
   timer.lap("appearance");
@@ -544,8 +544,8 @@ function plan(preset, snapshot, actionId, runtime, timer = { lap() {} }) {
   const graph = LayoutGraph.buildLayoutGraph(preset, objectSet.elements, routedRels, nestingRels, objectSet.diagramObjects,
                                   objectSet.visuals, objectSet.visualRelations, objectSet.diagramConnections, objectSet, labels);
   if (objectSet.arrangements) {
-    // Every box in place: every arrangement of the background view; else only those of containers that hold a frame.
-    graph.arrangements = preset.params.backgroundEveryBox ? objectSet.arrangements : Arrangement.framesOnly(objectSet.arrangements);
+    // Leaves in place: every arrangement of the background view; else only those of containers that hold a container.
+    graph.arrangements = preset.params.backgroundLeavesInPlace ? objectSet.arrangements : Arrangement.arrangementsWithContainers(objectSet.arrangements);
     _checkArrangements(graph, objectSet.arrangements, graph.arrangements);
   }
   timer.lap("layout graph");
@@ -640,11 +640,13 @@ const LABEL_FIT_RUNS = 6;
  */
 function _layoutFittingLabels(graph, run) {
   const containerIds = [...new Set(Object.values(graph._parentMap))];
-  // A box of an arrangement is drawn as wide as its band (Tiles fillBands): that width is no minimum
-  // of its own, else the next layout keeps it, and Columns across containers widens a column for it.
+  // A box of an arrangement is drawn as wide as its band (Tiles fillBands), and with Columns across
+  // containers every container as wide as its columns: that width is no minimum of its own, else the
+  // next layout keeps it, Columns across containers widens a column for it, and that column widens
+  // every container in it (GEMMA domeinen: application services 3150 px wide).
   const arrangements = graph.arrangements || {};
   const element = (/** @type {string} */ id) => id.replace(/_occ_\d+$/, "");
-  const banded = new Set(containerIds.filter(id => arrangements[graph._parentMap[id] ? element(graph._parentMap[id]) : ""]));
+  const banded = new Set(graph.columnsAcrossContainers ? containerIds : containerIds.filter(id => arrangements[graph._parentMap[id] ? element(graph._parentMap[id]) : ""]));
   // Casts below: the maps hold every container id, and every container is placed.
   /** @type {(r: LayoutResult) => Map<string, LabelNeed>} */
   const needed = r => {

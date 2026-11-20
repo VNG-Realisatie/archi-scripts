@@ -1188,7 +1188,7 @@ function _fillWidgets(ctx) {
   // reports it (no console output here: the dialog is modal).
   if (w.cmbPalette && ctx.palettes.length) w.cmbPalette.select(Math.max(0, ctx.palettes.findIndex(p => p.name === app.palette)));
 
-  // Style by property — conditions, mixed-values colour, line width
+  // Style by property — conditions, mixed-values color, line width
   if (w.tblStyleConditions) w.tblStyleConditions.setConditions(sbp.conditions);
   if (w.pickMixedColor) w.pickMixedColor.set(sbp.mixedValuesColor || DA.styleByProperty.mixedValuesColor);
   if (w.cmbStyleLineWidth) w.cmbStyleLineWidth.select(Math.max(0, Math.min(3, sbp.lineWidth || 0)));

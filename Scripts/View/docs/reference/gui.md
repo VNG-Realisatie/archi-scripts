@@ -18,7 +18,7 @@ Internal names never appear in UI labels or button text; tooltips may use them i
 | Nesting | nesting conditions | Cycles | acyclicer |
 | Reverse | reverse conditions | Pack | rectpacking |
 | Layout inside | container algorithm | Wrap label at | label max line width |
-| Same width per level | alignWidthSameType | Columns across containers | columnsAcrossContainers |
+| Same width | sameWidth | Columns across containers | columnsAcrossContainers |
 | View size › Free | no size constraint | Repeat | runs, hops |
 | Layout only | re-layout | One view each | per element |
 | Preset | parameter file, config file | | |
@@ -50,7 +50,7 @@ These principles hold for the whole dialog (preset row, every tab, totals line, 
 5. **Self-explanatory options** ([SPEC § 9](../SPEC.md#9-ux--generate-view-dialog)): a label names the result, and a tooltip gives the effect and trade-off.
 
 **Text**
-1. **Labels.** Sentence case (*Same width per level*), on one line. Internal names never appear: the [display-label map](#display-label-map). A row heading ends in a colon (*Size:*, *Selection order:*, *Preset:*), also when one control follows it; a label inside a label/control pair has none (*Width*, *Direction*).
+1. **Labels.** Sentence case (*Columns across containers*), on one line. Internal names never appear: the [display-label map](#display-label-map). A row heading ends in a colon (*Size:*, *Selection order:*, *Preset:*), also when one control follows it; a label inside a label/control pair has none (*Width*, *Direction*).
 2. **Buttons.** A button is a verb, without the object the dialog already shows (*Delete*, not *Delete selected preset*). The run button names the result ([SPEC § 9](../SPEC.md#9-ux--generate-view-dialog)).
 3. **Tooltips.** At most two short lines: what it does, then the one detail or trade-off the user needs. A tooltip adds to its label and does not repeat it. A checkbox whose two states differ in more than on and off describes both.
    - No availability: never which algorithms use it or when it is greyed (Feel 2). The "Used by" column of the generated tables is for the docs only.
@@ -144,7 +144,7 @@ Decides *which* objects feed the layout: the counts at the top, then the global 
 - Counts update on every change of a condition, on/off, repeat or step order. They use the same selection logic as the action ([counting rules](selection-nesting.md#counting-rules)).
 
 **Editing a condition.** This applies to every condition table: Selection, Nesting, Reverse and Style.
-- A click edits a cell. A cell with ▾ (a type, mode, direction, property or value) opens its list under the cell, the current item selected; a click or Enter chooses, Esc or a click elsewhere closes. A click on *On* or another check cell toggles it, on a colour cell opens the palette menu, on ✕ removes the condition.
+- A click edits a cell. A cell with ▾ (a type, mode, direction, property or value) opens its list under the cell, the current item selected; a click or Enter chooses, Esc or a click elsewhere closes. A click on *On* or another check cell toggles it, on a color cell opens the palette menu, on ✕ removes the condition.
 - Keyboard: a table is one Tab stop. In it ↑ ↓ move between rows and ← → between cells, the cell shown with a dotted frame; Space or Enter edits that cell as a click does. Esc outside a list closes the dialog (Cancel).
 - A mouse resting on a cell shows its tooltip: the column's, the row's on the first cell (style conditions), the warning's on ⚠. A column header shows the column's.
 
@@ -196,9 +196,8 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Containers ──────────────────────────────────────────────────────────┐ │
 │ │  Layout:   Layout inside [Layered ▼]  Connections [Across… ▼]    Padding [20] │
-│ │  Sort:     [Elements ▼]                                               │ │
-│ │  Options:  ☐ Same width per level     ☐ Columns across containers     │ │
-│ │  Background: [/Views/Backgrounds/Map              ]  ☐ Every box in place │
+│ │            Sort [Elements ▼]          Same width [Off ▼]   ☐ Columns across containers │
+│ │  Background: [/Views/Backgrounds/Map              ]  ☐ Leaves in place │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Flow ────────────────────────────────────────────────────────────────┐ │
 │ │  Order:    Direction [Right ▼]  Cycles [Default ▼]  Ranking [Balanced ▼] │
@@ -220,7 +219,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 ```
 
 - **Relation counters.** The Nesting and Reverse tables count, per condition, the relations on the predicted view that it matches on its own, after the chosen relation type: *Aggregation (62)*. An Exclude condition shows what it removes from the other conditions' matches. For nesting, *Nested* shows how many become a nesting; it is empty for a condition that is off. A grey note under Nesting says why the others are drawn as a line: the child already has a parent (one parent per child for conditions without *Every*), an end sits only inside a diagram-block (so it is not laid out), the nesting would be circular, it would nest below the algorithm's nesting levels, or the relation is a self-relation. The counts use the same resolution as the writer.
-- **Inactive settings.** A setting the chosen algorithm does not use is greyed and keeps its value; the greying is the only sign. Containers is also greyed until a Nesting condition is on. The explanation of the Nesting and Reverse conditions is the tooltip of those boxes.
+- **Inactive settings.** A setting the chosen algorithm does not use is greyed and keeps its value; the greying is the only sign. Containers is also greyed until a Nesting condition is on. The explanation of the Nesting and Reverse conditions is the tooltip of those groups.
 - **No Include condition.** A Nesting or Reverse list starts from nothing. With Exclude conditions but no Include condition that is on, a grey note under the table says nothing is nested (or reversed) and that an Include condition is needed. The Mode tooltip states the starting point of its list: a filter keeps all without an Include condition; a feature list picks nothing.
 - **Locks.** Connections falls back to *Between containers* (greyed) when Layout inside is Grid or Pack, or a view size is active ([nesting reference](selection-nesting.md#containers-and-connections-mode)). Width and Height are greyed while Use label width is on; Wrap label at applies only with it.
 - **Empty Nesting / Reverse.** An empty table shows the default condition switched off, as an example; untouched, it is saved as `[]`. Reverse has an empty cell where Nesting has *Nested*, so the two tables line up.
@@ -246,8 +245,8 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 | Tree | ELK | full | — | Organisation charts, product breakdowns, capability decomposition: hierarchical nesting (ELK) |
 | Stress | ELK | none | — | Dependency maps and impact analysis emphasising relational distance (ELK) |
 | Radial | ELK | none | — | Tree radiating from a central element: each depth on its own circle, each subtree its own sector. Cycles are cut to a tree (ELK Radial) |
-| Grid | ELK | full | — | Boxes in regular rows, in their order: simple and easy to scan. Nesting is supported (ELK Box) |
-| Pack | ELK | full | — | Packs boxes as tightly as it can; most compact with Use label width. Nesting is supported (ELK Rectpacking) |
+| Grid | ELK | full | — | Elements in regular rows, in their order: simple and easy to scan. Nesting is supported (ELK Box) |
+| Pack | ELK | full | — | Packs elements as tightly as it can; most compact with Use label width. Nesting is supported (ELK Rectpacking) |
 | Tiles | Tiles | full | — | Sorted nestings tiled tightly: the order reads left to right and down. Little white space; nesting is supported (no layout engine) |
 | Dagre | Dagre | partial | ~ | Fast process and application flows with limited nesting support (Dagre) |
 | Dot | Graphviz | cluster | ✓ | Hierarchical layered layout with strong cluster nesting. Orthogonal, polyline and spline routing (Graphviz dot) |
@@ -287,11 +286,11 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 | Layout inside | `containerAlgorithm` | Layered | Algorithm that arranges the elements inside each container. | Layered, Tree, Grid, Pack |
 | Connections | `connectionsMode` | Across containers | Controls how containers and their contents are positioned in the view. — Between containers: Containers are laid out independently. Connections attach to container borders. Across containers: The entire view is laid out as one graph. Connections attach directly to elements. | Layered |
 | Padding | `padding` | 20 | Space between a container's border and its contents. — px — below a container's label half of it, more for a larger font. | Layered, Tree, Grid, Pack, Tiles, Dot, FDP |
-| Sort | `sort` | Elements | Ascending order of the boxes in a view with containers. None: as selected. — Elements: by type and name. Containers, then elements: also the containers. All together: one list. | Grid, Pack, Tiles |
-| Same width per level | `alignWidthSameType` | off | Give all boxes of one nesting level the same width. — A container is never narrower than its contents; Use label width: the widest label sets it. | Layered, Tree, Grid, Pack, Tiles |
-| Columns across containers | `columnsAcrossContainers` | off | Line up the columns of the tiles on one grid across the whole view. — Boxes of one level line up along their parent's edge; neighbours stay Distance apart. | Tiles |
+| Sort | `sort` | Elements | Ascending order of the elements in a view with containers. None: as selected. — Elements: by type and name. Containers, then elements: also the containers. All together: one list. | Grid, Pack, Tiles |
+| Same width | `sameWidth` | Off | Per level: one width per nesting level, each level one padding wider on both sides than the next. — Per level and type: after the last nesting type change one width per element type, as narrow as it allows. A container is never narrower than its contents. | Layered, Tree, Grid, Pack, Tiles |
+| Columns across containers | `columnsAcrossContainers` | off | Line up the columns of the tiles on one grid across the whole view. — Elements of one level line up along their parent's edge, leaves fill their column; neighbours stay Distance apart. | Tiles |
 | Background | `backgroundView` | [object Object] | A view the selection fills: its elements are always on the view, in its arrangement of rows and columns. — Path of the view, e.g. /Views/Backgrounds/Map. An element under nothing on it brings its parents; one that reaches it by no path is left out. | Tiles |
-| Every box in place | `backgroundEveryBox` | off | Every box of the background view keeps its place. Off: only a box with boxes inside it on the background view keeps its place; — the others are always on the view, and the layout places them (sorted, compact). | Tiles |
+| Leaves in place | `backgroundLeavesInPlace` | off | The leaves of the background view keep their place too. — Off: only its containers keep theirs; its leaves are always on the view, and the layout places them (sorted, compact). | Tiles |
 
 **Flow**
 
@@ -378,26 +377,26 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 
 **Style by property.** One condition table ([style conditions](presets.md#condition-lists)).
 - A condition is active when it is on and has a property.
-- Its Property combo shows how many objects on the predicted view the condition colours, *Status (14)*. Before a property is chosen, it shows just *(n)*: the objects the condition reaches.
-- A condition that is off shows what it would colour and takes no part in the ⚠ check.
-- Unique values are sorted and mapped to evenly spaced colours of the condition's colour range. An object with several different values gets the *mixed values* colour.
-- Relations coloured by an *Apply to = Relation* condition take the fixed line width, when one is chosen.
+- Its Property combo shows how many objects on the predicted view the condition colors, *Status (14)*. Before a property is chosen, it shows just *(n)*: the objects the condition reaches.
+- A condition that is off shows what it would color and takes no part in the ⚠ check.
+- Unique values are sorted and mapped to evenly spaced colors of the condition's color range. An object with several different values gets the *mixed values* color.
+- Relations colored by an *Apply to = Relation* condition take the fixed line width, when one is chosen.
 - Where two conditions style the same object, the later wins, and the dialog marks both with ⚠ (computed on the predicted view).
 - The row tooltip reads the condition as a sentence.
-- **Reset on Expand view / Layout only**, when there is at least one style condition (on or off): first every element's fill, and every relation's line colour and width, is reset on the view. Then the active conditions colour again, so a changed condition never leaves colours of an earlier run behind. Colours set in the same pass by nesting level or highlight repeated are kept; colours set by hand on the view are lost. Without style conditions, nothing is reset.
+- **Reset on Expand view / Layout only**, when there is at least one style condition (on or off): first every element's fill, and every relation's line color and width, is reset on the view. Then the active conditions color again, so a changed condition never leaves colors of an earlier run behind. Colors set in the same pass by nesting level or highlight repeated are kept; colors set by hand on the view are lost. Without style conditions, nothing is reset.
 
-**Colors.** The first group holds the palette: one combo with the palettes of `presets/_palettes.json` ([presets.md](presets.md#palettes)); there is always one, the first being the default. Every colour and colour range of the tab comes from it. Switching it changes the pickers at once: a colour or range the new palette does not hold becomes its first colour or range (a colour of its own, chosen with *Other…*, stays), so a picker always shows what the run writes. A palette the file does not hold shows the first one.
+**Colors.** The first group holds the palette: one combo with the palettes of `presets/_palettes.json` ([presets.md](presets.md#palettes)); there is always one, the first being the default. Every color and color range of the tab comes from it. Switching it changes the pickers at once: a color or range the new palette does not hold becomes its first color or range (a color of its own, chosen with *Other…*, stays), so a picker always shows what the run writes. A palette the file does not hold shows the first one.
 
 **Style by nesting level.** Emphasizes significant nesting levels: each condition marks one. Active only when a Nesting condition is on; otherwise an informational label replaces the controls. From top to bottom: the explanation, the *Font* and *Color* switches with their numbers in one raster, and the nesting style conditions ([condition lists](presets.md#condition-lists)). The switches come first because they decide which columns take effect: *Font* off greys *Font size*, *Bold* and *Smaller per level*; *Color* off greys *Color*, *Lighter per level* and *Start darker*.
 - **Chain.** From each root container, a nesting step parent → child is selected when an active condition matches its parent type, child type (*Same as parent*: the parent's type) and a model relation between the two of the condition's type and direction (seen from the parent). Relation *All* with direction *Either* needs no relation. A root container is styled by a condition that would select it as a child under a parent of its own type: parent its type or *All*, child its type, *Same as parent* or *All*; relation and direction do not count. A step no condition selects stops the chain: neither the child nor anything inside it is styled. The order of the conditions does not matter.
 - **Tight conditions find model errors.** Name the relation and child type each step should have: an element nested by another relation, such as a business function under a business function by serving instead of aggregation, then keeps its default fill and stands out on the view.
-- **Font.** The container where a condition starts (a root container, or a child another condition selects than its parent) takes the condition's *Font size* and *Bold*. Each level deeper within the same condition is *Smaller per level* smaller, never below the tool's default (9 pt), and not bold. A condition without a font size continues the size from its parent; a root container without one keeps the default. Containers only, and a leaf beside a container (same parent, or both at view root), so a leaf among containers reads as one of them. Equally specific conditions with different fonts count as a conflict, as with colours.
-- **Colour.** A condition gives its colour to the children it selects, a root container included: a palette colour, a colour of its own (*Other…*), or *Default*, the type's default fill. When several conditions select one element, the most specific wins: one point each for a named parent type, relation type and direction (*Outgoing* / *Incoming*), and for the child type 2 for a named type, 1 for *Same as parent*, 0 for *All*. Of equally specific conditions with different colours the last wins and the console names them; for a root container relation and direction do not count. A child with its parent's type and colour continues the parent's segment; any other child starts one. A segment starts *Start darker* levels darker than its colour and each level inward is lighter by *Lighter per level* %. Levels shift HSL lightness only, so hue and saturation stay: a level lighter closes the percentage of the distance to white, a level darker is its inverse, never darker than closing that percentage toward lightness 0.6, and a darker yellow turns towards ochre. Containers and leaves reached by the chain are coloured. On *Expand view* and *Layout only*, every element the chain does not reach gets its default fill back, so no colour of an earlier run stays; a fill set by hand on such an element is lost.
+- **Font.** The container where a condition starts (a root container, or a child another condition selects than its parent) takes the condition's *Font size* and *Bold*. Each level deeper within the same condition is *Smaller per level* smaller, never below the tool's default (9 pt), and not bold. A condition without a font size continues the size from its parent; a root container without one keeps the default. Containers only, and a leaf beside a container (same parent, or both at view root), so a leaf among containers reads as one of them. Equally specific conditions with different fonts count as a conflict, as with colors.
+- **Color.** A condition gives its color to the children it selects, a root container included: a palette color, a color of its own (*Other…*), or *Default*, the type's default fill. When several conditions select one element, the most specific wins: one point each for a named parent type, relation type and direction (*Outgoing* / *Incoming*), and for the child type 2 for a named type, 1 for *Same as parent*, 0 for *All*. Of equally specific conditions with different colors the last wins and the console names them; for a root container relation and direction do not count. At a nesting type change or a nesting color change (a child of another type or color than its parent) the fill starts *Start darker* levels darker than its color, and each level inward is lighter by *Lighter per level* %. Levels shift HSL lightness only, so hue and saturation stay: a level lighter closes the percentage of the distance to white, a level darker is its inverse, never darker than closing that percentage toward lightness 0.6, and a darker yellow turns towards ochre. Containers and leaves reached by the chain are colored. On *Expand view* and *Layout only*, every element the chain does not reach gets its default fill back, so no color of an earlier run stays; a fill set by hand on such an element is lost.
 - **Default condition.** A new preset holds one condition, Parent *All*, Child *Same as parent*, Color *Default*: the same-type chain from every root container.
 
-**Highlight repeated elements.** Gives each element that appears more than once on the view its own fill colour from the range. It needs a nesting condition with *Every*. The *Highlight* switch and its colour range are on one row.
+**Highlight repeated elements.** Gives each element that appears more than once on the view its own fill color from the range. It needs a nesting condition with *Every*. The *Highlight* switch and its color range are on one row.
 
-**Colour pickers.** Every colour or colour range is chosen with a colour picker: a button with the chosen item's swatch or gradient strip and its name, and a menu that shows every item with its own swatch, the current one ticked. A colour range picker offers the palette's ranges. A colour picker (*Mixed values color*, a nesting style colour) offers the palette's colours, *Other…* (the system colour dialog) and, for a nesting style colour, *Default*; a palette colour is kept by name, a colour of its own as hex. A disabled picker shows an empty swatch.
+**Color pickers.** Every color or color range is chosen with a color picker: a button with the chosen item's swatch or gradient strip and its name, and a menu that shows every item with its own swatch, the current one ticked. A color range picker offers the palette's ranges. A color picker (*Mixed values color*, a nesting style color) offers the palette's colors, *Other…* (the system color dialog) and, for a nesting style color, *Default*; a palette color is kept by name, a color of its own as hex. A disabled picker shows an empty swatch.
 
 ### Properties tab
 

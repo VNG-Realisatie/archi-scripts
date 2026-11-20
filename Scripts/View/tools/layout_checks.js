@@ -5,7 +5,7 @@
  * something changed.
  *
  * Elements (the layout result):
- *   size       a leaf keeps the size of the layout graph (SPEC rule 1); Same width per level only widens
+ *   size       a leaf keeps the size of the layout graph (SPEC rule 1); Same width and Columns across containers only widen
  *   overlap    no two siblings overlap
  *   outside    a child lies inside its container
  *   padding    and at least Padding from its sides
@@ -157,8 +157,9 @@ function _countPromise(writePlan, console) {
  */
 function _sizes(graph, byId) {
   const parents = new Set(Object.values(graph._parentMap));
-  // Same width per level widens leaves to their level's width in the engine (ARCHITECTURE § Sizing).
-  const widthOk = graph.alignWidthSameType ? (/** @type {number} */ w, /** @type {number} */ w0) => w >= w0 : (/** @type {number} */ w, /** @type {number} */ w0) => w === w0;
+  // Same width widens leaves to their level's or type's width in the engine, Columns across containers to their
+  // column (ARCHITECTURE § Sizing).
+  const widthOk = graph.sameWidth !== Defs.SAME_WIDTH.OFF || graph.columnsAcrossContainers ? (/** @type {number} */ w, /** @type {number} */ w0) => w >= w0 : (/** @type {number} */ w, /** @type {number} */ w0) => w === w0;
   return graph.nodes.filter(n => !parents.has(n.id)).flatMap(n => {
     const r = byId.get(n.id);
     if (!r) return [`size: ${n.label} not in the result`];

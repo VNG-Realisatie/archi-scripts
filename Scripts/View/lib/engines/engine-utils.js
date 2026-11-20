@@ -112,7 +112,7 @@ function sortedNodes(nodes, parentMap, sortMode) {
  * (`W[L] = W[L+1] + ring`), and the whole stack is as narrow as it can be while every level is
  * at least as wide as its widest leaf (`Use label width`: the widest label of a level sets
  * the stack, so no label is cut). With equal leaf widths the deepest level is the leaf width
- * and the frames are concentric — a box at level L is as wide as a single-column container of
+ * and nested containers are concentric — a box at level L is as wide as a single-column container of
  * that depth would be.
  *
  * The caller applies the returned widths as: an **exact** width on leaves, and a
@@ -244,24 +244,46 @@ function labelPoint(start, end, bendpoints, labelPosition) {
  *
  *   1. Assign tracks: leaves at one x under one parent form a stack. In order of centre, each stack
  *      takes the leftmost track right of every stack whose branch stands beside its own (side by
- *      side under their lowest common container).
+ *      side under their lowest common container). A leaf beside a leaf in `fit` also stands beside
+ *      the leaves of the containers it names, whose tracks that leaf will span.
  *   2. A leaf in `fit` spans the tracks of the narrowest container it names (fewest tracks; none:
  *      its own track). Track width: the widest leaf plus the paddings of the containers whose edge
- *      lies in the track; leaves in `fit` do not size a track, unless a track holds nothing else.
+ *      lies in the track; a leaf that spans containers does not size a track, unless a track holds
+ *      nothing else.
  *      A container narrower than its minWidth widens the last of its tracks, inner containers first.
  *   3. Place: a container or a leaf in `fit` spans its tracks less the paddings of its ancestors on
- *      the same edges; any other leaf is centred in its track inside those paddings, never resized.
- *      Where a box shares an edge with its parent, the boxes of its depth on that track line take the
- *      largest inset among them, so they line up; an edge that faces a sibling keeps its own.
+ *      the same edges; any other leaf, a block too, is centred in the part of its track inside its
+ *      parent, never resized.
+ *
+ * A block with its contents in one column is one box to the grid, a leaf with its contents as Tiles
+ * placed them: they move with it. A block with its contents in more columns spans the grid's columns as
+ * a container does, then closes around its contents. A centred leaf is centred in the part of its track inside its nearest ancestor that
+ * is no block, so the leaves inside blocks of one track line up.
+ *      A box sharing an edge with its parent lies the paddings of its ancestors on that line in; an
+ *      edge that faces a sibling lies on the line.
  *
  * @param {LayoutResultNode[]}     resultNodes  flattened nodes { id, x, y, width, height, parentId }
  * @param {EffectiveParams}        options      graph.options (spacing, padding)
  * @param {Record<string, string>} nameById     { id: displayName }
  * @param {(msg: string) => void}  log          logger
- * @param {Map<string, string[]>}  [fit]        leaves that fill tracks instead of sizing them: the containers whose span they take
+ * @param {Map<string, string[]>}  [fit]        leaves that fill their tracks: the containers whose span they take (none: their own track)
  * @param {Record<string, number>} [minWidth]   container id → the narrowest it may be (LayoutNode.minWidth)
+ * @param {Set<string>}            [blocks]     boxes at the last nesting type change: one width, laid out as one
+ * @param {Set<string>}            [stretch]    containers drawn to their parent's far edge afterwards (a band of a
+ *                                              background view with nothing beside it): they span to its last track
+ * @param {Set<string>}            [atomic]     (internal) the blocks the grid takes as one box
  */
-function alignColumnsAcrossContainers(resultNodes, options, nameById, log, fit = new Map(), minWidth = {}) {
+function alignColumnsAcrossContainers(resultNodes, options, nameById, log, fit = new Map(), minWidth = {}, blocks = new Set(), stretch = new Set(), atomic = _oneColumn(resultNodes, blocks)) {
+  const blockOf = _blockOf(resultNodes, atomic);
+  if (blockOf.size) {
+    const blockX = new Map([...atomic].map(id => [id, (resultNodes.find(n => n.id === id) || { x: 0 }).x]));
+    alignColumnsAcrossContainers(resultNodes.filter(n => !blockOf.has(n.id)), options, nameById, log,
+      new Map([...fit].filter(([id]) => !blockOf.has(id))), minWidth, blocks, stretch, new Set());
+    const moved = new Map(resultNodes.filter(n => atomic.has(n.id)).map(n => [n.id, n.x - /** @type {number} */ (blockX.get(n.id))]));
+    for (const n of resultNodes) if (blockOf.has(n.id)) n.x += /** @type {number} */ (moved.get(/** @type {string} */ (blockOf.get(n.id))));
+    _centreOneColumn(resultNodes.filter(n => blockOf.has(n.id)), resultNodes);
+    return;
+  }
   /** @type {Record<string, LayoutResultNode>} */
   const byId = {};
   /** @type {Record<string, LayoutResultNode[]>} */
@@ -309,11 +331,19 @@ function alignColumnsAcrossContainers(resultNodes, options, nameById, log, fit =
     /** @type {LayoutResultNode[]} */ (stackOf.get(key)).push(lf);
   }
   const stacks = [...stackOf.values()].sort((a, b) => centerOf(a[0]) - centerOf(b[0]));
+  // A leaf in `fit` will span the tracks of the containers it names: a leaf beside it stands beside their leaves too.
+  /** @type {[LayoutResultNode, Set<LayoutResultNode>][]} */
+  const fitting = [...fit].filter(([, ids]) => ids.length).map(([id, ids]) =>
+    [byId[id], new Set(leaves.filter(lf => chainOf(lf).some(n => ids.includes(n.id))))]);
+  /** @param {LayoutResultNode} a  @param {LayoutResultNode} b  b beside a leaf in `fit` whose span holds a */
+  const besideSpan = (a, b) => fitting.some(([f, under]) => under.has(a) && f !== b && !under.has(b) && sideBySide(f, b));
+  /** @param {LayoutResultNode} a  @param {LayoutResultNode} b */
+  const apart = (a, b) => sideBySide(a, b) || besideSpan(a, b) || besideSpan(b, a);
   /** @type {number[]} */
   const stackTrack = [];
   stacks.forEach((st, i) => {
     let t = 0;
-    for (let h = 0; h < i; h++) if (stackTrack[h] >= t && stacks[h].some(m => st.some(lf => sideBySide(m, lf)))) t = stackTrack[h] + 1;
+    for (let h = 0; h < i; h++) if (stackTrack[h] >= t && stacks[h].some(m => st.some(lf => apart(m, lf)))) t = stackTrack[h] + 1;
     stackTrack.push(t);
   });
   const tracks = Math.max(0, ...stackTrack) + 1;
@@ -336,30 +366,20 @@ function alignColumnsAcrossContainers(resultNodes, options, nameById, log, fit =
     span[cid] = { lo: Math.min(...kids.map(k => span[k.id].lo)), hi: Math.max(...kids.map(k => span[k.id].hi)) };
   }
   spanFitting(resultNodes.filter(n => n.parentId == null));
+  // A container drawn to its parent's far edge spans to its parent's last track, so its children there
+  // do not lie in for an edge that is not drawn. Outer first.
+  for (const id of [...stretch].filter(id => span[id] && byId[id].parentId != null).sort((a, b) => depthOf(a) - depthOf(b)))
+    span[id].hi = Math.max(span[id].hi, span[/** @type {string} */ (byId[id].parentId)].hi);
   // Insets in paddings from the track line, per edge: one more than the parent's where the parent has
-  // its edge on the same line. There the boxes of one depth on one line take the largest, so they line
-  // up (narrowed to the narrowest) inside their parent; an edge that faces a sibling keeps its own.
+  // its edge on the same line; an edge that faces a sibling has none. So every box on a track line
+  // lies its own ancestors' paddings in, whatever its depth.
   /** @type {Record<string, { lo: number, hi: number }>} */
   const inset = {};
-  /** @type {Record<number, LayoutResultNode[]>} */
-  const byDepth = {};
-  for (const n of resultNodes) (byDepth[depthOf(n.id)] = byDepth[depthOf(n.id)] || []).push(n);
-  for (const level of Object.keys(byDepth).map(Number).sort((a, b) => a - b)) {
-    /** @type {Record<string, number>} */
-    const most = {};
-    for (const n of byDepth[level]) {
-      const p = n.parentId != null ? byId[n.parentId] : null;
-      inset[n.id] = { lo: 0, hi: 0 };
-      for (const edge of /** @type {("lo" | "hi")[]} */ (["lo", "hi"])) {
-        inset[n.id][edge] = p && span[p.id][edge] === span[n.id][edge] ? inset[p.id][edge] + 1 : 0;
-        const key = `${edge}|${span[n.id][edge]}`;
-        most[key] = Math.max(most[key] || 0, inset[n.id][edge]);
-      }
-    }
-    for (const n of byDepth[level]) for (const edge of /** @type {("lo" | "hi")[]} */ (["lo", "hi"])) {
-      const p = n.parentId != null ? byId[n.parentId] : null;
-      if (p && span[p.id][edge] === span[n.id][edge]) inset[n.id][edge] = most[`${edge}|${span[n.id][edge]}`];
-    }
+  for (const n of [...resultNodes].sort((a, b) => depthOf(a.id) - depthOf(b.id))) {
+    const p = n.parentId != null ? byId[n.parentId] : null;
+    inset[n.id] = { lo: 0, hi: 0 };
+    for (const edge of /** @type {("lo" | "hi")[]} */ (["lo", "hi"]))
+      inset[n.id][edge] = p && span[p.id][edge] === span[n.id][edge] ? inset[p.id][edge] + 1 : 0;
   }
 
   // 2. Track widths: the widest leaf plus the paddings on its edges; leaves that fit only where nothing else is.
@@ -369,7 +389,7 @@ function alignColumnsAcrossContainers(resultNodes, options, nameById, log, fit =
   const fitWidth = new Array(tracks).fill(0);
   for (const lf of leaves) {
     const t = span[lf.id].lo, need = (lf.width || 0) + pad * (inset[lf.id].lo + inset[lf.id].hi);
-    if (!fit.has(lf.id)) width[t] = Math.max(width[t], need);
+    if (!(fit.get(lf.id) || []).length) width[t] = Math.max(width[t], need);
     else if (span[lf.id].hi === t) fitWidth[t] = Math.max(fitWidth[t], need);
   }
   for (let t = 0; t < tracks; t++) if (!width[t]) width[t] = fitWidth[t];
@@ -385,12 +405,31 @@ function alignColumnsAcrossContainers(resultNodes, options, nameById, log, fit =
   const start = [origin];
   for (let t = 1; t < tracks; t++) start.push(start[t - 1] + width[t - 1] + spacing);
 
-  // 3. Place every box on the track lines, inside the paddings of the ancestors on its edges.
+  // 3. Place every box on the track lines, inside the paddings of the ancestors on its edges; then
+  // centre the other leaves in the part of their track inside their parent.
+  /** @type {LayoutResultNode[]} */
+  const centred = [];
   for (const n of resultNodes) {
     const left = start[span[n.id].lo] + pad * inset[n.id].lo;
     const right = start[span[n.id].hi] + width[span[n.id].hi] - pad * inset[n.id].hi;
     if (isContainer(n.id) || fit.has(n.id)) { n.x = left; n.width = right - left; }
-    else n.x = left + (right - left - (n.width || 0)) / 2;
+    else centred.push(n);
+  }
+  for (const n of centred) {
+    let p = n.parentId != null ? byId[n.parentId] : null;
+    while (p && blocks.has(p.id)) p = p.parentId != null ? byId[p.parentId] : null;
+    const left = Math.max(start[span[n.id].lo], p ? p.x + pad : -Infinity);
+    const right = Math.min(start[span[n.id].hi] + width[span[n.id].hi], p ? rightOf(p) - pad : Infinity);
+    n.x = left + (right - left - (n.width || 0)) / 2;
+    const own = n.parentId != null ? byId[n.parentId] : null;   // never in its own parent's padding
+    if (own) n.x = Math.max(own.x + pad, Math.min(n.x, rightOf(own) - pad - (n.width || 0)));
+  }
+  // A block over several tracks closes around its contents, its padding as wide as a one-track block's.
+  for (const id of blocks) {
+    const n = byId[id], kids = childrenByParent[id];
+    if (!n || !kids || atomic.has(id)) continue;
+    const left = Math.min(...kids.map(k => k.x)) - pad, right = Math.max(...kids.map(rightOf)) + pad;
+    n.x = left; n.width = right - left;
   }
 
   log(`[columns] applied — ${tracks} tracks, widths [${width.map(Math.round).join(", ")}]`);
@@ -406,6 +445,62 @@ function alignColumnsAcrossContainers(resultNodes, options, nameById, log, fit =
   }
   if (overlaps.length) { log("[columns] siblings closer than the element distance:"); for (const l of overlaps.slice(0, 20)) log(l); }
   else log(`[columns] overlap scan: clean (all adjacent siblings ≥ ${spacing}px)`);
+}
+
+/**
+ * Inside blocks: the children of a container that Tiles stacked in one column (one x) are centred in
+ * it (Tiles places them at its left); what lies inside a child moves with it.
+ * @param {LayoutResultNode[]} inside       the boxes inside blocks
+ * @param {LayoutResultNode[]} resultNodes
+ */
+function _centreOneColumn(inside, resultNodes) {
+  const byId = new Map(resultNodes.map(n => [n.id, n]));
+  /** @param {LayoutResultNode} n */
+  const depth = n => { let d = 0; for (let p = n.parentId; p != null; p = byId.get(p)?.parentId ?? null) d++; return d; };
+  /** @type {Map<string, LayoutResultNode[]>} */
+  const kids = new Map();
+  for (const n of inside) { const p = /** @type {string} */ (n.parentId); kids.set(p, [...(kids.get(p) || []), n]); }
+  const parents = [...kids.keys()].sort((a, b) => depth(/** @type {LayoutResultNode} */ (byId.get(a))) - depth(/** @type {LayoutResultNode} */ (byId.get(b))));
+  for (const pid of parents) {
+    const list = /** @type {LayoutResultNode[]} */ (kids.get(pid));
+    if (new Set(list.map(n => n.x)).size !== 1) continue;
+    const p = /** @type {LayoutResultNode} */ (byId.get(pid));
+    for (const n of list) {
+      const dx = p.x + (p.width - n.width) / 2 - n.x;
+      for (const d of inside) { for (let a = /** @type {string | null} */ (d.id); a != null; a = byId.get(a)?.parentId ?? null) if (a === n.id) { d.x += dx; break; } }
+    }
+  }
+}
+
+/**
+ * The blocks whose contents stand in one column (one x), or that hold nothing.
+ * @param {LayoutResultNode[]} resultNodes
+ * @param {Set<string>}        blocks
+ * @returns {Set<string>}
+ */
+function _oneColumn(resultNodes, blocks) {
+  /** @type {Map<string, Set<number>>} */
+  const xs = new Map();
+  for (const n of resultNodes) if (n.parentId != null && blocks.has(n.parentId)) xs.set(n.parentId, (xs.get(n.parentId) || new Set()).add(n.x));
+  return new Set([...blocks].filter(id => (xs.get(id) || new Set()).size <= 1));
+}
+
+/**
+ * Per box inside a block (at any depth): its outermost block.
+ * @param {LayoutResultNode[]} resultNodes
+ * @param {Set<string>}        blocks
+ * @returns {Map<string, string>}
+ */
+function _blockOf(resultNodes, blocks) {
+  /** @type {Map<string, string>} */
+  const out = new Map();
+  if (!blocks.size) return out;
+  /** @type {Map<string, string | null>} */
+  const parentOf = new Map(resultNodes.map(n => [n.id, n.parentId]));
+  for (const n of resultNodes) {
+    for (let p = n.parentId; p != null; p = parentOf.get(p) ?? null) if (blocks.has(p)) out.set(n.id, p);   // the outermost
+  }
+  return out;
 }
 
 // ── Parameter mapping ─────────────────────────────────────────────────────────

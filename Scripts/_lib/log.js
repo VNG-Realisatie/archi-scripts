@@ -41,7 +41,7 @@ const LOG_MAX_MB    = 10;        // above this a log file takes only WARN and ER
 const LOG_FOLDER    = "logs/archi-scripts";   // under Archi's workspace folder (~/.archi on Linux)
 const PENDING_MAX   = 10000;     // lines kept while no file is open (a script without start())
 const RULE          = "=".repeat(CONSOLE_WIDTH);   // marks the start and the end of a run
-// The oldest jArchi the scripts run on (1.11: fillColor reads the effective colour; 1.10 the move API,
+// The oldest jArchi the scripts run on (1.11: fillColor reads the effective color; 1.10 the move API,
 // 1.6 CommonJS). The CommonJS check at the top of every .ajs names it too: it runs before any module.
 const MIN_JARCHI    = "1.11";
 

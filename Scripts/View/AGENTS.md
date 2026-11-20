@@ -6,7 +6,7 @@ View generation and layout (ELK, Dagre, Graphviz). Adds to the repo `AGENTS.md`;
 
 No exceptions. Violating them corrupts diagrams or breaks the pipeline. Each is the operational form of a SPEC § 11 rule; on a difference in content SPEC wins.
 
-1. **No post-layout scaling.** `LayoutResult` leaf `width`/`height` equal the `LayoutGraph` input, except the widths the sizing refinements set (Same width per level, a band of a background view); containers are sized by the engine. Never multiply sizes after layout; engine attributes that scale output (e.g. Graphviz `size=`) are forbidden. Archi draws elements at their exact pixel size; scaled sizes are non-standard and make diagrams unreadable. (SPEC rule 1)
+1. **No post-layout scaling.** `LayoutResult` leaf `width`/`height` equal the `LayoutGraph` input, except the widths the sizing refinements set (Same width, Columns across containers, a band of a background view); containers are sized by the engine. Never multiply sizes after layout; engine attributes that scale output (e.g. Graphviz `size=`) are forbidden. Archi draws elements at their exact pixel size; scaled sizes are non-standard and make diagrams unreadable. (SPEC rule 1)
 2. **Position spread is the only post-layout adjustment.** Moving node *centers* outward (sizes frozen) to meet a `maxWidth`/`maxHeight` is allowed; compressing positions is forbidden. (SPEC rule 2)
 3. **Adapters never read or write a view.** They operate only on `LayoutGraph` / `LayoutResult`; no Archi API calls, no selection, no preset. (SPEC rules 5–6)
 4. **No view mutation in the pipeline.** It reads elements and relations; a view's content changes only through the writer at the final step. (SPEC § 3, rule 9)

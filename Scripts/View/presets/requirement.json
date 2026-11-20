@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "name": "requirement",
   "algorithm": "Layered",
   "params": {
@@ -21,7 +21,7 @@
     "sort": "Containers, then elements",
     "selectionOrder": "Selection",
     "cycleSelectionOrder": false,
-    "alignWidthSameType": false,
+    "sameWidth": "Off",
     "columnsAcrossContainers": false,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Across containers",

@@ -74,7 +74,8 @@ interface LayoutGraph {
   /** The algorithm's active params (defs.effectiveParams). */
   options: EffectiveParams;
   engineParams: EngineParams;
-  alignWidthSameType: boolean;
+  /** Same width (defs.SAME_WIDTH). */
+  sameWidth: string;
   columnsAcrossContainers: boolean;
   /** How the boxes are sorted (defs.SORT_MODE); undefined where the algorithm has no Sort (directed views). */
   sort?: string;

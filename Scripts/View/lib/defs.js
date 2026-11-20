@@ -45,7 +45,7 @@ const ALWAYS_ACTIVE_PARAMS = Object.freeze(["elementWidth", "elementHeight", "di
 // ELK full-nesting controls — Layered, Tree, Grid, Pack. Sort is not among them: directed views are not sorted.
 const PARAMS_ELK_NESTING = Object.freeze([
   "nestingConditions", "padding",
-  "alignWidthSameType",
+  "sameWidth",
   "containerAlgorithm",
 ]);
 
@@ -81,10 +81,10 @@ const PARAM_LABELS = Object.freeze({
   sort:                     "Sort",
   selectionOrder:           "Selection order",
   cycleSelectionOrder:      "Cycle selection order",
-  alignWidthSameType:       "Same width per level",
+  sameWidth:                "Same width",
   columnsAcrossContainers:  "Columns across containers",
   backgroundView:           "Background",
-  backgroundEveryBox:       "Every box in place",
+  backgroundLeavesInPlace:  "Leaves in place",
   direction:                "Direction",
   acyclicer:                "Cycles",
   ranking:                  "Ranking",
@@ -122,16 +122,16 @@ const PARAM_TOOLTIPS = Object.freeze({
   selectionOrder:           ["Order in which the elements enter the layout: another order, another starting point.", ""],
   cycleSelectionOrder:      ["Each layout of an existing view takes the next selection order.",
                              "A new view always starts with Selection."],
-  sort:                     ["Ascending order of the boxes in a view with containers. None: as selected.",
+  sort:                     ["Ascending order of the elements in a view with containers. None: as selected.",
                              "Elements: by type and name. Containers, then elements: also the containers. All together: one list."],
-  alignWidthSameType:       ["Give all boxes of one nesting level the same width.",
-                             "A container is never narrower than its contents; Use label width: the widest label sets it."],
+  sameWidth:                ["Per level: one width per nesting level, each level one padding wider on both sides than the next.",
+                             "Per level and type: after the last nesting type change one width per element type, as narrow as it allows. A container is never narrower than its contents."],
   columnsAcrossContainers:  ["Line up the columns of the tiles on one grid across the whole view.",
-                             "Boxes of one level line up along their parent's edge; neighbours stay Distance apart."],
+                             "Elements of one level line up along their parent's edge, leaves fill their column; neighbours stay Distance apart."],
   backgroundView:           ["A view the selection fills: its elements are always on the view, in its arrangement of rows and columns.",
                              "Path of the view, e.g. /Views/Backgrounds/Map. An element under nothing on it brings its parents; one that reaches it by no path is left out."],
-  backgroundEveryBox:       ["Every box of the background view keeps its place. Off: only a box with boxes inside it on the background view keeps its place;",
-                             "the others are always on the view, and the layout places them (sorted, compact)."],
+  backgroundLeavesInPlace:  ["The leaves of the background view keep their place too.",
+                             "Off: only its containers keep theirs; its leaves are always on the view, and the layout places them (sorted, compact)."],
   direction:                ["Direction of the main flow.", ""],
   acyclicer:                ["How relation cycles are broken before layout; no effect without cycles.",
                              "Default: depth-first search. Greedy: reverses as few relations as it can."],
@@ -193,7 +193,7 @@ const LAYOUT_GROUPS = Object.freeze({
   Nesting:     ["nestingConditions"],
   Reverse:     ["reverseConditions"],
   Containers:  ["containerAlgorithm", "connectionsMode", "padding",
-                "sort", "alignWidthSameType", "columnsAcrossContainers", "backgroundView", "backgroundEveryBox"],
+                "sort", "sameWidth", "columnsAcrossContainers", "backgroundView", "backgroundLeavesInPlace"],
   Flow:        ["direction", "acyclicer", "ranking", "nodePlacement", "circles", "layerSpacing"],
   Elements:    ["elementWidth", "elementHeight", "labelSizing", "labelMaxLineWidth", "elementSpacing"],
   Connections: ["routing", "labelPosition", "connectionLabelSpacing", "connectionSpacing", "connectionElementSpacing"],
@@ -210,6 +210,16 @@ const PARAMS_VIEW_WIDTH = Object.freeze(["maxWidth"]);
 const PARAMS_GV_CLUSTER = Object.freeze(["nestingConditions", "padding"]);
 
 // Shared supportedOptions arrays — defined before ALGORITHMS so they can be referenced inline.
+/**
+ * Same width (param sameWidth): Off; Per level, every element of one nesting level one width; Per level
+ * and type, also one width per element type for an element at a nesting type change (Tiles).
+ */
+const SAME_WIDTH = Object.freeze({
+  OFF:            "Off",
+  LEVEL:          "Per level",
+  LEVEL_AND_TYPE: "Per level and type",
+});
+const SAME_WIDTH_PER_LEVEL = Object.freeze([SAME_WIDTH.OFF, SAME_WIDTH.LEVEL]);
 const DIRECTION_VALUES = Object.freeze(["Right", "Left", "Down", "Up"]);
 const LP_ELK           = Object.freeze(["Source", "Middle", "Target"]);
 const LP_GV            = Object.freeze(["Source", "Middle", "Target", "Natural"]);
@@ -241,7 +251,7 @@ const ALGORITHMS = Object.freeze({
       "layerSpacing", "elementSpacing", "connectionSpacing", "connectionElementSpacing",
       "connectionLabelSpacing",
     ],
-    supportedOptions: {
+    supportedOptions: { sameWidth: SAME_WIDTH_PER_LEVEL,
       direction:          DIRECTION_VALUES,
       nodePlacement:      ["Centred", "Straight lines"],
       routing:            ["Orthogonal", "Polyline", "Splines"],
@@ -265,7 +275,7 @@ const ALGORITHMS = Object.freeze({
       "direction", "routing", "labelPosition", "reverseConditions", "layerSpacing",
       "elementSpacing", "connectionSpacing", "connectionElementSpacing",
     ],
-    supportedOptions: {
+    supportedOptions: { sameWidth: SAME_WIDTH_PER_LEVEL,
       direction:          DIRECTION_VALUES,
       routing:            ["Straight", "Splines"],   // elk.js _routeTreeEdges
       labelPosition:      LP_ELK,
@@ -314,9 +324,9 @@ const ALGORITHMS = Object.freeze({
       "sort", "labelSizing", "labelMaxLineWidth",
       "elementSpacing", "reverseConditions",
     ],
-    supportedOptions:     { containerAlgorithm: ["Layered", "Grid", "Pack"] },
+    supportedOptions:     { sameWidth: SAME_WIDTH_PER_LEVEL, containerAlgorithm: ["Layered", "Grid", "Pack"] },
     labelPositionDefault: null,
-    tooltip: "Boxes in regular rows, in their order: simple and easy to scan.\nNesting is supported (ELK Box)",
+    tooltip: "Elements in regular rows, in their order: simple and easy to scan.\nNesting is supported (ELK Box)",
     paramConflicts: CONFLICTS_VIEW,
   },
 
@@ -331,9 +341,9 @@ const ALGORITHMS = Object.freeze({
       "sort", "labelSizing", "labelMaxLineWidth",
       "elementSpacing", "reverseConditions",
     ],
-    supportedOptions:     { containerAlgorithm: ["Layered", "Grid", "Pack"] },
+    supportedOptions:     { sameWidth: SAME_WIDTH_PER_LEVEL, containerAlgorithm: ["Layered", "Grid", "Pack"] },
     labelPositionDefault: null,
-    tooltip: "Packs boxes as tightly as it can; most compact with Use label width.\nNesting is supported (ELK Rectpacking)",
+    tooltip: "Packs elements as tightly as it can; most compact with Use label width.\nNesting is supported (ELK Rectpacking)",
     paramConflicts: CONFLICTS_VIEW,
   },
 
@@ -344,10 +354,10 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "full",
     supportsSelfLoops:    false,  // tiles position nodes only — they do not route edges
     activeParams:         [
-      ...ALWAYS_ACTIVE_PARAMS, "nestingConditions", "padding", "sort", "alignWidthSameType", "columnsAcrossContainers",
-      ...PARAMS_VIEW_SIZE, "labelSizing", "labelMaxLineWidth", "elementSpacing", "reverseConditions", "backgroundView", "backgroundEveryBox",
+      ...ALWAYS_ACTIVE_PARAMS, "nestingConditions", "padding", "sort", "sameWidth", "columnsAcrossContainers",
+      ...PARAMS_VIEW_SIZE, "labelSizing", "labelMaxLineWidth", "elementSpacing", "reverseConditions", "backgroundView", "backgroundLeavesInPlace",
     ],
-    supportedOptions:     {},
+    supportedOptions:     { sameWidth: Object.values(SAME_WIDTH) },
     labelPositionDefault: null,
     tooltip: "Sorted nestings tiled tightly: the order reads left to right and down.\nLittle white space; nesting is supported (no layout engine)",
     paramConflicts: CONFLICTS_VIEW,
@@ -737,7 +747,7 @@ const SPLINE_SAMPLE_POINTS = 8;
 // ── Preset schema defaults ────────────────────────────────────────────────────
 
 const DEFAULT_PRESET = Object.freeze({
-  schemaVersion: 6,   // 2 = condition lists (rel_filter.js); 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions; 5 = nesting style conditions + palette; 6 = font size and bold per nesting style condition; older presets are migrated offline
+  schemaVersion: 7,   // 2 = condition lists (rel_filter.js); 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions; 5 = nesting style conditions + palette; 6 = font size and bold per nesting style condition; 7 = sameWidth replaces alignWidthSameType, backgroundLeavesInPlace replaces backgroundEveryBox; older presets are migrated offline
   name:      "",
   algorithm: "Layered",
   params: {
@@ -759,7 +769,7 @@ const DEFAULT_PRESET = Object.freeze({
     sort:                  "Elements",             // SORT_MODE (Grid, Pack, Tiles)
     selectionOrder:          "Selection",            // SELECTION_ORDER: elements outside containers
     cycleSelectionOrder:     false,                  // each layout of an existing view takes the next selectionOrder
-    alignWidthSameType:    false,
+    sameWidth:             "Off",                  // SAME_WIDTH ("Per level and type": Tiles only)
     columnsAcrossContainers:     false,
     containerAlgorithm:    "Layered",              // "Layered" | "Grid" | "Pack"
     connectionsMode:       "Across containers",    // "Across containers" | "Between containers"
@@ -776,7 +786,7 @@ const DEFAULT_PRESET = Object.freeze({
     labelMaxLineWidth:     400,    // widest element Use label width makes before the label wraps
     connectionLabelSpacing:      true,   // reserve space for connection labels in ELK Layered (prevents overlap)
     backgroundView:        { id: "", path: "" },   // Tiles: the view the selection fills (lib/background.js); id finds it, path is its label
-    backgroundEveryBox:    false,   // every box of the background view keeps its place; false: only frames (arrangement.framesOnly)
+    backgroundLeavesInPlace: false, // the leaves of the background view keep their place too; false: only its containers (Arrangement.arrangementsWithContainers)
   },
   // Filter lists (empty = keep everything); condition shapes in rel_filter.js.
   filter: {
@@ -796,7 +806,7 @@ const DEFAULT_PRESET = Object.freeze({
     underGenerated: true,   // the folder (Custom or Mirrored) under GENERATED_VIEW_FOLDER
   },
   appearance: {
-    palette: "Brewer",   // palette name in presets/_palettes.json: every colour and colour range of the Appearance tab
+    palette: "Brewer",   // palette name in presets/_palettes.json: every color and color range of the Appearance tab
     // Style conditions (kind "style"); a later condition wins where two conditions style the same object.
     styleByProperty: {
       conditions:       [],
@@ -809,7 +819,7 @@ const DEFAULT_PRESET = Object.freeze({
       fontEnabled:        false,
       fontDecreasePerLevel: 2,
       colorEnabled:       false,
-      darkenStart:        1,     // steps darker than its colour a segment starts (chroma darken)
+      darkenStart:        1,     // steps darker than its color the fill starts at a nesting type or color change (chroma darken)
       lightenPerLevel:     15,
     },
     highlightRepeated: { enabled: false, colorRange: "Pastel1" },
@@ -1210,7 +1220,7 @@ if (typeof module !== "undefined" && module.exports) {
     paramUsedBy, paramTooltip,
     ACTION, ROUTING,
     DIRECTIONS, DIRECTION_MAP,
-    RANKING, NODE_PLACEMENT, CIRCLES, ACYCLICER, SELECTION_ORDER, SORT_MODE, LABEL_POSITIONS, AR_OPTIONS, AR_DEFAULT,
+    RANKING, NODE_PLACEMENT, CIRCLES, ACYCLICER, SELECTION_ORDER, SORT_MODE, SAME_WIDTH, LABEL_POSITIONS, AR_OPTIONS, AR_DEFAULT,
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
     DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,

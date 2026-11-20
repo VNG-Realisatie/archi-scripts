@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "name": "Kennismodel/Kennismodel",
   "algorithm": "Layered",
   "params": {
@@ -22,7 +22,7 @@
     "sort": "Elements",
     "selectionOrder": "Name △",
     "cycleSelectionOrder": false,
-    "alignWidthSameType": false,
+    "sameWidth": "Off",
     "columnsAcrossContainers": false,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Across containers",
