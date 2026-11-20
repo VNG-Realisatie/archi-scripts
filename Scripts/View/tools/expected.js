@@ -25,6 +25,18 @@ const GEMMA_RUNS = Object.freeze([
   { preset: "Bedrijfsfuncties", view: "8 GEMMA background", action: "layout_only" },
 ]);
 
+/**
+ * The One view each runs (--each of write_plans.js and layout_checks.js, as the Archi baseline runs it on view 3): a preset
+ * with every algorithm, one New view per seed element. dir: "baseline" (presets/Test/baseline) or "gemma".
+ */
+const EACH_RUNS = Object.freeze([
+  { dir: "baseline", preset: "baseline", seeds: ["Assess", "Operating system"] },
+  { dir: "gemma", preset: "Bedrijfsobjecten", seeds: ["Dienstverlening", "Handhaving"] },
+]);
+
+/** @param {string} dir  EACH_RUNS dir */
+const presetDirOf = dir => dir === "gemma" ? GEMMA_PRESET_DIR : path.join(__dirname, "..", "presets", "Test", "baseline");
+
 /** Algorithms whose result differs from run to run: their lines keep the counts, the fingerprint is "-". */
 const UNSTABLE_ALGORITHMS = { FDP: "ARCHITECTURE Known gap 16" };
 
@@ -100,4 +112,4 @@ function _diff(expected, actual) {
   ].sort((a, b) => a.slice(2).localeCompare(b.slice(2)));
 }
 
-module.exports = { EXPECTED_DIR, GEMMA_PRESET_DIR, GEMMA_RUNS, UNSTABLE_ALGORITHMS, fingerprint, skipped, report };
+module.exports = { EXPECTED_DIR, GEMMA_PRESET_DIR, GEMMA_RUNS, EACH_RUNS, presetDirOf, UNSTABLE_ALGORITHMS, fingerprint, skipped, report };

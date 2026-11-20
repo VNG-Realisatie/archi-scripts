@@ -10,7 +10,7 @@
  *        [--write-plan]          print the write plan as JSON instead of the summary
  *        [--in-process]          the adapter runs in this process, not in a Node layout process (debugging, speed)
  *
- * As a module: loadModel, findView, readSnapshot, readBackground, relationIndex, layoutRuntime, planView, writePlanJson
+ * As a module: loadModel, findView, readSnapshot, readBackground, relationIndex, layoutRuntime, planView, planEach, writePlanJson
  * and the parsers (see below).
  */
 const fs   = require("fs");
@@ -270,6 +270,26 @@ function planView(model, view, preset, actionId, inProcess = false) {
 }
 
 /**
+ * The plans One view each makes (generate_view._generateOneEach): the elements that pass the preset's element filter, in
+ * the order given, each planned as a New view from the element alone, with its own pipeline run.
+ * @param {{ id: string, type: string, name: string, prop: (k: string) => string | undefined }[]} seeds  model elements
+ * @param preset  a validated preset
+ * @param {boolean} [inProcess]
+ * @returns {{ seed: { id: string, name: string }, planned: ReturnType<typeof planView> }[]}  planned: null when nothing is placed
+ */
+function planEach(model, seeds, preset, inProcess = false) {
+  const GenView = require(LIB + "generate_view");
+  const Pipeline = require(LIB + "selection_pipeline");
+  const runtime = layoutRuntime(inProcess);
+  const masked = { ...preset, params: Defs.effectiveParams(preset) };
+  return Pipeline.applyFilter(seeds, preset.filter).map(seed => {
+    const snapshot = { elements: [seed], diagramObjects: [], relationsOf: relationIndex(model), existing: { existingView: null, visualElements: [], visualRelations: [], positions: new Map() },
+                       diagramBlockOf: new Map(), blockContents: new Map(), sourceVisualElements: [], visuals: [], background: readBackground(model, preset.params.backgroundView) };
+    return { seed, planned: GenView.plan(masked, snapshot, Defs.ACTION.NEW_VIEW.id, runtime) };
+  });
+}
+
+/**
  * The LayoutRuntime planView gives generate_view: the Node layout with this Node, dot as config.js says, as in Archi.
  * @param {boolean} inProcess  the adapter runs in this process
  */
@@ -312,7 +332,7 @@ function writePlanJson(writePlan) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { parseXml, jarchiType, loadModel, findView, readSnapshot, readBackground, relationIndex, layoutRuntime, planView, writePlanJson };
+  module.exports = { parseXml, jarchiType, loadModel, findView, readSnapshot, readBackground, relationIndex, layoutRuntime, planView, planEach, writePlanJson };
 }
 
 // ── CLI ───────────────────────────────────────────────────────────────────────

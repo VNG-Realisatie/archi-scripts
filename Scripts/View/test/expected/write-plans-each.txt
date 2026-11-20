@@ -1,0 +1,56 @@
+baseline                    Layered  Assess             one_each 5959fd117fe3 4n 3c 0nest 0rm
+baseline                    Layered  Operating system   one_each 001c92463ab3 4n 3c 0nest 0rm
+baseline                    Tree     Assess             one_each 6f4434182a35 4n 3c 0nest 0rm
+baseline                    Tree     Operating system   one_each 19803d03051d 4n 3c 0nest 0rm
+baseline                    Stress   Assess             one_each 041e263bf83b 4n 3c 0nest 0rm
+baseline                    Stress   Operating system   one_each cc6a0c33c134 4n 3c 0nest 0rm
+baseline                    Radial   Assess             one_each fa8ef1a96bad 4n 3c 0nest 0rm
+baseline                    Radial   Operating system   one_each 31c96be1f3ad 4n 3c 0nest 0rm
+baseline                    Grid     Assess             one_each 7fdf2de00629 4n 3c 0nest 0rm
+baseline                    Grid     Operating system   one_each bc15c5f2cb52 4n 3c 0nest 0rm
+baseline                    Pack     Assess             one_each d23257a44179 4n 3c 0nest 0rm
+baseline                    Pack     Operating system   one_each 64465c8f676b 4n 3c 0nest 0rm
+baseline                    Tiles    Assess             one_each 7fdf2de00629 4n 3c 0nest 0rm
+baseline                    Tiles    Operating system   one_each bc15c5f2cb52 4n 3c 0nest 0rm
+baseline                    Dagre    Assess             one_each 2c0c67b7a386 4n 3c 0nest 0rm
+baseline                    Dagre    Operating system   one_each a40f88898f3f 4n 3c 0nest 0rm
+baseline                    Dot      Assess             one_each 647af5439910 4n 3c 0nest 0rm
+baseline                    Dot      Operating system   one_each 21b6ca0f51ee 4n 3c 0nest 0rm
+baseline                    Neato    Assess             one_each f0fbd27d1ad7 4n 3c 0nest 0rm
+baseline                    Neato    Operating system   one_each 453664f8ba25 4n 3c 0nest 0rm
+baseline                    FDP      Assess             one_each -            4n 3c 0nest 0rm
+baseline                    FDP      Operating system   one_each -            4n 3c 0nest 0rm
+baseline                    SFDP     Assess             one_each 509e49329cd6 4n 3c 0nest 0rm
+baseline                    SFDP     Operating system   one_each baba6f22743d 4n 3c 0nest 0rm
+baseline                    Twopi    Assess             one_each 36c8b222344c 4n 3c 0nest 0rm
+baseline                    Twopi    Operating system   one_each 0f7a1ac34d5e 4n 3c 0nest 0rm
+baseline                    Circo    Assess             one_each a279d47b620a 4n 3c 0nest 0rm
+baseline                    Circo    Operating system   one_each 06d6f111b74c 4n 3c 0nest 0rm
+Bedrijfsobjecten            Layered  Dienstverlening    one_each 9b1c44b84e09 8n 0c 7nest 0rm
+Bedrijfsobjecten            Layered  Handhaving         one_each 3dcea2e79da4 3n 0c 2nest 0rm
+Bedrijfsobjecten            Tree     Dienstverlening    one_each 434f445a73c0 8n 0c 7nest 0rm
+Bedrijfsobjecten            Tree     Handhaving         one_each bd2e941f911d 3n 0c 2nest 0rm
+Bedrijfsobjecten            Stress   Dienstverlening    one_each 48cffb18ae2c 7n 7c 0nest 0rm
+Bedrijfsobjecten            Stress   Handhaving         one_each 19195e8016a9 3n 2c 0nest 0rm
+Bedrijfsobjecten            Radial   Dienstverlening    one_each 1c1f6e5fb0b3 7n 7c 0nest 0rm
+Bedrijfsobjecten            Radial   Handhaving         one_each 610664bd8193 3n 2c 0nest 0rm
+Bedrijfsobjecten            Grid     Dienstverlening    one_each 0310f5db0291 8n 0c 7nest 0rm
+Bedrijfsobjecten            Grid     Handhaving         one_each 3dcea2e79da4 3n 0c 2nest 0rm
+Bedrijfsobjecten            Pack     Dienstverlening    one_each 0310f5db0291 8n 0c 7nest 0rm
+Bedrijfsobjecten            Pack     Handhaving         one_each 3dcea2e79da4 3n 0c 2nest 0rm
+Bedrijfsobjecten            Tiles    Dienstverlening    one_each 0310f5db0291 8n 0c 7nest 0rm
+Bedrijfsobjecten            Tiles    Handhaving         one_each 3dcea2e79da4 3n 0c 2nest 0rm
+Bedrijfsobjecten            Dagre    Dienstverlening    one_each 07ccc581736e 7n 5c 2nest 0rm
+Bedrijfsobjecten            Dagre    Handhaving         one_each 5b47a24b2271 3n 1c 1nest 0rm
+Bedrijfsobjecten            Dot      Dienstverlening    one_each 68a1d77c3497 8n 0c 7nest 0rm
+Bedrijfsobjecten            Dot      Handhaving         one_each 7dbbb4293bcd 3n 0c 2nest 0rm
+Bedrijfsobjecten            Neato    Dienstverlening    one_each 8251e2f75ef0 7n 7c 0nest 0rm
+Bedrijfsobjecten            Neato    Handhaving         one_each 46163784a150 3n 2c 0nest 0rm
+Bedrijfsobjecten            FDP      Dienstverlening    one_each -            8n 0c 7nest 0rm
+Bedrijfsobjecten            FDP      Handhaving         one_each -            3n 0c 2nest 0rm
+Bedrijfsobjecten            SFDP     Dienstverlening    one_each 1187afefc534 7n 7c 0nest 0rm
+Bedrijfsobjecten            SFDP     Handhaving         one_each bec0db140398 3n 2c 0nest 0rm
+Bedrijfsobjecten            Twopi    Dienstverlening    one_each 16c6a9b3adef 7n 7c 0nest 0rm
+Bedrijfsobjecten            Twopi    Handhaving         one_each 1b4ab057330b 3n 2c 0nest 0rm
+Bedrijfsobjecten            Circo    Dienstverlening    one_each 4735e790ba82 7n 7c 0nest 0rm
+Bedrijfsobjecten            Circo    Handhaving         one_each 90f3549c22c0 3n 2c 0nest 0rm

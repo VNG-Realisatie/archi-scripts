@@ -8,8 +8,9 @@
  * plan equals the base on every test view ("no effect": an option without a visible effect, or test
  * views that cannot show it).
  * --gemma: the GEMMA runs (expected.js GEMMA_RUNS) with every algorithm, against test/expected/write-plans-gemma.txt.
+ * --each: the One view each runs (expected.js EACH_RUNS), one New view per seed element, against test/expected/write-plans-each.txt.
  *
- * Run: node Scripts/View/tools/write_plans.js [model.archimate] [--variants | --gemma] [--check | --write | --full] [--in-process] [--without-graphviz]
+ * Run: node Scripts/View/tools/write_plans.js [model.archimate] [--variants | --gemma | --each] [--check | --write | --full] [--in-process] [--without-graphviz]
  *        --in-process: the adapters run in this process (about 10× faster), not in a Node layout process
  *        default model: Scripts/View/test/model/view-test.archimate; presets: presets/Test/baseline/*.json
  * Graphviz algorithms need the dot binary on the PATH (the harness runs it with child_process).
@@ -55,6 +56,19 @@ if (process.argv.includes("--variants")) {
   }
   lines.push(...noEffect);
   if (!full) Expected.report(lines, "write-plans-variants.txt", log);
+} else if (process.argv.includes("--each")) {
+  for (const run of Expected.EACH_RUNS) {
+    const raw = JSON.parse(fs.readFileSync(path.join(Expected.presetDirOf(run.dir), run.preset + ".json"), "utf8"));
+    const seeds = run.seeds.map(name => [...model.elements.values()].find(e => e.name === name));
+    for (const algorithm of Object.keys(Defs.ALGORITHMS).filter(a => !Expected.skipped(a))) {
+      const preset = Defs.validatePreset({ ...raw, algorithm });
+      H.planEach(model, seeds, preset, inProcess).forEach(({ seed, planned }) => {
+        const tag = `${run.preset.padEnd(27)} ${algorithm.padEnd(8)} ${seed.name.padEnd(18)} one_each`;
+        lines.push(`${tag} ${_fingerprintLine(algorithm, planned)}`);
+      });
+    }
+  }
+  if (!full) Expected.report(lines, "write-plans-each.txt", log);
 } else if (process.argv.includes("--gemma")) {
   for (const run of Expected.GEMMA_RUNS) {
     const raw = JSON.parse(fs.readFileSync(path.join(Expected.GEMMA_PRESET_DIR, run.preset + ".json"), "utf8"));
@@ -93,14 +107,22 @@ function _run(tag, preset, algorithm, viewName, action) {
   let line = "";
   try {
     const planned = H.planView(model, H.findView(model, "Views/Test/" + viewName), preset, action, inProcess);
-    const json = planned ? H.writePlanJson(planned.writePlan) : "null";
-    if (full) { if (tag) log(`== ${tag}\n${json}`); return ""; }
-    const wp = planned && planned.writePlan;
-    line = Expected.fingerprint(algorithm, json) +
-      (wp ? ` ${wp.nodes.length}n ${wp.connections.length}c ${wp.nestings.length + wp.keptNestings}nest ${wp.removedVisuals.length}rm` : "");
+    if (full) { if (tag) log(`== ${tag}\n${planned ? H.writePlanJson(planned.writePlan) : "null"}`); return ""; }
+    line = _fingerprintLine(algorithm, planned);
   } catch (e) {
     line = `ERROR ${String(e).split("\n")[0].slice(0, 80)}`;
   }
   if (tag) lines.push(`${tag} ${line}`);
   return line;
+}
+
+/**
+ * The fingerprint of a plan's write plan and its counts, as a line of an expected file.
+ * @param {string} algorithm
+ * @param {{ writePlan: WritePlan } | null} planned
+ */
+function _fingerprintLine(algorithm, planned) {
+  const wp = planned && planned.writePlan;
+  return Expected.fingerprint(algorithm, planned ? H.writePlanJson(planned.writePlan) : "null") +
+    (wp ? ` ${wp.nodes.length}n ${wp.connections.length}c ${wp.nestings.length + wp.keptNestings}nest ${wp.removedVisuals.length}rm` : "");
 }

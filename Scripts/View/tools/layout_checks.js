@@ -26,10 +26,11 @@
  * --large: view 5 (300 elements) with baseline.json and every algorithm, New view, with the time per run in
  * Node (logged only; not compared twice).
  * --gemma: the GEMMA runs (expected.js GEMMA_RUNS) with every algorithm.
+ * --each: the One view each runs (expected.js EACH_RUNS), one New view per seed element.
  *
- * Run: node Scripts/View/tools/layout_checks.js [model.archimate] [--variants | --large | --gemma] [--in-process] [--check | --write] [--without-graphviz]
+ * Run: node Scripts/View/tools/layout_checks.js [model.archimate] [--variants | --large | --gemma | --each] [--in-process] [--check | --write] [--without-graphviz]
  * Exit 1 when a rule is broken; each violation is one line. --check compares them with the known violations
- * in test/expected/layout-violations[-variants | -large | -gemma].txt (findings not fixed yet; expected.js), --write rewrites it.
+ * in test/expected/layout-violations[-variants | -large | -gemma | -each].txt (findings not fixed yet; expected.js), --write rewrites it.
  */
 const fs = require("fs");
 const path = require("path");
@@ -53,28 +54,28 @@ const presets = fs.readdirSync(presetDir).filter(f => f.endsWith(".json")).sort(
 const VIEWS = ["1 Nesting", "2 Edited", "3 Network", "4 Parts"];
 const ACTIONS = [Defs.ACTION.NEW_VIEW.id, Defs.ACTION.EXPAND_VIEW.id, Defs.ACTION.LAYOUT_ONLY.id];
 
-const variants = process.argv.includes("--variants"), large = process.argv.includes("--large"), gemma = process.argv.includes("--gemma");
+const variants = process.argv.includes("--variants"), large = process.argv.includes("--large"), gemma = process.argv.includes("--gemma"), each = process.argv.includes("--each");
 /** @type {string[]} */
 const violations = [];
 let runs = 0;
-for (const run of variants ? _variantRuns() : large ? _largeRuns() : gemma ? _gemmaRuns() : _presetRuns()) {
-  const view = H.findView(model, "Views/Test/" + run.viewName);
+for (const run of variants ? _variantRuns() : large ? _largeRuns() : gemma ? _gemmaRuns() : each ? _eachRuns() : _presetRuns()) {
   captured = [];
   const start = Date.now();
-  const planned = H.planView(model, view, run.preset, run.action, inProcess);
+  const planOnce = () => run.seed ? (H.planEach(model, [run.seed], run.preset, inProcess)[0] || {}).planned : H.planView(model, H.findView(model, "Views/Test/" + run.viewName), run.preset, run.action, inProcess);
+  const planned = planOnce();
   if (large) log(`${String(Date.now() - start).padStart(7)} ms  ${run.tag}`);   // T2: logged, no limit
   if (!planned) continue;
   runs++;
-  const again = large || run.algorithm in Expected.UNSTABLE_ALGORITHMS ? null : H.planView(model, view, run.preset, run.action, inProcess);
+  const again = large || run.algorithm in Expected.UNSTABLE_ALGORITHMS ? null : planOnce();
   for (const v of checkRun(planned, again, captured, run.algorithm, run.action)) violations.push(`${run.tag}: ${v}`);
 }
 log(`${runs} runs, ${violations.length ? violations.length + " violations" : "no violations"}`);
 // --check: the known violations (findings not fixed yet) in test/expected/layout-violations[-variants|-large].txt
-const knownFile = `layout-violations${variants ? "-variants" : large ? "-large" : gemma ? "-gemma" : ""}.txt`;
+const knownFile = `layout-violations${variants ? "-variants" : large ? "-large" : gemma ? "-gemma" : each ? "-each" : ""}.txt`;
 if (process.argv.includes("--check") || process.argv.includes("--write")) Expected.report(violations, knownFile, log);
 else { violations.forEach(v => log(v)); if (violations.length) process.exitCode = 1; }
 
-/** @typedef {{tag: string, preset: object, algorithm: string, viewName: string, action: string}} Run */
+/** @typedef {{tag: string, preset: object, algorithm: string, viewName: string, action: string, seed?: any}} Run  seed: a One view each run, from this element alone */
 
 /** Every preset × algorithm × view × action, as write_plans.js. @returns {Run[]} */
 function _presetRuns() {
@@ -98,6 +99,17 @@ function _largeRuns() {
   return Object.keys(Defs.ALGORITHMS).filter(a => !Expected.skipped(a)).map(algorithm => ({
     tag: `${algorithm} 5 Large`, preset: Defs.validatePreset({ ...raw, algorithm }), algorithm, viewName: "5 Large", action: Defs.ACTION.NEW_VIEW.id,
   }));
+}
+
+/** The One view each runs with every algorithm, as write_plans.js --each: a New view per seed element. @returns {Run[]} */
+function _eachRuns() {
+  return Expected.EACH_RUNS.flatMap(run => {
+    const raw = JSON.parse(fs.readFileSync(path.join(Expected.presetDirOf(run.dir), run.preset + ".json"), "utf8"));
+    const seeds = run.seeds.map(name => [...model.elements.values()].find(e => e.name === name));
+    return Object.keys(Defs.ALGORITHMS).filter(a => !Expected.skipped(a)).flatMap(algorithm => seeds.map(seed => ({
+      tag: `${run.preset} ${algorithm} ${seed.name} one_each`, preset: Defs.validatePreset({ ...raw, algorithm }), algorithm, viewName: "", action: Defs.ACTION.NEW_VIEW.id, seed,
+    })));
+  });
 }
 
 /** The GEMMA runs with every algorithm, as write_plans.js --gemma. @returns {Run[]} */

@@ -56,6 +56,7 @@ jobs:
           node Scripts/View/tools/write_plans.js --check --in-process --without-graphviz
           node Scripts/View/tools/write_plans.js --variants --check --in-process --without-graphviz
           node Scripts/View/tools/write_plans.js --gemma --check --in-process --without-graphviz
+          node Scripts/View/tools/write_plans.js --each --check --in-process --without-graphviz
           node tools/compare-layouts.js --check --in-process --without-graphviz
       - name: Rule checks
         run: |
@@ -63,3 +64,4 @@ jobs:
           node Scripts/View/tools/layout_checks.js --variants --check --in-process
           node Scripts/View/tools/layout_checks.js --large --check --in-process
           node Scripts/View/tools/layout_checks.js --gemma --check --in-process
+          node Scripts/View/tools/layout_checks.js --each --check --in-process
