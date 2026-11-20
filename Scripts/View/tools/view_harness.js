@@ -10,7 +10,7 @@
  *        [--write-plan]          print the write plan as JSON instead of the summary
  *        [--in-process]          the adapter runs in this process, not in a Node layout process (debugging, speed)
  *
- * As a module: loadModel, findView, readSnapshot, relationIndex, planView, writePlanJson
+ * As a module: loadModel, findView, readSnapshot, readBackground, relationIndex, planView, writePlanJson
  * and the parsers (see below).
  */
 const fs   = require("fs");
@@ -27,6 +27,7 @@ console.log = (...a) => { if (!(typeof a[0] === "string" && a[0].startsWith("Loa
 
 const Defs     = require(LIB + "defs");
 const Nesting  = require(LIB + "nesting");   // classifyVisuals, as describeVisuals
+const Arrangement = require(LIB + "arrangement");   // arrangementsOf, as readBackground
 const TextMeasureNode = require("./text_measure_node");
 
 // ── .archimate reader ─────────────────────────────────────────────────────────
@@ -268,7 +269,34 @@ function planView(model, view, preset, actionId, inProcess = false) {
   const runtime = { runProcess: ViewConfig.programRunner(require("./process_runner_node").runProcess, config), config, inProcess,
                     measureText: TextMeasureNode.measureText, lineBreaks: TextMeasureNode.lineBreaks,
                     defaultFont: TextMeasureNode.HARNESS_DEFAULT_FONT, newVisual: TextMeasureNode.HARNESS_NEW_VISUAL };
-  return GenView.plan({ ...preset, params: Defs.effectiveParams(preset) }, readSnapshot(model, view, actionId), actionId, runtime);
+  const snapshot = readSnapshot(model, view, actionId);
+  snapshot.background = readBackground(model, preset.params.backgroundView);
+  return GenView.plan({ ...preset, params: Defs.effectiveParams(preset) }, snapshot, actionId, runtime);
+}
+
+/**
+ * The background view as selection_read.readBackground gives it in Archi: its elements (each once), diagram
+ * objects and diagram-blocks, its element visuals, and the arrangements of its boxes; null without one.
+ * @param {{id: string, path: string} | undefined} ref  preset.params.backgroundView
+ */
+function readBackground(model, ref) {
+  if (!ref || (!ref.id && !ref.path)) return null;
+  const view = model.views.find(v => v.id === ref.id) || model.views.find(v => "/" + v.path === ref.path);
+  if (!view) throw new Error(`Background view "${ref.path || ref.id}" is not in this model.`);
+  const w = _walkView(model, view);
+  return {
+    path: "/" + view.path, elements: w.elements, diagramObjects: w.diagramObjects,
+    diagramBlockOf: w.diagramBlockOf, blockContents: w.blockContents, sourceVisualElements: w.visualElements,
+    arrangements: Arrangement.arrangementsOf(_boxTree(model, view.node)),
+  };
+}
+
+/** The boxes of a view or visual as selection_read's _boxTree: an element box by its element's id. */
+function _boxTree(model, node) {
+  return node.children.filter(c => c.tag === "child" && c.children.some(b => b.tag === "bounds")).map(c => {
+    const isDiagram = !c.attrs.archimateElement;
+    return { id: isDiagram ? c.attrs.id : c.attrs.archimateElement, ..._bounds(c), children: isDiagram ? [] : _boxTree(model, c) };
+  });
 }
 
 /** A write plan as JSON: elements and relations by id. */
@@ -277,7 +305,7 @@ function writePlanJson(writePlan) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { parseXml, jarchiType, loadModel, findView, readSnapshot, relationIndex, planView, writePlanJson };
+  module.exports = { parseXml, jarchiType, loadModel, findView, readSnapshot, readBackground, relationIndex, planView, writePlanJson };
 }
 
 // ── CLI ───────────────────────────────────────────────────────────────────────

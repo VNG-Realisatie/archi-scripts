@@ -1,7 +1,7 @@
 /**
  * Build the View test model and save it as Scripts/View/test/model/view-test.archimate.
  *
- * Creates a new model with three views in Views/Test:
+ * Creates a new model with the test views in Views/Test:
  *   1 Nesting   composition and aggregation chains, an element with two parents (aggregation with every
  *               container), a nesting cycle, a reversed type (realization), a self-loop, relations between
  *               elements in different containers, a note with a connection and a group with a note
@@ -10,7 +10,7 @@
  *               diagram-block (a group holding a note and an element). NEW_VIEW does not copy diagram objects,
  *               so view 2 gets its own for the Modify actions.
  *   3 Network   20 elements in two unconnected parts, no nesting relations, mixed relation types with labels
- *   4 Parts, 5 Large   test_model_views.js
+ *   4 Parts, 5 Large, 6–8 GEMMA   test_model_views.js
  *
  * Views 1, 3, 4 and 5 are closed: no relation leaves them, so the step in baseline.json (all neighbours) adds nothing
  * to a NEW_VIEW of them. The elements added to view 2 have no relation to view 1.
@@ -151,6 +151,7 @@ try {
   _editView2(view2, els, editRels);
   TestViews.buildParts(folder);
   TestViews.buildLarge(folder);
+  TestViews.buildGemma(folder);
 
   new (Java.type("java.io.File"))(MODEL_PATH).getParentFile().mkdirs();
   testModel.save(MODEL_PATH);

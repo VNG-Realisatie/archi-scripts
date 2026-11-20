@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 7,
+  "name": "Test/gemma/Bedrijfsobjecten",
+  "algorithm": "Tiles",
+  "params": {
+    "direction": "Right",
+    "nodePlacement": "Centred",
+    "circles": "One circle",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseConditions": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ],
+    "nestingConditions": [
+      {"relation": "access-relationship", "everyContainer": true},
+      {"relation": "aggregation-relationship", "everyContainer": true}
+    ],
+    "padding": 20,
+    "diagramPadding": 20,
+    "sort": "Elements",
+    "selectionOrder": "Selection",
+    "cycleSelectionOrder": false,
+    "sameWidth": "Per level",
+    "columnsAcrossContainers": true,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Across containers",
+    "layerSpacing": 120,
+    "elementSpacing": 10,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 20,
+    "elementWidth": 240,
+    "elementHeight": 30,
+    "maxWidth": 0,
+    "aspectRatio": 1.78,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": false
+  },
+  "filter": {
+    "elementConditions": [
+      {"elementType": "business-function"}
+    ],
+    "diagramConditions": [],
+    "relationConditions": [
+      {"relation": "aggregation-relationship"}
+    ]
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "repeat": 5,
+        "conditions": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-function"}
+        ]
+      },
+      {
+        "repeat": 1,
+        "conditions": [
+          {"direction": "outgoing", "relation": "access-relationship", "added": "business-object"}
+        ]
+      }
+    ]
+  },
+  "view": {
+    "name": "Bedrijfsobjecten",
+    "folder": "/Test/gemma",
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": true
+  },
+  "appearance": {
+    "palette": "Brewer",
+    "styleByProperty": {
+      "conditions": [
+        {"applyTo": "target", "relation": "access-relationship", "propertyOf": "relation", "property": "Confidence", "colorRange": "Greens"}
+      ],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "conditions": [
+        {"fontSize": 12, "bold": true, "child": "same"}
+      ],
+      "fontEnabled": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": true,
+      "darkenStart": 0,
+      "lightenPerLevel": 25
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": true,
+    "properties": [
+      {
+        "key": "Architectuurlaag",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Beleidsdomein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Bron",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Detailniveau",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Domein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "GEMMA thema",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Model",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Publiceren",
+        "value": "GEMMA Online en redactie",
+        "enabled": true
+      },
+      {
+        "key": "Scope",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Titel view SWC",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Viewtype",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "author",
+        "value": "",
+        "enabled": false
+      }
+    ]
+  },
+  "description": "GEMMA test run on the test model (views 6–8 GEMMA): a copy of GEMMA/Bedrijfsobjecten/Bedrijfsfuncties en bedrijfsobjecten, 2026-11-20; only the view and the background view changed"
+}

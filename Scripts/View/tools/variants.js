@@ -40,6 +40,8 @@ function variantsOf(algorithm, params) {
   }
   for (const change of EXTRA) {
     const [key] = Object.keys(change);
+    const offered = /** @type {unknown[] | undefined} */ ((spec.supportedOptions || {})[key]);
+    if (offered && !offered.includes(change[key])) continue;   // a value the dialog does not offer here
     if (active.has(key) && !changes.some(c => JSON.stringify(c) === JSON.stringify(change)) && change[key] !== params[key]) changes.push(change);
   }
   return changes.map(change => ({

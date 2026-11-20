@@ -25,10 +25,11 @@
  * --variants: the variants of baseline.json instead (variants.js, as write_plans.js --variants).
  * --large: view 5 (300 elements) with baseline.json and every algorithm, New view, with the time per run in
  * Node (logged only; not compared twice).
+ * --gemma: the GEMMA runs (expected.js GEMMA_RUNS) with every algorithm.
  *
- * Run: node Scripts/View/tools/layout_checks.js [model.archimate] [--variants | --large] [--in-process] [--check | --write] [--without-graphviz]
+ * Run: node Scripts/View/tools/layout_checks.js [model.archimate] [--variants | --large | --gemma] [--in-process] [--check | --write] [--without-graphviz]
  * Exit 1 when a rule is broken; each violation is one line. --check compares them with the known violations
- * in test/expected/layout-violations[-variants].txt (findings not fixed yet; expected.js), --write rewrites it.
+ * in test/expected/layout-violations[-variants | -large | -gemma].txt (findings not fixed yet; expected.js), --write rewrites it.
  */
 const fs = require("fs");
 const path = require("path");
@@ -52,11 +53,11 @@ const presets = fs.readdirSync(presetDir).filter(f => f.endsWith(".json")).sort(
 const VIEWS = ["1 Nesting", "2 Edited", "3 Network", "4 Parts"];
 const ACTIONS = [Defs.ACTION.NEW_VIEW.id, Defs.ACTION.EXPAND_VIEW.id, Defs.ACTION.LAYOUT_ONLY.id];
 
-const variants = process.argv.includes("--variants"), large = process.argv.includes("--large");
+const variants = process.argv.includes("--variants"), large = process.argv.includes("--large"), gemma = process.argv.includes("--gemma");
 /** @type {string[]} */
 const violations = [];
 let runs = 0;
-for (const run of variants ? _variantRuns() : large ? _largeRuns() : _presetRuns()) {
+for (const run of variants ? _variantRuns() : large ? _largeRuns() : gemma ? _gemmaRuns() : _presetRuns()) {
   const view = H.findView(model, "Views/Test/" + run.viewName);
   captured = [];
   const start = Date.now();
@@ -69,7 +70,7 @@ for (const run of variants ? _variantRuns() : large ? _largeRuns() : _presetRuns
 }
 log(`${runs} runs, ${violations.length ? violations.length + " violations" : "no violations"}`);
 // --check: the known violations (findings not fixed yet) in test/expected/layout-violations[-variants|-large].txt
-const knownFile = `layout-violations${variants ? "-variants" : large ? "-large" : ""}.txt`;
+const knownFile = `layout-violations${variants ? "-variants" : large ? "-large" : gemma ? "-gemma" : ""}.txt`;
 if (process.argv.includes("--check") || process.argv.includes("--write")) Expected.report(violations, knownFile, log);
 else { violations.forEach(v => log(v)); if (violations.length) process.exitCode = 1; }
 
@@ -97,6 +98,16 @@ function _largeRuns() {
   return Object.keys(Defs.ALGORITHMS).filter(a => !Expected.skipped(a)).map(algorithm => ({
     tag: `${algorithm} 5 Large`, preset: Defs.validatePreset({ ...raw, algorithm }), algorithm, viewName: "5 Large", action: Defs.ACTION.NEW_VIEW.id,
   }));
+}
+
+/** The GEMMA runs with every algorithm, as write_plans.js --gemma. @returns {Run[]} */
+function _gemmaRuns() {
+  return Expected.GEMMA_RUNS.flatMap(run => {
+    const raw = JSON.parse(fs.readFileSync(path.join(Expected.GEMMA_PRESET_DIR, run.preset + ".json"), "utf8"));
+    return Object.keys(Defs.ALGORITHMS).filter(a => !Expected.skipped(a)).map(algorithm => ({
+      tag: `${run.preset} ${algorithm} ${run.view} ${run.action}`, preset: Defs.validatePreset({ ...raw, algorithm }), algorithm, viewName: run.view, action: run.action,
+    }));
+  });
 }
 
 /** The variants of baseline.json, New view, as write_plans.js --variants. @returns {Run[]} */

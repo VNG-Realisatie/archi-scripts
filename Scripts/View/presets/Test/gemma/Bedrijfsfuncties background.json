@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 7,
+  "name": "Test/gemma/Bedrijfsfuncties background",
+  "algorithm": "Tiles",
+  "params": {
+    "direction": "Right",
+    "nodePlacement": "Centred",
+    "circles": "One circle",
+    "routing": "Straight",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseConditions": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"}
+    ],
+    "nestingConditions": [
+      {"relation": "aggregation-relationship", "everyContainer": true},
+      {"relation": "realization-relationship", "everyContainer": true},
+      {"relation": "serving-relationship", "everyContainer": true}
+    ],
+    "padding": 15,
+    "diagramPadding": 20,
+    "sort": "All together",
+    "selectionOrder": "Selection",
+    "cycleSelectionOrder": false,
+    "sameWidth": "Per level and type",
+    "columnsAcrossContainers": true,
+    "containerAlgorithm": "Pack",
+    "connectionsMode": "Between containers",
+    "layerSpacing": 180,
+    "elementSpacing": 15,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 9,
+    "elementWidth": 240,
+    "elementHeight": 80,
+    "maxWidth": 3000,
+    "aspectRatio": 0.75,
+    "viewSizeMode": "maxWidth",
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": false,
+    "backgroundView": {
+      "id": "id-4135af01a06f4d94a828b8bc4aed98ab",
+      "path": "/Views/Test/8 GEMMA background"
+    },
+    "backgroundLeavesInPlace": false
+  },
+  "filter": {
+    "elementConditions": [],
+    "diagramConditions": [],
+    "relationConditions": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "name": "",
+        "repeat": 1,
+        "conditions": [
+          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "business-function"},
+          {"mode": "exclude", "previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping", "property": "GEMMA subtype", "value": "Domein en doelgroep"},
+          {"mode": "exclude", "previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping", "property": "GEMMA type", "value": "Beleidsdomein"},
+          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping"}
+        ]
+      },
+      {
+        "name": "",
+        "repeat": 4,
+        "conditions": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-function"}
+        ]
+      },
+      {
+        "name": "",
+        "repeat": 4,
+        "conditions": [
+          {"direction": "incoming", "relation": "serving-relationship", "added": "application-service"}
+        ]
+      },
+      {
+        "name": "",
+        "repeat": 2,
+        "conditions": [
+          {"direction": "incoming", "relation": "realization-relationship", "added": "application-component"}
+        ]
+      }
+    ]
+  },
+  "view": {
+    "name": "Bedrijfsfuncties background",
+    "folder": "/Test/gemma",
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": true
+  },
+  "appearance": {
+    "palette": "GEMMA",
+    "styleByProperty": {
+      "conditions": [],
+      "mixedValuesColor": "#f66151",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "conditions": [
+        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "color": "#ffffff", "fontSize": 16, "bold": true, "child": "same"},
+        {"direction": "outgoing", "relation": "aggregation-relationship", "child": "business-function", "color": "Bedrijf gedrag", "fontSize": 14, "bold": true},
+        {"parent": "business-function", "direction": "incoming", "relation": "serving-relationship", "child": "application-service", "color": "Applicatie gedrag"}
+      ],
+      "fontEnabled": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": true,
+      "darkenStart": 2,
+      "lightenPerLevel": 30
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Lagen"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": true,
+    "properties": [
+      {
+        "key": "Architectuurlaag",
+        "value": "Applicatiearchitectuur",
+        "enabled": true
+      },
+      {
+        "key": "Beleidsdomein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Bron",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Detailniveau",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Domein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "GEMMA thema",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Model",
+        "value": "",
+        "enabled": true
+      },
+      {
+        "key": "Publiceren",
+        "value": "GEMMA Online en redactie",
+        "enabled": true
+      },
+      {
+        "key": "Scope",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Titel view SWC",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Viewtype",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "author",
+        "value": "",
+        "enabled": false
+      }
+    ]
+  },
+  "description": "GEMMA test run on the test model (views 6–8 GEMMA): a copy of GEMMA/Referentiecomponenten/Bedrijfsfunctiemodel met referentiecomponenten background, 2026-11-20; only the view and the background view changed"
+}

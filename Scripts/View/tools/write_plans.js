@@ -7,8 +7,9 @@
  * New view on views 1–4, against test/expected/write-plans-variants.txt; it ends with the variants whose
  * plan equals the base on every test view ("no effect": an option without a visible effect, or test
  * views that cannot show it).
+ * --gemma: the GEMMA runs (expected.js GEMMA_RUNS) with every algorithm, against test/expected/write-plans-gemma.txt.
  *
- * Run: node Scripts/View/tools/write_plans.js [model.archimate] [--variants] [--check | --write | --full] [--in-process] [--without-graphviz]
+ * Run: node Scripts/View/tools/write_plans.js [model.archimate] [--variants | --gemma] [--check | --write | --full] [--in-process] [--without-graphviz]
  *        --in-process: the adapters run in this process (about 10× faster), not in a Node layout process
  *        default model: Scripts/View/test/model/view-test.archimate; presets: presets/Test/baseline/*.json
  * Graphviz algorithms need the dot binary on the PATH (the harness runs it with child_process).
@@ -54,6 +55,15 @@ if (process.argv.includes("--variants")) {
   }
   lines.push(...noEffect);
   if (!full) Expected.report(lines, "write-plans-variants.txt", log);
+} else if (process.argv.includes("--gemma")) {
+  for (const run of Expected.GEMMA_RUNS) {
+    const raw = JSON.parse(fs.readFileSync(path.join(Expected.GEMMA_PRESET_DIR, run.preset + ".json"), "utf8"));
+    for (const algorithm of Object.keys(Defs.ALGORITHMS).filter(a => !Expected.skipped(a))) {
+      const tag = `${run.preset.padEnd(27)} ${algorithm.padEnd(8)} ${run.view.padEnd(18)} ${run.action.padEnd(11)}`;
+      _run(tag, Defs.validatePreset({ ...raw, algorithm }), algorithm, run.view, run.action);
+    }
+  }
+  if (!full) Expected.report(lines, "write-plans-gemma.txt", log);
 } else {
   for (const file of presets) {
     for (const algorithm of Object.keys(Defs.ALGORITHMS).filter(a => !Expected.skipped(a))) {

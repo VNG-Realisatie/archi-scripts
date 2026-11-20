@@ -41,6 +41,10 @@ jobs:
           node Scripts/View/tools/compose_test.js
           node Scripts/View/tools/counts_test.js
           node Scripts/View/tools/tiles_test.js
+          node Scripts/View/tools/arrangement_test.js
+          node Scripts/View/tools/background_test.js
+          node Scripts/View/tools/log_test.js
+          node Scripts/View/tools/appearance_test.js
       - name: Consistency
         run: |
           node Scripts/View/tools/check_registry.js
@@ -49,9 +53,11 @@ jobs:
         run: |
           node Scripts/View/tools/write_plans.js --check --in-process --without-graphviz
           node Scripts/View/tools/write_plans.js --variants --check --in-process --without-graphviz
+          node Scripts/View/tools/write_plans.js --gemma --check --in-process --without-graphviz
           node tools/compare-layouts.js --check --in-process --without-graphviz
       - name: Rule checks
         run: |
           node Scripts/View/tools/layout_checks.js --check --in-process
           node Scripts/View/tools/layout_checks.js --variants --check --in-process
           node Scripts/View/tools/layout_checks.js --large --check --in-process
+          node Scripts/View/tools/layout_checks.js --gemma --check --in-process

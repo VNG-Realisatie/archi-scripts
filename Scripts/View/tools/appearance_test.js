@@ -1,0 +1,178 @@
+/**
+ * Node tests for Style by nesting level (lib/appearance.js) on the GEMMA runs of the test model (views 6 and 7 GEMMA,
+ * presets presets/Test/gemma/): the nesting chains and fonts (followNestingChains, nestingFonts) on the nested result
+ * of a New view, and applyAppearance on a stand-in of that view (a small jArchi $ below): what test cases 17, 21, 23
+ * and 28 fixed. Run from the repo root:
+ *   node Scripts/View/tools/appearance_test.js [model.archimate]
+ */
+const fs   = require("fs");
+const path = require("path");
+
+// palettes.js reads presets/_palettes.json through Java; the harness's stand-in has no Files.exists.
+global.Java = {
+  type: n => n.endsWith("Files") ? { readString: p => fs.readFileSync(String(p), "utf8"), exists: p => fs.existsSync(String(p)) } : { get: p => p },
+};
+const H    = require("./view_harness");
+const Defs = require("../lib/defs");
+const Appearance = require("../lib/appearance");
+const Expected   = require("./expected");
+
+const _log = console.log;
+let failed = 0;
+function eq(actual, expected, label) {
+  const a = JSON.stringify(actual), e = JSON.stringify(expected);
+  if (a !== e) { failed++; _log(`FAIL ${label}\n  expected ${e}\n  actual   ${a}`); }
+}
+
+const VIEW  = path.join(__dirname, "..");
+const model = H.loadModel(process.argv[2] || path.join(VIEW, "test/model/view-test.archimate"));
+const relationsOf = H.relationIndex(model);
+/** @param {string} name */
+const presetOf = name => Defs.validatePreset(JSON.parse(fs.readFileSync(path.join(Expected.GEMMA_PRESET_DIR, name + ".json"), "utf8")));
+const SYMBOL_FONT = { name: "Segoe UI Symbol", size: 9, style: "normal" };   // Archi's default view font of test case 28
+
+/**
+ * The nested New view a GEMMA preset makes: per occurrence its element, parent occurrence and depth, in write order.
+ * @param {string} presetName
+ * @param {string} viewName
+ */
+function newView(presetName, viewName) {
+  const preset = presetOf(presetName);
+  const quiet = console.log; console.log = () => {};
+  const planned = H.planView(model, H.findView(model, "Views/Test/" + viewName), preset, Defs.ACTION.NEW_VIEW.id, true);
+  console.log = quiet;
+  const nodes = planned.writePlan.nodes.filter(n => "element" in n);
+  const byNode = new Map(nodes.map(n => [n.node, n]));
+  const depth = n => (n.parent ? 1 + depth(byNode.get(n.parent)) : 0);
+  return { preset, nodes: nodes.map(n => ({ id: n.node, element: n.element, parentId: n.parent, depth: depth(n) })) };
+}
+
+/**
+ * The NestingNodes appearance.js reads from a view (_nestingNode): type, relations to the parent, depth, container.
+ * @param {{ id: string, element: any, parentId: string | null, depth: number }[]} nodes
+ */
+function nestingNodes(nodes) {
+  const byId = new Map(nodes.map(n => [n.id, n]));
+  const parents = new Set(nodes.map(n => n.parentId));
+  return nodes.map(n => {
+    const parent = n.parentId ? byId.get(n.parentId).element : null;
+    const rels = parent ? relationsOf(parent).filter(r => r.source.id === parent.id && r.target.id === n.element.id).map(r => ({ type: r.type, outgoing: true }))
+      .concat(relationsOf(parent).filter(r => r.target.id === parent.id && r.source.id === n.element.id).map(r => ({ type: r.type, outgoing: false }))) : [];
+    return { id: n.id, parentId: n.parentId, type: n.element.type, rels, depth: n.depth, isContainer: parents.has(n.id) };
+  });
+}
+
+/** Per element name, the styles of its occurrences, sorted: "size bold color #condition dLevels" or "-" (no condition reaches it). */
+function stylesByName(run) {
+  const nl = run.preset.appearance.nestingLevel;
+  const { styles } = Appearance.followNestingChains(nestingNodes(run.nodes), nl.conditions, nl.fontDecreasePerLevel);
+  /** @type {Record<string, string[]>} */
+  const out = {};
+  for (const n of run.nodes) {
+    const st = styles.get(n.id);
+    (out[n.element.name] = out[n.element.name] || []).push(st ? `${st.fontSize}${st.bold ? " bold" : ""} ${st.color || "Default"} #${st.nr} d${st.depthSinceChange}` : "-");
+  }
+  for (const k of Object.keys(out)) out[k].sort();
+  return out;
+}
+
+// ── Test case 23: 16 / 14 / 12 / 10 pt from the root down, bold where a condition starts ─────────────────────────────
+{
+  const s = stylesByName(newView("Bedrijfsfuncties", "6 GEMMA"));
+  eq(s["Bedrijfsfunctiemodel"], ["16 bold Grouping #1 d0"], "23: the root grouping starts condition 1");
+  eq(s["Uitvoering"], ["14 Grouping #1 d1"], "23: a grouping under it continues condition 1, one size smaller, one level lighter");
+  eq(s["Dienstverlening"], ["14 bold Bedrijf gedrag #2 d0"], "23: a function under a grouping starts condition 2 at its own size");
+  eq(s["Behandeling"], ["12 Bedrijf gedrag #2 d1"], "23: a function under a function continues condition 2");
+  eq(s["Beoordeling"], ["10 Bedrijf gedrag #2 d2"], "23: and one level deeper again");
+  eq(s["Zaakafhandelservice"], ["10 Applicatie gedrag #3 d0", "9 Applicatie gedrag #3 d0"],
+     "23: a service starts condition 3 without a size of its own: its parent's less the decrease, never below 9 pt");
+  eq(s["Zaakafhandelcomponent"], ["-", "-"], "a component no condition selects stops the chain");
+  eq(s["Werk en inkomen"], undefined, "the steps leave the Beleidsdomein grouping out");
+  eq(s["Ontvangst"], ["12 Bedrijf gedrag #2 d1", "12 Bedrijf gedrag #2 d1"], "17: both occurrences of a function in two parents take the same style");
+}
+
+// ── Test case 21: a root container counts as a child under a parent of its own type ──────────────────────────────────
+{
+  const s = stylesByName(newView("Applicatieservices", "6 GEMMA"));
+  eq(s["Bedrijfsfunctiemodel"], ["16 bold Grouping #1 d0"], "21: the root grouping takes condition 1 (parent grouping, child Same), not condition 2");
+  eq(s["Sociaal domein"], ["14 Grouping #1 d1"], "21: a domain grouping continues condition 1");
+  eq(s["Klantcontactservice"], ["10 bold Applicatie gedrag #2 d0"], "21: a service under a grouping starts condition 2");
+  eq(s["Zaakafhandelcomponent"], ["-", "-"], "21: the components inside stay unstyled");
+}
+
+// ── Fonts: only containers and leaves beside a container get one; Modify resets the rest ─────────────────────────────
+{
+  const run = newView("Bedrijfsobjecten", "7 GEMMA functions");
+  const nl = run.preset.appearance.nestingLevel;
+  const nodes = nestingNodes(run.nodes);
+  const fontOf = (fonts, name) => run.nodes.filter(n => n.element.name === name).map(n => fonts.get(n.id) || null);
+  const fonts = Appearance.nestingFonts(nodes, nl, false, SYMBOL_FONT);
+  eq(fontOf(fonts, "Dienstverlening"), [{ name: "Segoe UI Symbol", size: 12, style: "bold" }], "28: a nesting font takes the name of Archi's default view font");
+  eq(fontOf(fonts, "Behandeling"), [{ name: "Segoe UI Symbol", size: 10, style: "normal" }], "a container one level down: smaller, not bold");
+  eq(fontOf(fonts, "Beoordeling"), [null], "a leaf with only leaves beside it keeps its font");
+  eq(fontOf(fonts, "Klantdossier"), [null, null], "an element no condition selects keeps its font");
+  const reset = Appearance.nestingFonts(nodes, nl, true, SYMBOL_FONT);
+  eq(fontOf(reset, "Beoordeling"), [SYMBOL_FONT], "Modify with the font on resets a visual it gives no font to Archi's default view font");
+}
+
+// ── Equally specific conditions with different styles: the last wins and the conflict is reported ────────────────────
+{
+  const conditions = [{ child: "business-function", color: "A", direction: "either" }, { child: "business-function", color: "B", direction: "either" }]
+    .map(c => ({ on: true, parent: "", relation: "", fontSize: 0, bold: false, ...c }));
+  const nodes = [
+    { id: "p", parentId: null, type: "business-function", rels: [], depth: 0, isContainer: true },
+    { id: "c", parentId: "p", type: "business-function", rels: [{ type: "aggregation-relationship", outgoing: true }], depth: 1, isContainer: false },
+  ];
+  const { styles, conflicts } = Appearance.followNestingChains(nodes, conditions, 2);
+  eq([styles.get("c").color, conflicts], ["B", ["1, 2"]], "equally specific conditions: the last wins, the conflict is reported");
+}
+
+// ── applyAppearance on a stand-in view: test cases 17 and 28 ─────────────────────────────────────────────────────────
+const DEFAULT_FILL = "#f5deaa";   // what Archi reads back after fillColor = null: the type's default fill (any constant here)
+
+/** A jArchi collection over items: each, filter("element"), first, length. */
+function collection(items) {
+  return {
+    each: f => items.forEach(f), first: () => items[0] || null, length: items.length, size: () => items.length,
+    filter: sel => collection(sel === "element" ? items.filter(o => o.concept) : items),
+  };
+}
+
+/** A view of element visuals nested as the run's nodes, and the $ that reads it (what appearance.js calls). */
+function standInView(run) {
+  const visuals = new Map();
+  for (const n of run.nodes) {
+    const vo = { id: n.id, concept: n.element, children: [], parent: null, fontName: "", fontSize: 9, fontStyle: "normal", _fill: null,
+                 get fillColor() { return this._fill === null ? DEFAULT_FILL : this._fill; }, set fillColor(v) { this._fill = v; } };
+    if (n.parentId) { vo.parent = visuals.get(n.parentId); vo.parent.children.push(vo); }
+    visuals.set(n.id, vo);
+  }
+  const view = { isView: true, all: [...visuals.values()] };
+  global.$ = o => o === view ? { find: sel => collection(sel === "element" ? view.all : []) }
+    : visuals.has(o.id) && o.concept ? { parent: () => collection(o.parent ? [o.parent] : []), children: () => collection(o.children) }
+    : { outRels: () => collection(relationsOf(o).filter(r => r.source.id === o.id)), inRels: () => collection(relationsOf(o).filter(r => r.target.id === o.id)),
+        rels: () => collection(relationsOf(o)) };
+  return { view, visuals: [...visuals.values()] };
+}
+
+{
+  const run = newView("Bedrijfsfuncties background", "6 GEMMA");
+  const { view, visuals } = standInView(run);
+  const preset = { ...run.preset, params: Defs.effectiveParams(run.preset) };
+  eq([preset.appearance.highlightRepeated.enabled, !!preset.appearance.highlightRepeated.colorRange], [false, true], "17: the preset has Highlight repeated off, with a range");
+  const quiet = console.log; console.log = () => {};
+  Appearance.applyAppearance(view, preset, Defs.ACTION.LAYOUT_ONLY.id, SYMBOL_FONT);
+  console.log = quiet;
+  const fills = name => visuals.filter(v => v.concept.name === name).map(v => v._fill);
+  const ontvangst = fills("Ontvangst");
+  eq([ontvangst.length, ontvangst[0] !== null, ontvangst[0] === ontvangst[1], ontvangst[0] === fills("Behandeling")[0]], [2, true, true, true],
+     "17: Layout only keeps the nesting color of a repeated element (Highlight repeated off resets only what nothing styled)");
+  eq(fills("Zaakafhandelservice").every(f => f !== null), true, "17: and of the repeated services inside it");
+  const root = visuals.find(v => v.concept.name === "Bedrijfsfunctiemodel");
+  eq([root.fontName, root.fontSize, root.fontStyle, root._fill], ["Segoe UI Symbol", 16, "bold", "#ffffff"],
+     "28: the root takes Archi's default view font name at its condition's size; white shaded by darkenStart stays white");
+  eq(fills("Zaakafhandelcomponent"), [null, null], "a Modify action resets the fill of what no condition reaches");
+}
+
+if (failed) { _log(`appearance_test: ${failed} failed`); process.exitCode = 1; }
+else _log("appearance_test: all passed");
