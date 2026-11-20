@@ -140,7 +140,7 @@ One condition model for every list. A list keeps what matches **any active Inclu
   - `source` / `target`: that end of a matching relation. Relations are taken model-wide, so the relation need not be on the view.
 - `propertyOf` says whose property gives the value.
 
-**Validation.** Each condition is normalised. An unknown key, enum value or type id skips the condition with a warning, so a typo never widens a list to All. A preset with another `schemaVersion` is refused with a message.
+**Validation.** Each condition is normalised. An unknown key, enum value or type id, or a value of the wrong kind, refuses the preset with a message naming the condition (`params.nestingConditions[0]: unknown relation "…"`), so a typo never widens a list to All ([SPEC § 12](../SPEC.md#12-resilience--error-model)).
 
 **File form.** Fields at their default are omitted, a pass-all filter list is written as `[]` (a step list is not: there `[]` adds nothing), and every condition sits on one line, so a diff shows one changed condition as one changed line.
 

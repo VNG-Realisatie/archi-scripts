@@ -945,8 +945,8 @@ const _ITEM_SHAPES = Object.freeze({
 
 /**
  * The keys of a preset file that validatePreset does not read, as paths ("params.layerSpacng",
- * "relatedElements.steps[0].nam"). Not looked into: condition lists (normalizeConditions skips a
- * condition with an unknown key, with a warning) and the sections of `engineParams` (checkEngineParams,
+ * "relatedElements.steps[0].nam"). Not looked into: condition lists (normalizeConditions refuses a
+ * condition with an unknown key) and the sections of `engineParams` (checkEngineParams,
  * at the run); an `engineParams` that is not an object is reported, as validation drops it.
  * @param {PresetFile} raw
  * @returns {string[]}

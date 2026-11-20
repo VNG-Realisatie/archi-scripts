@@ -18,16 +18,18 @@ const valid = {
   diagrams:    new Set(["archimate-diagram-model"]),
 };
 const norm = (kind, raw) => RF.normalizeConditions(kind, raw, valid, "test");
+/** The message normalising refuses with, "" when it accepts. */
+const refused = (kind, raw) => { try { norm(kind, raw); return ""; } catch (e) { return String(e.message); } };
 const el = (type, props) => ({ id: type, type, prop: k => (props || {})[k] });
 
 // ── normalise / serialise ─────────────────────────────────────────────────────
 eq(norm("relation", [{ relation: "serving-relationship" }]),
    [{ on: true, mode: "include", source: "", relation: "serving-relationship", target: "",
       propertyOf: "relation", property: "", value: "", everyContainer: false }], "normalise fills defaults");
-eq(norm("relation", [{ relaton: "serving-relationship" }]), [], "unknown key rejects the condition");
-eq(norm("relation", [{ relation: "nonsense-relationship" }]), [], "unknown type rejects the condition");
-eq(norm("step", [{ direction: "sideways" }]), [], "unknown enum rejects the condition");
-eq(norm("style", [{ colorRange: "" }]), [], "an empty color range rejects the condition");
+eq(refused("relation", [{ relaton: "serving-relationship" }]).startsWith("test[0]: "), true, "unknown key is refused");
+eq(refused("relation", [{ relation: "nonsense-relationship" }]), 'test[0]: unknown relation "nonsense-relationship". Correct the condition in the preset file.', "unknown type is refused, naming it");
+eq(refused("step", [{ direction: "sideways" }]).startsWith("test[0]: "), true, "unknown enum is refused");
+eq(refused("style", [{ colorRange: "" }]).startsWith("test[0]: "), true, "an empty color range is refused");
 eq(RF.serializeCondition("step", norm("step", [{ relation: "serving-relationship", added: "business-object" }])[0]),
    { relation: "serving-relationship", added: "business-object" }, "serialise omits defaults");
 eq(RF.serializeCondition("relation", norm("relation", [{ on: false, relation: "serving-relationship" }])[0]),
@@ -36,7 +38,7 @@ eq(RF.serializeCondition("relation", norm("relation", [{ relation: "aggregation-
    { relation: "aggregation-relationship", everyContainer: true }, "serialise keeps everyContainer:true");
 eq(RF.serializeCondition("relation", norm("relation", [{ relation: "aggregation-relationship", everyContainer: false }])[0]),
    { relation: "aggregation-relationship" }, "serialise omits everyContainer:false");
-eq(norm("relation", [{ everyContainer: "yes" }]), [], "non-boolean everyContainer rejects the condition");
+eq(refused("relation", [{ everyContainer: "yes" }]).startsWith("test[0]: "), true, "non-boolean everyContainer is refused");
 eq(RF.isPassAll("relation", []), true, "empty list passes all");
 eq(RF.isPassAll("relation", norm("relation", [{}])), true, "default condition passes all");
 eq(RF.isPassAll("relation", norm("relation", [{ relation: "serving-relationship" }])), false, "specific condition filters");
@@ -83,7 +85,7 @@ eq(relP([{ property: "Soort", value: "x" }]), true,  "relation property matches"
 eq(relP([{ property: "Soort", value: "y" }]), false, "relation property differs");
 eq(relP([{ propertyOf: "source", property: "Laag", value: "A" }]), true,  "source property matches");
 eq(relP([{ propertyOf: "target", property: "Laag", value: "A" }]), false, "target property differs");
-eq(norm("relation", [{ propertyOf: "element" }]), [], "unknown propertyOf rejects the condition");
+eq(refused("relation", [{ propertyOf: "element" }]).startsWith("test[0]: "), true, "unknown propertyOf is refused");
 
 // ── element filter ────────────────────────────────────────────────────────────
 const elConditions = norm("element", [{ elementType: "business-object" }, { elementType: "grouping", property: "Status", value: "Active" }]);
@@ -149,10 +151,10 @@ eq(RF.detectConditionConflicts(new Map([[0, new Set(["a"])], [1, new Set(["b"])]
 // ── nesting style conditions ──────────────────────────────────────────────────
 eq(norm("nestingStyle", [{}]), [{ on: true, parent: "", direction: "either", relation: "", child: "same", color: "", fontSize: 0, bold: false }], "nesting style: defaults");
 eq(norm("nestingStyle", [{ fontSize: 14, bold: true }])[0].fontSize, 14, "nesting style: font size");
-eq(norm("nestingStyle", [{ fontSize: "14" }]), [], "nesting style: font size must be a number");
-eq(norm("nestingStyle", [{ bold: "yes" }]), [], "nesting style: bold must be true or false");
+eq(refused("nestingStyle", [{ fontSize: "14" }]).startsWith("test[0]: "), true, "nesting style: font size must be a number");
+eq(refused("nestingStyle", [{ bold: "yes" }]).startsWith("test[0]: "), true, "nesting style: bold must be true or false");
 eq(norm("nestingStyle", [{ child: "grouping", color: "Bedrijf gedrag" }])[0].child, "grouping", "nesting style: child type");
-eq(norm("nestingStyle", [{ parent: "same" }]), [], "nesting style: same only for child");
+eq(refused("nestingStyle", [{ parent: "same" }]).startsWith("test[0]: "), true, "nesting style: same only for child");
 eq(RF.serializeCondition("nestingStyle", norm("nestingStyle", [{}])[0]), { child: "same" }, "nesting style: child always written");
 const nsm = (raw, pt, ct, rels) => RF.nestingStyleConditionMatches(norm("nestingStyle", [raw])[0], pt, ct, rels);
 const agg = [{ type: "aggregation-relationship", outgoing: true }];

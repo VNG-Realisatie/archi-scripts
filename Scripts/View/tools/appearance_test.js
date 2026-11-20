@@ -2,7 +2,7 @@
  * Node tests for Style by nesting level (lib/appearance.js) on the GEMMA runs of the test model (views 6 and 7 GEMMA,
  * presets presets/Test/gemma/): the nesting chains and fonts (followNestingChains, nestingFonts) on the nested result
  * of a New view, and applyAppearance on a stand-in of that view (a small jArchi $ below): what test cases 17, 21, 23
- * and 28 fixed. Run from the repo root:
+ * and 28 fixed; and which objects a style condition reaches and with which property values (computeConditionTargets). Run from the repo root:
  *   node Scripts/View/tools/appearance_test.js [model.archimate]
  */
 const fs   = require("fs");
@@ -172,6 +172,51 @@ function standInView(run) {
   eq([root.fontName, root.fontSize, root.fontStyle, root._fill], ["Segoe UI Symbol", 16, "bold", "#ffffff"],
      "28: the root takes Archi's default view font name at its condition's size; white shaded by darkenStart stays white");
   eq(fills("Zaakafhandelcomponent"), [null, null], "a Modify action resets the fill of what no condition reaches");
+}
+
+// ── Style by property: which objects a condition reaches, with which values (computeConditionTargets) ────────────────
+{
+  const elements = [...model.elements.values()], relations = [...model.relations.values()];
+  const rel = r => relationsOf(r);
+  global.$ = o => ({ rels: () => collection(rel(o)), outRels: () => collection(rel(o).filter(r => r.source.id === o.id)), inRels: () => collection(rel(o).filter(r => r.target.id === o.id)) });
+  /** The condition as validation normalises it. */
+  const condition = c => Defs.validatePreset({ algorithm: "Tiles", appearance: { styleByProperty: { conditions: [c] } } }).appearance.styleByProperty.conditions[0];
+  const targets = c => Appearance.computeConditionTargets(condition(c), elements, relations);
+  const byName = hits => Object.fromEntries([...hits].map(([id, h]) => [(model.elements.get(id) || model.relations.get(id)).name || id, [h.kind, [...h.values].sort()]]));
+
+  // applyTo element: the element itself by its own property; source narrows it to a type.
+  const groupings = targets({ applyTo: "element", source: "grouping", propertyOf: "element", property: "GEMMA type", colorRange: "Set2" });
+  eq([groupings.size, groupings.get(elements.find(e => e.name === "Sturing").id).values], [elements.filter(e => e.type === "grouping").length, new Set(["Bedrijfsfunctie laag"])],
+     "applyTo element: every grouping is reached, with its own value");
+  const noValue = targets({ applyTo: "element", source: "grouping", propertyOf: "element", property: "GEMMA type", colorRange: "Set2" }).get(elements.find(e => e.name === "Bedrijfsfunctiemodel").id);
+  eq([...noValue.values], ["Groep"], "applyTo element: the root grouping's value");
+  const unset = targets({ applyTo: "element", source: "business-function", propertyOf: "element", property: "GEMMA type", colorRange: "Set2" });
+  eq([unset.size > 0, [...unset.values()].every(h => h.values.size === 0)], [true, true], "applyTo element: an element without the property is reached, with no value");
+
+  // applyTo relation: the relation, narrowed by its type; the value from the relation, or from one of its ends.
+  const access = targets({ applyTo: "relation", relation: "access-relationship", propertyOf: "relation", property: "Confidence", colorRange: "Greens" });
+  eq([access.size, [...access.values()].every(h => h.kind === "relation" && h.values.size === 0)],
+     [relations.filter(r => r.type === "access-relationship").length, true], "applyTo relation: every relation of the type, with no value when it has none");
+  const fromSource = targets({ applyTo: "relation", relation: "aggregation-relationship", source: "grouping", propertyOf: "source", property: "GEMMA type", colorRange: "Set2" });
+  eq([...new Set([...fromSource.values()].flatMap(h => [...h.values]))].sort(), ["Bedrijfsfunctie laag", "Groep"],
+     "applyTo relation: the value of the relation's source, for aggregations from a grouping");
+  const fromTarget = targets({ applyTo: "relation", relation: "aggregation-relationship", source: "grouping", target: "grouping", propertyOf: "target", property: "GEMMA type", colorRange: "Set2" });
+  const rootToSturing = relations.find(r => r.source.name === "Bedrijfsfunctiemodel" && r.target.name === "Sturing");
+  eq([...fromTarget.get(rootToSturing.id).values], ["Bedrijfsfunctie laag"], "applyTo relation: propertyOf target takes the value of the relation's target, not its source");
+  eq(fromSource.size, relations.filter(r => r.type === "aggregation-relationship" && r.source.type === "grouping").length, "applyTo relation: the source type narrows the relations");
+
+  // applyTo target: the target element of every matching relation, valued by the relation, its source or the element.
+  const tgt = byName(targets({ applyTo: "target", relation: "aggregation-relationship", source: "grouping", propertyOf: "source", property: "GEMMA type", colorRange: "Set2" }));
+  eq([tgt["Strategie"], tgt["Bedrijfsfunctiemodel"], tgt["Sturing"]], [["element", ["Bedrijfsfunctie laag"]], undefined, ["element", ["Groep"]]],
+     "applyTo target: the targets of aggregations from a grouping, with the value of their source; the root is no target");
+  const objects = byName(targets({ applyTo: "target", relation: "access-relationship", propertyOf: "relation", property: "Confidence", colorRange: "Greens" }));
+  eq(["Archiefstuk", "Basisregistratie", "Klantdossier", "Zaak"].every(n => n in objects), true, "applyTo target: the objects the GEMMA functions access are reached (the model's other access relations too)");
+  eq(["Ontvangst", "Sturing", "Zaakafhandelservice"].some(n => n in objects), false, "applyTo target: an element that is only a source, or has no access relation, is not");
+
+  // applyTo source: the source element of every matching relation.
+  const src = byName(targets({ applyTo: "source", relation: "access-relationship", propertyOf: "element", property: "GEMMA type", colorRange: "Set2" }));
+  eq(["Archivering", "Behandeling", "Gegevensmagazijn", "Ontvangst", "Toezicht"].every(n => n in src), true, "applyTo source: the functions and the component that access something are reached");
+  eq(["Klantdossier", "Zaak", "Sturing"].some(n => n in src), false, "applyTo source: the accessed objects are not");
 }
 
 if (failed) { _log(`appearance_test: ${failed} failed`); process.exitCode = 1; }

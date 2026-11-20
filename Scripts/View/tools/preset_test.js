@@ -73,11 +73,14 @@ for (const file of files(PRESETS)) {
   eq(message.includes(`expected ${Defs.DEFAULT_PRESET.schemaVersion}`), true, "another schemaVersion is refused, naming the expected one");
 }
 
-// A condition with an unknown relation type is skipped with a warning, never widened to All (SPEC § 12, § 6).
+// A condition with an unusable key or type is refused with a message naming it, never skipped or widened to All (SPEC § 12).
 {
-  let preset;
-  const warned = warnings(() => { preset = Defs.validatePreset({ algorithm: "Tiles", params: { nestingConditions: [{ relation: "no-such-relationship" }] } }); });
-  eq([preset.params.nestingConditions, warned.length], [[], 1], "a condition naming an unknown type is skipped with a warning, not widened to All");
+  let message = "";
+  try { Defs.validatePreset({ algorithm: "Tiles", params: { nestingConditions: [{ relation: "no-such-relationship" }] } }); } catch (e) { message = String(e.message); }
+  eq(message.startsWith('params.nestingConditions[0]: unknown relation "no-such-relationship"'), true, "a condition naming an unknown type is refused");
+  message = "";
+  try { Defs.validatePreset({ algorithm: "Tiles", relatedElements: { steps: [{ conditions: [{ direction: "sideways" }] }] } }); } catch (e) { message = String(e.message); }
+  eq(message.startsWith("relatedElements.steps[0].conditions[0]: "), true, "a step condition with an unknown value is refused, naming where");
 }
 
 // Adapters never touch a view, a selection or a preset (SPEC rules 5–6; Scripts/View/AGENTS.md rules 3, 9).

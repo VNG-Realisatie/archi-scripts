@@ -92,19 +92,20 @@ function defaultCondition(kind) {
 }
 
 /**
- * Normalise one raw condition. Returns the full condition, or null (with a console warning) when the condition
- * is unusable. An unknown key, enum value or type id rejects the condition: a typo must never widen
- * the filter to "All".
+ * Normalise one raw condition: the full condition. An unusable condition (an unknown key, enum value or type id,
+ * a value of the wrong kind) is refused with a message: a typo must never widen the filter to "All".
  * @template {ConditionKind} K
  * @param {K}             kind
  * @param {unknown}       raw
  * @param {ValidTypeSets} valid
  * @param {string}        where  e.g. "filter.relationConditions[2]", for the warning
- * @returns {ConditionByKind[K] | null}
+ * @returns {ConditionByKind[K]}
+ * @throws when the condition is unusable
  */
 function normalizeCondition(kind, raw, valid, where) {
   const K = KINDS[kind];
-  const bad = (/** @type {string} */ msg) => { Log.warn(`${where}: ${msg}; the condition is skipped.`, { action: "correct the condition and save the preset." }); return null; };
+  /** @type {(msg: string) => never} */
+  const bad = msg => { throw new Error(`${where}: ${msg}. Correct the condition in the preset file.`); };
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return bad("not an object");
 
   /** @type {Record<string, unknown>} */
@@ -138,7 +139,7 @@ function normalizeCondition(kind, raw, valid, where) {
 }
 
 /**
- * Normalise a raw list; unusable conditions are dropped with a warning. A non-array gives [].
+ * Normalise a raw list; an unusable condition refuses the list (normalizeCondition). A non-array gives [].
  * @template {ConditionKind} K
  * @param {K}             kind
  * @param {unknown}       raw
@@ -148,8 +149,7 @@ function normalizeCondition(kind, raw, valid, where) {
  */
 function normalizeConditions(kind, raw, valid, where) {
   if (!Array.isArray(raw)) return [];
-  // Cast: filter(Boolean) drops the nulls, which tsc cannot see.
-  return /** @type {ConditionByKind[K][]} */ (raw.map((r, i) => normalizeCondition(kind, r, valid, `${where}[${i}]`)).filter(Boolean));
+  return raw.map((r, i) => normalizeCondition(kind, r, valid, `${where}[${i}]`));
 }
 
 /**
