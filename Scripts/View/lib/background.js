@@ -1,6 +1,8 @@
 /**
  * Background view: the selection fills a background that is always on the view.
- *   1. Every element of the background view is on the view, with the nesting relations between them.
+ *   1. Every element of the background view is on the view, with the nesting it shows: an element
+ *      in the box of its parent, through a nesting relation between them in the model. Another
+ *      relation between two of its elements comes only when the selection follows it.
  *   2. The selection (start and steps) fills it, with the relations it followed.
  *   3. An element of the selection that does not hang under the background through those relations
  *      brings its nesting parents from the model, up to an element of the background (the path):
@@ -23,6 +25,8 @@ Log.debug("Loading background.js");
 
 /** @type {typeof import("./nesting")} */
 const Nesting = require(REPO_ROOT + "View/lib/nesting");
+/** @type {typeof import("./arrangement")} */
+const Arrangement = require(REPO_ROOT + "View/lib/arrangement");
 
 /**
  * @typedef {{ elements: ArchiElement[], relations: ArchiRelation[], parents: ArchiElement[], dropped: ArchiElement[] }} BackgroundComposed
@@ -33,12 +37,13 @@ const Nesting = require(REPO_ROOT + "View/lib/nesting");
  * The elements and relations on the view with a background view.
  * @param {ArchiElement[]}  selected    the selection after filter and steps, in the order it joined
  * @param {ArchiRelation[]} relations   the relations the selection collected
- * @param {ArchiElement[]}  background  the elements of the background view
+ * @param {Pick<BackgroundSnapshot, "elements" | "arrangements">} backgroundView  its elements, and its boxes' arrangements (which box holds which)
  * @param {RelationIndex}   relationsOf
  * @param {EffectiveParams} params      nesting and reverse conditions
  * @returns {BackgroundComposed}
  */
-function compose(selected, relations, background, relationsOf, params) {
+function compose(selected, relations, backgroundView, relationsOf, params) {
+  const background = backgroundView.elements;
   const onBackground = new Set(background.map(e => e.id));
   /** @param {ArchiElement} e @returns {ArchiRelation[]} its nesting relations to a parent element, in the model */
   const upward = e => relationsOf(e).filter(r => Nesting.isNesting(r, params) && _child(r, params).id === e.id && _isElement(_parent(r, params)));
@@ -50,7 +55,8 @@ function compose(selected, relations, background, relationsOf, params) {
   const seen = new Set();
   const draw = (/** @type {ArchiRelation} */ r) => { if (!seen.has(r.id)) { seen.add(r.id); drawn.push(r); } };
   relations.forEach(draw);
-  for (const e of background) for (const r of upward(e)) if (onBackground.has(_parent(r, params).id)) draw(r);
+  const shown = _shownNesting(backgroundView.arrangements);
+  for (const e of background) for (const r of upward(e)) if (shown.has(`${_parent(r, params).id}>${e.id}`)) draw(r);
 
   /** @type {ArchiElement[]} */
   const parents = [];
@@ -147,6 +153,20 @@ function _collectPath(e, reaches, upward, params, known, parents, draw) {
     parents.push(parent);
     _collectPath(parent, reaches, upward, params, known, parents, draw);
   }
+}
+
+/**
+ * The nesting the background view shows: "parent>child" for every box in the box of another.
+ * @param {Arrangements} arrangements
+ * @returns {Set<string>}
+ */
+function _shownNesting(arrangements) {
+  /** @type {Set<string>} */
+  const out = new Set();
+  for (const [parent, a] of Object.entries(arrangements)) {
+    if (parent !== Arrangement.ROOT) for (const child of Arrangement.idsOf(a)) out.add(`${parent}>${child}`);
+  }
+  return out;
 }
 
 /** @param {ArchiRelation} r @param {EffectiveParams} params */

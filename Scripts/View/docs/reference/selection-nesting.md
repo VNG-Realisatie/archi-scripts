@@ -128,12 +128,12 @@ The Create group never modifies the view the selection came from.
 A preset names a background view by its path in the dialog; it is kept by its identity, so a rename or move keeps it, and a path not in the model stops the run with a message. Tiles only, with a nesting condition on (without one nothing can hang under it, and the console says it has no effect). The view the action runs with names it: *Layout only* follows the background view of the current settings, not the one the view was made with.
 
 **What is on the view** (*New view*, *One view each*):
-1. Every element of the background view, with the nesting relations between them, and its diagram objects (a diagram-block as one).
+1. Every element of the background view, with the nesting it shows, and its diagram objects (a diagram-block as one). It shows a nesting where an element lies in the box of its parent and the model has a nesting relation between them; another nesting relation between two of its elements is drawn only when the selection follows it. An element in a box the model does not nest it in lies loose.
 2. The selection: start and steps, with the relations they followed.
 3. An element of the selection that does not hang under the background view through those relations brings its nesting parents from the model, up to an element of the background view, with the relations between them: parents only, never their other children. The elements are taken in the order they joined, so an element under an earlier one joins with it and climbs not itself.
 4. An element that reaches the background view by no path is left out: the start that only asks (a domain grouping) is typical. The console names them.
 
-Only these relations are drawn. An element the selection put under one of its own elements does not also go under another element of the background view the model nests it in.
+Only these relations are drawn. An element the selection put under one of its own elements does not also go under another element of the background view the model nests it in, nor does an element of the background view go under a parent other than the one it lies in there.
 
 **Arrangement.** The children of every container on the background view, and the roots of the view itself, are cut by lines that cross no element: a vertical line first, so the children form columns, left to right; else a horizontal line, so they form rows, top to bottom; each part is cut again the same way. A band across its container leaves no vertical cut, so bands become rows, and a column of bands beside another column stays a column. Children no line separates form one stack in reading order. No tolerance in pixels decides it, only overlap.
 

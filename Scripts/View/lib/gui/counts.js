@@ -113,7 +113,7 @@ function dialogCounts(input) {
   // An element that appears only inside a diagram-block is written with it, not laid out, as in the pipeline.
   // The background view: its elements always on the view, the selection filling it (lib/background.js).
   if (background) {
-    const filled = Background.compose(cumulative, finalRels, background.elements, relationsOf, input.params);
+    const filled = Background.compose(cumulative, finalRels, background, relationsOf, input.params);
     cumulative = filled.elements;
     finalRels.splice(0, finalRels.length, ...filled.relations);
   }

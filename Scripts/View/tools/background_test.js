@@ -1,7 +1,7 @@
 /**
  * Node tests for the background view (lib/background.js): the background is always on the view, the
  * path up to it comes along without the parents' other children, an element that reaches it by no
- * path is left out, and every nesting relation between the elements on the view is drawn. Run from
+ * path is left out, and the background view brings only the nesting it shows. Run from
  * the repo root:
  *   node Scripts/View/tools/background_test.js
  */
@@ -40,7 +40,9 @@ const rels = [
 const relationsOf = e => rels.filter(r => r.source.id === e.id || r.target.id === e.id).sort((a, b) => a.id < b.id ? -1 : 1);
 const ids = list => list.map(e => e.id);
 const relIds = list => list.map(r => r.id).sort();
-const background = [Primair, Uitvoering, Sturing];
+// A background view: its elements, each box in the box of its parent (arrangements as selection_read reads them).
+const bg = (elements, nested) => ({ elements, arrangements: Object.fromEntries(Object.entries(nested).map(([p, cs]) => [p, { cut: "V", parts: cs }])) });
+const background = bg([Primair, Uitvoering, Sturing], { "": ["Primair"], Primair: ["Uitvoering", "Sturing"] });
 
 // FL plate: the domain grouping starts, the steps reach its functions and what lies below them.
 {
@@ -61,13 +63,13 @@ const background = [Primair, Uitvoering, Sturing];
   const Ondersteuning = el("Ondersteuning"), Autom = el("Autom"), Autor = el("Autor");
   const extra = [rel("x1", Ondersteuning, Autom), rel("x2", Strategie, Autor), rel("x3", Autom, Autor)];
   const of = e => [...rels, ...extra].filter(r => r.source.id === e.id || r.target.id === e.id).sort((a, b) => a.id < b.id ? -1 : 1);
-  const c = Background.compose([Domein, Strategie, Autor], [rels[8], extra[1]], [...background, Ondersteuning, Autom], of, params);
+  const c = Background.compose([Domein, Strategie, Autor], [rels[8], extra[1]], bg([...background.elements, Ondersteuning, Autom], { "": ["Primair", "Ondersteuning"], Primair: ["Uitvoering", "Sturing"], Ondersteuning: ["Autom"] }), of, params);
   eq(relIds(c.relations), ["r01", "r02", "r06", "x1", "x2"], "selection decides: no relation from another background parent (x3)");
 }
 
 // A function deeper than the background: its parents come along up to the background, their other children not.
 {
-  const c = Background.compose([Beheren], [], [Primair, Uitvoering], relationsOf, params);
+  const c = Background.compose([Beheren], [], bg([Primair, Uitvoering], { "": ["Primair"], Primair: ["Uitvoering"] }), relationsOf, params);
   eq(ids(c.parents), ["UFL"], "path: the parent up to the background");
   eq(ids(c.elements), ["Beheren", "Primair", "Uitvoering", "UFL"], "path: selection, background, path");
   eq(relIds(c.relations), ["r01", "r03", "r05"], "path: the nesting relations along it");
@@ -93,8 +95,20 @@ const background = [Primair, Uitvoering, Sturing];
   const A = el("A"), B = el("B");
   const cyc = [rel("c1", A, B), rel("c2", B, A)];
   const of = e => cyc.filter(r => r.source.id === e.id || r.target.id === e.id);
-  const c = Background.compose([A], [], [Primair], of, params);
+  const c = Background.compose([A], [], bg([Primair], { "": ["Primair"] }), of, params);
   eq(ids(c.dropped), ["A"], "cycle: left out, no endless climb");
+}
+
+// A model nesting relation between two elements of the background view that the background view does
+// not show (the child is in the box of another parent) is not drawn unless the selection follows it
+// (GEMMA: Klanttevredenheidsmeting under Generieke applicatieservices, also aggregated by Publieksdiensten).
+{
+  const Generiek = el("Generiek", "grouping"), Publiek = el("Publiek", "grouping"), Svc = el("Svc", "application-service");
+  const gp = [rel("g1", Generiek, Svc), rel("g2", Publiek, Svc)];
+  const of = e => gp.filter(r => r.source.id === e.id || r.target.id === e.id);
+  const view = bg([Generiek, Publiek, Svc], { "": ["Generiek", "Publiek"], Generiek: ["Svc"] });
+  eq(relIds(Background.compose([], [], view, of, params).relations), ["g1"], "shown: only the nesting the background view shows");
+  eq(relIds(Background.compose([Publiek, Svc], [gp[1]], view, of, params).relations), ["g1", "g2"], "shown: a relation the selection follows is drawn");
 }
 
 if (failed) { console.log(`${failed} failed`); process.exit(1); }

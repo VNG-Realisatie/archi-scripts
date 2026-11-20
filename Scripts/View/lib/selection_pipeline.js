@@ -162,7 +162,7 @@ function composeObjectSet(snapshot, preset, actionId) {
     : [...filteredElementsArr, ...expansion.addedElements];
   let viewRelations = allRelations;
   // The background view: its elements always on the view, the selection filling it (lib/background.js).
-  const filled = background ? Background.compose(viewElements, allRelations, background.elements, relationsOf, preset.params) : null;
+  const filled = background ? Background.compose(viewElements, allRelations, background, relationsOf, preset.params) : null;
   if (filled) { viewElements = filled.elements; viewRelations = filled.relations; }
 
   // Diagram-blocks: Create copies only those the diagram filter keeps (the view read is not the target).
