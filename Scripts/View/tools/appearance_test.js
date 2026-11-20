@@ -2,7 +2,8 @@
  * Node tests for Style by nesting level (lib/appearance.js) on the GEMMA runs of the test model (views 6 and 7 GEMMA,
  * presets presets/Test/gemma/): the nesting chains and fonts (followNestingChains, nestingFonts) on the nested result
  * of a New view, and applyAppearance on a stand-in of that view (a small jArchi $ below): what test cases 17, 21, 23
- * and 28 fixed; and which objects a style condition reaches and with which property values (computeConditionTargets). Run from the repo root:
+ * and 28 fixed, and Highlight repeated; which objects a style condition reaches and with which property values
+ * (computeConditionTargets); and the view properties a run writes (generate_view.applyViewProperties). Run from the repo root:
  *   node Scripts/View/tools/appearance_test.js [model.archimate]
  */
 const fs   = require("fs");
@@ -172,6 +173,58 @@ function standInView(run) {
   eq([root.fontName, root.fontSize, root.fontStyle, root._fill], ["Segoe UI Symbol", 16, "bold", "#ffffff"],
      "28: the root takes Archi's default view font name at its condition's size; white shaded by darkenStart stays white");
   eq(fills("Zaakafhandelcomponent"), [null, null], "a Modify action resets the fill of what no condition reaches");
+}
+
+// ── Highlight repeated: every occurrence of a repeated element one color of the range, over the nesting color ─────────
+{
+  const run = newView("Bedrijfsfuncties background", "6 GEMMA");
+  const fillsOf = highlight => {
+    const { view, visuals } = standInView(run);
+    const preset = { ...run.preset, params: Defs.effectiveParams(run.preset),
+                     appearance: { ...run.preset.appearance, highlightRepeated: { enabled: highlight, colorRange: "Lagen" } } };
+    const quiet = console.log; console.log = () => {};
+    Appearance.applyAppearance(view, preset, Defs.ACTION.NEW_VIEW.id, SYMBOL_FONT);
+    console.log = quiet;
+    /** @type {Record<string, (string | null)[]>} */
+    const out = {};
+    for (const v of visuals) (out[v.concept.name] = out[v.concept.name] || []).push(v._fill);
+    return out;
+  };
+  const off = fillsOf(false), on = fillsOf(true);
+  const repeated = Object.keys(on).filter(n => on[n].length > 1).sort();
+  eq(repeated, ["Gegevensmagazijn", "Gegevensservice", "Klantcontactcomponent", "Klantcontactservice", "Ontvangst", "Zaakafhandelcomponent", "Zaakafhandelservice"],
+     "the GEMMA run repeats the function in two parents and what lies inside it, and the shared services and components");
+  eq(repeated.every(n => new Set(on[n]).size === 1 && on[n][0] !== null), true, "Highlight repeated: all occurrences of a repeated element take one color");
+  eq(new Set(repeated.map(n => on[n][0])).size, repeated.length, "Highlight repeated: each repeated element its own color");
+  eq(on["Ontvangst"][0] !== off["Ontvangst"][0], true, "Highlight repeated: its color replaces the nesting color");
+  eq(Object.keys(on).filter(n => on[n].length === 1).every(n => on[n][0] === off[n][0]), true, "Highlight repeated: an element on the view once keeps its nesting color");
+}
+
+// ── View properties: a ticked row written, an unticked or empty one removed, a hidden key left alone, an id once ──────
+{
+  const GenView = require("../lib/generate_view");
+  const Log = require("../../_lib/log");
+  /** A view's properties as jArchi gives them: prop(key) reads (null when absent), prop(key, value) writes. */
+  const viewWith = props => {
+    const map = new Map(Object.entries(props));
+    return { map, prop: (k, v) => { if (v === undefined) return map.has(k) ? map.get(k) : null; map.set(k, v); return undefined; }, removeProp: k => { map.delete(k); } };
+  };
+  const preset = presetOf("Bedrijfsfuncties background");
+  preset.viewProperties.properties.push({ key: "GEMMA URL", value: "https://example.org", enabled: true });   // hidden (presets/_hidden_properties.json)
+  const view = viewWith({ Model: "oud", Beleidsdomein: "Werk", "GEMMA URL": "kept", Scope: "x" });
+  const warnings = [], warn = Log.warn;
+  Log.warn = m => { warnings.push(String(m)); };
+  const quiet = console.log; console.log = () => {};
+  try { GenView.applyViewProperties(view, preset); } finally { Log.warn = warn; console.log = quiet; }
+  const id = view.map.get(Defs.PROP_ID);
+  eq(Object.fromEntries([...view.map].filter(([k]) => k !== Defs.PROP_ID).sort()),
+     { Architectuurlaag: "Applicatiearchitectuur", "GEMMA URL": "kept", Publiceren: "GEMMA Online en redactie" },
+     "ticked rows with a value are written; a ticked row without one, and an unticked row, remove the key; a hidden key stays");
+  eq([typeof id === "string" && id.length > 0, warnings.length, warnings[0] && warnings[0].includes("GEMMA URL")], [true, 1, true],
+     "Add object id writes an id; the hidden key is reported once");
+  console.log = () => {};
+  try { GenView.applyViewProperties(view, preset); } finally { console.log = quiet; }
+  eq(view.map.get(Defs.PROP_ID), id, "a second run keeps the view's id");
 }
 
 // ── Style by property: which objects a condition reaches, with which values (computeConditionTargets) ────────────────

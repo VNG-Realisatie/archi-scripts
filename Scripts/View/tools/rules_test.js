@@ -1,10 +1,13 @@
 /**
- * Node tests for rules of SPEC § 11 that no other test holds, on the test model: 7 container-ness is derived
+ * Node tests for rules of SPEC § 11 that no other test holds, on the test model: 2 position spread only (nothing after
+ * the engine moves or resizes an element: the result is the adapter's own, and the write plan places every element where
+ * the result does), 7 container-ness is derived
  * (no node carries a flag; a node is a container exactly when the parent map names it), 8 relations are never modified
  * (their ends stay, a reversed relation's edge is swapped in the layout graph only and nothing marks it), 10 no silent
  * data loss (a Modify action drops only managed occurrences, lines of relations drawn as nesting and self-loops the
  * algorithm does not draw), 14 inactive options are ignored (changing them changes nothing), 15 a preset holds
- * only what affects generation. Run from the repo root:
+ * only what affects generation, 11 appearance preservation (the writer sets only the bounds of a visual it keeps, and only
+ * the label position and bendpoints of a connection it keeps; a stand-in of jArchi records every change). Run from the repo root:
  *   node Scripts/View/tools/rules_test.js [model.archimate]
  */
 const fs   = require("fs");
@@ -14,6 +17,8 @@ const _log = console.log;
 const H        = require("./view_harness");
 const Defs     = require("../lib/defs");
 const Expected = require("./expected");
+const NodeLayout = require("../lib/node_layout");
+const Writer     = require("../lib/view_writer");
 const Log      = require("../../_lib/log");
 console.log = _log;
 Log.warn = () => {};   // validation warns about an option an algorithm does not offer: expected here
@@ -38,6 +43,31 @@ function plan(preset, viewName, action) {
   finally { console.log = quiet; }
 }
 const NEW = Defs.ACTION.NEW_VIEW.id, LAYOUT = Defs.ACTION.LAYOUT_ONLY.id;
+
+// ── 2: position spread only — nothing after the engine changes its result ──────────────────────────────────────────
+{
+  const quietLoad = console.log; console.log = () => {};
+  const runtime = H.layoutRuntime(true);
+  console.log = quietLoad;
+  const runs = [["1 Nesting", null], ["4 Parts", null], ["6 GEMMA", "Bedrijfsfuncties background"], ["7 GEMMA functions", "Bedrijfsobjecten"]];
+  for (const algorithm of ALGORITHMS.filter(a => !(a in Expected.UNSTABLE_ALGORITHMS))) for (const [viewName, gemma] of runs) {
+    const preset = gemma ? Defs.validatePreset({ ...JSON.parse(fs.readFileSync(path.join(Expected.GEMMA_PRESET_DIR, gemma + ".json"), "utf8")), algorithm }) : baseline(algorithm);
+    const planned = plan(preset, viewName, NEW);
+    const label = `${algorithm} ${viewName}`;
+    const quiet = console.log; console.log = () => {};
+    const again = NodeLayout.layout(planned.graph, Defs.ALGORITHMS[algorithm].engine, runtime);
+    console.log = quiet;
+    eq(JSON.stringify(planned.result) === JSON.stringify(again), true, `${label}: the result is the adapter's own, unchanged after it`);
+    const box = new Map(planned.result.nodes.map(n => [n.id, n]));
+    const byNode = new Map(planned.writePlan.nodes.map(w => [w.node, w]));
+    const absolute = w => { const p = w.parent ? absolute(byNode.get(w.parent)) : { x: 0, y: 0 }; return { x: p.x + w.bounds.x, y: p.y + w.bounds.y }; };
+    const moved = planned.writePlan.nodes.filter(w => box.has(w.node)).filter(w => {
+      const a = absolute(w), b = box.get(w.node);
+      return Math.abs(a.x - b.x) > 1 || Math.abs(a.y - b.y) > 1 || Math.abs(w.bounds.width - b.width) > 1 || Math.abs(w.bounds.height - b.height) > 1;
+    }).map(w => w.node);
+    eq(moved, [], `${label}: the write plan puts every element where the result has it, at its size`);
+  }
+}
 
 // ── 7: container-ness is derived ─────────────────────────────────────────────────────────────────────────────────────
 {
@@ -92,6 +122,62 @@ const NEW = Defs.ACTION.NEW_VIEW.id, LAYOUT = Defs.ACTION.LAYOUT_ONLY.id;
     eq(planned.writePlan.removedSelfLoops.filter(id => !loops.has(id)), [], `${label}: only self-loops are removed with their own line`);
     const nestingTypes = new Set(preset.params.nestingConditions ? preset.params.nestingConditions.map(c => c.relation) : []);
     eq(planned.writePlan.removedLines.filter(id => !nestingTypes.has(lineOf.get(id).type)), [], `${label}: only lines of relations drawn as nesting are removed`);
+  }
+}
+
+// ── 11: the writer keeps the appearance of what it repositions ──────────────────────────────────────────────────────
+{
+  const VISUAL_SET = ["bounds"], CONNECTION_SET = ["textPosition"], CONNECTION_CALLS = ["deleteAllBendpoints", "addRelativeBendpoint"];
+  /**
+   * A stand-in of the view as jArchi gives it to the writer: every visual and connection on it records what is set on it
+   * and which method is called; add() makes new objects, which are not recorded.
+   */
+  function standIn(view) {
+    /** @type {{ id: string, kind: string, set: string[], calls: string[] }[]} */
+    const existing = [];
+    let created = 0;
+    const fresh = () => new Proxy({ id: `new-${++created}` }, { get: (t, k) => k in t ? t[k] : () => fresh(), set: () => true });
+    const record = (id, kind) => {
+      const r = { id, kind, set: [], calls: [] };
+      existing.push(r);
+      return new Proxy({ id }, {
+        get: (t, k) => (k in t ? t[k] : typeof k === "symbol" ? undefined : (...args) => { r.calls.push(String(k)); return k === "add" ? fresh() : undefined; }),
+        set: (t, k) => { r.set.push(String(k)); return true; },
+      });
+    };
+    const objects = [];
+    const walk = node => {
+      for (const c of node.children) {
+        if (c.tag === "sourceConnection") objects.push(record(c.attrs.id, "connection"));
+        else if (c.tag === "child") { objects.push(record(c.attrs.id, "visual")); walk(c); }
+      }
+    };
+    walk(view.node);
+    const target = record(view.id, "view");
+    global.$ = o => ({ find: sel => ({ each: f => (o === target && sel === undefined ? objects : []).forEach(f) }) });
+    return { target, existing: existing.filter(r => r.kind !== "view") };
+  }
+  const runs = [["2 Edited", path.join(BASELINE, "baseline.json")], ["2 Edited", path.join(BASELINE, "AlgoTwopi.json")],
+                ["8 GEMMA background", path.join(Expected.GEMMA_PRESET_DIR, "Bedrijfsfuncties.json")]];
+  for (const [viewName, file] of runs) for (const algorithm of ALGORITHMS) {
+    const preset = Defs.validatePreset({ ...JSON.parse(fs.readFileSync(file, "utf8")), algorithm });
+    const planned = plan(preset, viewName, LAYOUT);
+    const { target, existing } = standIn(H.findView(model, "Views/Test/" + viewName));
+    const quiet = console.log; console.log = () => {};
+    const { failed: steps } = Writer.applyWritePlan(/** @type {any} */ (target), planned.writePlan);
+    console.log = quiet;
+    const label = `${path.basename(file)} ${algorithm} ${viewName}`;
+    const removed = new Set([...planned.writePlan.removedSelfLoops, ...planned.writePlan.removedVisuals, ...planned.writePlan.removedLines]);
+    eq(steps, [], `${label}: every write step succeeds on the stand-in`);
+    eq(existing.filter(r => r.kind === "visual").flatMap(r => r.set.filter(k => !VISUAL_SET.includes(k)).map(k => `${r.id}.${k}`)), [],
+       `${label}: a visual it keeps gets only new bounds`);
+    eq(existing.filter(r => r.kind === "connection").flatMap(r => r.set.filter(k => !CONNECTION_SET.includes(k)).map(k => `${r.id}.${k}`)), [],
+       `${label}: a connection it keeps gets only a label position`);
+    eq(existing.filter(r => r.kind === "connection").flatMap(r => r.calls.filter(c => !CONNECTION_CALLS.includes(c) && !(c === "delete" && removed.has(r.id))).map(c => `${r.id}.${c}()`)), [],
+       `${label}: and only new bendpoints, or is removed as the plan says`);
+    eq(existing.filter(r => r.kind === "visual").flatMap(r => r.calls.filter(c => c !== "add" && !(c === "delete" && removed.has(r.id))).map(c => `${r.id}.${c}()`)), [],
+       `${label}: a visual is only added to (a child moved in) or removed as the plan says`);
+    eq(existing.filter(r => r.kind === "visual" && r.set.includes("bounds")).length > 0, true, `${label}: the stand-in sees the writer reposition`);
   }
 }
 

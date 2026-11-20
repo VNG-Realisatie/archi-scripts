@@ -54,6 +54,20 @@ Bedrijfsobjecten            FDP      7 GEMMA functions  new_view    -           
 Bedrijfsobjecten            SFDP     7 GEMMA functions  new_view    d4bc6dff6350 9n 9c 0nest 0rm
 Bedrijfsobjecten            Twopi    7 GEMMA functions  new_view    51803c63b379 9n 9c 0nest 0rm
 Bedrijfsobjecten            Circo    7 GEMMA functions  new_view    4a71c3bf405b 9n 9c 0nest 0rm
+Bedrijfsobjecten per beleidsdomein Layered  6 GEMMA            new_view    21f96c861e2c 7n 0c 6nest 0rm
+Bedrijfsobjecten per beleidsdomein Tree     6 GEMMA            new_view    d7102b2953f3 7n 0c 6nest 0rm
+Bedrijfsobjecten per beleidsdomein Stress   6 GEMMA            new_view    66b9aa0e7f94 7n 6c 0nest 0rm
+Bedrijfsobjecten per beleidsdomein Radial   6 GEMMA            new_view    eed0b6521265 7n 6c 0nest 0rm
+Bedrijfsobjecten per beleidsdomein Grid     6 GEMMA            new_view    55190834ff47 7n 0c 6nest 0rm
+Bedrijfsobjecten per beleidsdomein Pack     6 GEMMA            new_view    55190834ff47 7n 0c 6nest 0rm
+Bedrijfsobjecten per beleidsdomein Tiles    6 GEMMA            new_view    55190834ff47 7n 0c 6nest 0rm
+Bedrijfsobjecten per beleidsdomein Dagre    6 GEMMA            new_view    fde57e1d230d 7n 0c 6nest 0rm
+Bedrijfsobjecten per beleidsdomein Dot      6 GEMMA            new_view    e15b438941a0 7n 0c 6nest 0rm
+Bedrijfsobjecten per beleidsdomein Neato    6 GEMMA            new_view    a3e2775202ff 7n 6c 0nest 0rm
+Bedrijfsobjecten per beleidsdomein FDP      6 GEMMA            new_view    -            7n 0c 6nest 0rm
+Bedrijfsobjecten per beleidsdomein SFDP     6 GEMMA            new_view    d63d27d155af 7n 6c 0nest 0rm
+Bedrijfsobjecten per beleidsdomein Twopi    6 GEMMA            new_view    7c03e75e889b 7n 6c 0nest 0rm
+Bedrijfsobjecten per beleidsdomein Circo    6 GEMMA            new_view    124914baea07 7n 6c 0nest 0rm
 Bedrijfsfuncties            Layered  8 GEMMA background layout_only 212f3f6266cd 20n 0c 19nest 0rm
 Bedrijfsfuncties            Tree     8 GEMMA background layout_only 525f18aa9d8b 20n 0c 19nest 0rm
 Bedrijfsfuncties            Stress   8 GEMMA background layout_only b26c430573ae 20n 19c 0nest 0rm

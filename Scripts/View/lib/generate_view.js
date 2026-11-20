@@ -374,7 +374,7 @@ function _generateView(preset, uiSelection, actionId, target, runtime, name) {
  * @param {ArchimateView} view
  * @param {MaskedPreset}  preset
  */
-function _applyViewProperties(view, preset) {
+function applyViewProperties(view, preset) {
   const vp = preset.viewProperties;
   if (!vp) return;
 
@@ -461,7 +461,7 @@ function _generateSingle(preset, uiSelection, actionId, target, runtime) {
     keep.set(copy ? String(copy.id) : id, block);
   }
   Appearance.applyAppearance(view, preset, actionId, TextMeasure.defaultViewFont(), keep, Arrangement.elementsOf(planned.objectSet.arrangements));
-  _applyViewProperties(view, preset);
+  applyViewProperties(view, preset);
   _recordOrigin(view, actionId, target);
   timer.lap("appearance");
 
@@ -931,5 +931,5 @@ function _getOrCreateView(folder, viewName) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { generate_view, plan, checkEngineParams };   // plan, checkEngineParams: Node harness
+  module.exports = { generate_view, plan, checkEngineParams, applyViewProperties };   // plan, checkEngineParams, applyViewProperties: Node harness and tests
 }

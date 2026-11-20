@@ -21,6 +21,7 @@ const GEMMA_RUNS = Object.freeze([
   { preset: "Bedrijfsfuncties", view: "6 GEMMA", action: "new_view" },
   { preset: "Applicatieservices", view: "6 GEMMA", action: "new_view" },
   { preset: "Bedrijfsobjecten", view: "7 GEMMA functions", action: "new_view" },
+  { preset: "Bedrijfsobjecten per beleidsdomein", view: "6 GEMMA", action: "new_view" },   // Use label width, Highlight repeated
   { preset: "Bedrijfsfuncties", view: "8 GEMMA background", action: "layout_only" },
 ]);
 

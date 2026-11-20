@@ -10,7 +10,7 @@
  *        [--write-plan]          print the write plan as JSON instead of the summary
  *        [--in-process]          the adapter runs in this process, not in a Node layout process (debugging, speed)
  *
- * As a module: loadModel, findView, readSnapshot, readBackground, relationIndex, planView, writePlanJson
+ * As a module: loadModel, findView, readSnapshot, readBackground, relationIndex, layoutRuntime, planView, writePlanJson
  * and the parsers (see below).
  */
 const fs   = require("fs");
@@ -263,15 +263,22 @@ function readSnapshot(model, view, actionId) {
  */
 function planView(model, view, preset, actionId, inProcess = false) {
   const GenView = require(LIB + "generate_view");
-  const ViewConfig = require(LIB + "view_config");
-  // The Node layout with this Node; dot as config.js says, as in Archi.
-  const config = { ...ViewConfig.readConfig(fs.existsSync), nodePath: process.execPath };
-  const runtime = { runProcess: ViewConfig.programRunner(require("./process_runner_node").runProcess, config), config, inProcess,
-                    measureText: TextMeasureNode.measureText, lineBreaks: TextMeasureNode.lineBreaks,
-                    defaultFont: TextMeasureNode.HARNESS_DEFAULT_FONT, newVisual: TextMeasureNode.HARNESS_NEW_VISUAL };
+  const runtime = layoutRuntime(inProcess);
   const snapshot = readSnapshot(model, view, actionId);
   snapshot.background = readBackground(model, preset.params.backgroundView);
   return GenView.plan({ ...preset, params: Defs.effectiveParams(preset) }, snapshot, actionId, runtime);
+}
+
+/**
+ * The LayoutRuntime planView gives generate_view: the Node layout with this Node, dot as config.js says, as in Archi.
+ * @param {boolean} inProcess  the adapter runs in this process
+ */
+function layoutRuntime(inProcess) {
+  const ViewConfig = require(LIB + "view_config");
+  const config = { ...ViewConfig.readConfig(fs.existsSync), nodePath: process.execPath };
+  return { runProcess: ViewConfig.programRunner(require("./process_runner_node").runProcess, config), config, inProcess,
+           measureText: TextMeasureNode.measureText, lineBreaks: TextMeasureNode.lineBreaks,
+           defaultFont: TextMeasureNode.HARNESS_DEFAULT_FONT, newVisual: TextMeasureNode.HARNESS_NEW_VISUAL };
 }
 
 /**
@@ -305,7 +312,7 @@ function writePlanJson(writePlan) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { parseXml, jarchiType, loadModel, findView, readSnapshot, readBackground, relationIndex, planView, writePlanJson };
+  module.exports = { parseXml, jarchiType, loadModel, findView, readSnapshot, readBackground, relationIndex, layoutRuntime, planView, writePlanJson };
 }
 
 // ── CLI ───────────────────────────────────────────────────────────────────────
