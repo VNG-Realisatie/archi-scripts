@@ -46,6 +46,7 @@ jobs:
           node Scripts/View/tools/log_test.js
           node Scripts/View/tools/appearance_test.js
           node Scripts/View/tools/preset_test.js
+          node Scripts/View/tools/rules_test.js
       - name: Consistency
         run: |
           node Scripts/View/tools/check_registry.js
