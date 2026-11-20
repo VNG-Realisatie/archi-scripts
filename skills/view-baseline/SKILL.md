@@ -23,7 +23,8 @@ The baseline is what Archi's writer puts on the views of the test model for a fi
    - `Views/Baseline` the same: the change leaves the written views as they were; nothing to commit.
    - `Views/Baseline` differs: name which views and lines, and check them against what the change was meant to do. Unexpected differences are a regression: find the cause first.
 5. `archi_cli.sh Scripts/View/test/render_views.ajs $OUT/view-test.archimate $OUT`, then `node Scripts/View/tools/svg_checks.js $OUT/render $OUT/view-test.archimate --check`. `RENDER_PNG=1` for a PNG to judge readability.
-6. **Commit** a new baseline only when the change is meant to alter the written views: copy `$OUT/view-test.archimate` over the test model, in the same commit as the change, with the expected differences in the commit message or plan log.
+6. **Engine failure** (SPEC § 12): `Scripts/View/tools/archi_cli.sh Scripts/View/test/engine_failure.ajs "" $(mktemp -d)` on a fresh copy; its console (`engine_failure.console.txt` in that folder) ends with `engine_failure: all passed`, else the `FAIL` lines say which action wrote or changed a view.
+7. **Commit** a new baseline only when the change is meant to alter the written views: copy `$OUT/view-test.archimate` over the test model, in the same commit as the change, with the expected differences in the commit message or plan log.
 
 ## The user
 

@@ -451,7 +451,7 @@ A rebuild is accepted when rules 1, 3, 11 and 12 hold in tests, and:
 
 - **Count promise**: the dialog's predicted totals equal the result on the view, object for object (`filtered base + Σ step adds = total`, for elements and for relations).
 - **Preset round-trip**: writing then reading a preset yields the same configuration; unknown keys do not survive; defaults fill gaps.
-- **Scale budget**: a target model size (element and relation counts) and a latency budget for the live counter are defined and tested; the live counter stays responsive at that target.
+- **Engine failure**: a run whose layout fails writes no view and leaves an existing one as it was ([§ 12](#12-resilience--error-model)).
 
 ---
 

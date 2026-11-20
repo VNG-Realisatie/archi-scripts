@@ -1,0 +1,127 @@
+/**
+ * SPEC § 12, engine failure: a view whose layout fails is not written, and an existing view is left as it was.
+ *
+ * On the test model (Archi's command line, on a copy: Scripts/View/tools/archi_cli.sh Scripts/View/test/engine_failure.ajs):
+ * a New view writes "Target" in Views/Failure; then every action runs with a layout that fails in the engine
+ * (engineParams ELK "elk.algorithm" names no algorithm: the preset check lets it pass, ELK throws). Each run must
+ * write no view, and Target must keep every object, its place and its size. The console ends with
+ * "engine_failure: all passed" or the number failed. The copy is not saved.
+ */
+if (typeof require !== "function") { const m = "This script needs jArchi 1.11 or later, with CommonJS on: in Archi, open Preferences > Scripting and tick \"Enable CommonJS Support\" (no such option: update jArchi first). Then run the script again."; try { window.alert(m); } catch (e) { console.error(m); } exit(); }
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const Log        = require(REPO_ROOT + "_lib/log");
+const PresetIO   = require(REPO_ROOT + "View/lib/preset_io");
+const GenView    = require(REPO_ROOT + "View/lib/generate_view");
+const { ACTION } = require(REPO_ROOT + "View/lib/defs");
+
+const MODEL_FILE = "view-test.archimate";
+const FOLDER     = "/Failure";   // under /Views, as preset view.folder
+const TARGET     = "Target";
+const FAILING_ELK = { "elk.algorithm": "org.eclipse.elk.nope" };
+
+Log.start(__FILE__, true);
+let failed = 0;
+try {
+  _checkTestModel();
+  const ok = GenView.generate_view(_preset(TARGET, false), $(_one($("view").filter(v => v.name === "1 Nesting"), "view 1 Nesting")), ACTION.NEW_VIEW.id);
+  _check(ok.length === 1, "a New view with a layout that works writes Target");
+  const target = ok[0];
+  const before = _contents(target), views = $("view").size();
+
+  _failingRun("New view onto the existing Target", TARGET, $(_one($("view").filter(v => v.name === "1 Nesting"), "view 1 Nesting")), ACTION.NEW_VIEW.id);
+  _check(_contents(target) === before, "  Target keeps every object, its place and its size");
+  _check($("view").filter(v => v.name === TARGET).size() === 1 && $("view").filter(v => v.name === TARGET).first().id === target.id, "  Target is the same view, not created again");
+
+  _failingRun("New view with a new name", "Never", $(_one($("view").filter(v => v.name === "1 Nesting"), "view 1 Nesting")), ACTION.NEW_VIEW.id);
+  _check($("view").filter(v => v.name === "Never").size() === 0, "  no view Never");
+
+  _failingRun("Layout only on Target", TARGET, $(target), ACTION.LAYOUT_ONLY.id);
+  _check(_contents(target) === before, "  Target keeps every object, its place and its size");
+
+  const visual = $(target).find("element").first();
+  _failingRun("Expand view from an element on Target", TARGET, $(visual), ACTION.EXPAND_VIEW.id);
+  _check(_contents(target) === before, "  Target keeps every object, its place and its size");
+
+  const seeds = $();
+  for (const n of ["Assess", "Operating system"]) seeds.add(_one($("element").filter(e => e.name === n), `element "${n}"`));
+  const named = () => $("view").filter(v => v.name === "Assess" || v.name === "Operating system").size();   // the baseline holds views of these names
+  const before1 = named();
+  _failingRun("One view each of two elements", "", seeds, ACTION.ONE_EACH.id);
+  _check(named() === before1, "  no view of either element");
+
+  _check($("view").size() === views, `no run added a view (${views} views before, ${$("view").size()} after)`);
+} catch (error) {
+  failed++;
+  Log.error(String(/** @type {Error} */ (error).message || error)); Log.detail("ERROR", String(/** @type {Error} */ (error).stack || error));
+}
+Log.info(failed ? `\nengine_failure: ${failed} failed` : "\nengine_failure: all passed");
+Log.finish();
+
+/**
+ * A run whose layout fails: it returns no view.
+ * @param {string} what
+ * @param {string} name  the view name a Create action writes
+ * @param {ArchiCollection<ArchiObject>} selection
+ * @param {string} action
+ */
+function _failingRun(what, name, selection, action) {
+  Log.info(`\n##### ${what} (the layout fails)`);
+  const views = GenView.generate_view(_preset(name, true), selection, action);
+  _check(views.length === 0, `${what}: no view written`);
+}
+
+/**
+ * The baseline preset, Layered, writing into Views/Failure; failing: an ELK setting that makes the engine throw.
+ * @param {string}  name
+ * @param {boolean} failing
+ */
+function _preset(name, failing) {
+  const preset = PresetIO.readPreset("Test/baseline/baseline");
+  preset.algorithm = "Layered";
+  preset.view.name = name;
+  preset.view.folder = name ? FOLDER : `${FOLDER}/Each`;
+  preset.view.underGenerated = false;
+  preset.view.mirrored = false;
+  if (failing) preset.engineParams = { ELK: FAILING_ELK };
+  return preset;
+}
+
+/**
+ * Everything on a view that a write could change: per object its id, type, element or relation, container,
+ * bounds and bendpoints, in view order.
+ * @param {ArchimateView} view
+ */
+function _contents(view) {
+  /** @type {string[]} */
+  const out = [];
+  $(view).find().each(o => {
+    const b = /** @type {any} */ (o).bounds, bp = /** @type {any} */ (o).relativeBendpoints;
+    out.push([o.id, o.type, o.concept ? o.concept.id : "", $(o).parent().first() ? $(o).parent().first().id : "",
+              b ? `${b.x},${b.y},${b.width},${b.height}` : "", bp ? JSON.stringify(bp) : ""].join("|"));
+  });
+  return out.join("\n");
+}
+
+/** @param {boolean} ok @param {string} what */
+function _check(ok, what) {
+  if (!ok) failed++;
+  Log.info(`${ok ? "PASS" : "FAIL"} ${what}`);
+}
+
+/** The current model is the test model, loaded from its file (a copy). */
+function _checkTestModel() {
+  if (!model.isSet()) throw new Error("Select the test model first.");
+  const path = (model.getPath() || "").replace(/\\/g, "/");
+  if (!path.endsWith("/" + MODEL_FILE)) throw new Error(`The current model is "${model.name}" (${path || "not saved"}); select a copy of the test model ${MODEL_FILE}.`);
+}
+
+/**
+ * @template {ArchiProxy} T
+ * @param {ArchiCollection<T>} found
+ * @param {string} what
+ * @returns {T}
+ */
+function _one(found, what) {
+  if (found.size() !== 1) throw new Error(`${what}: ${found.size()} found, expected 1`);
+  return found.first();
+}
