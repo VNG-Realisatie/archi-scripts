@@ -1,0 +1,263 @@
+/**
+ * printObjectDetails.ajs
+ *
+ * Print all details of the selected object(s) in the console, as Markdown sections:
+ * - general: name, type, specialization, folder, technical id (a relation: source and target)
+ * - documentation
+ * - properties
+ * - selected in the model tree: the views the object is on (name, folder)
+ * - selected on a view: that occurrence, its view as label: value lines (name, folder, id, properties)
+ * - relations: direction, type, related object, name, documentation, properties, technical id
+ * A view gets no relations, views or occurrence.
+ *
+ * Each section is a heading with a Markdown table (the occurrence: label: value lines): select it in
+ * the console and paste it in a Markdown document, or copy a single row. The report goes to the log
+ * file too. Properties in a relation cell or of the occurrence's view are short: a key with more
+ * values gives its count, a long value is cut off (INLINE_MAX).
+ *
+ * Selection: concepts and views in the model tree, or objects on a view (an element or relation on a
+ * view → its concept, a view reference → its view). Folders, notes and groups are skipped.
+ *
+ * (c) 2026 Mark Backer
+ */
+
+if (typeof require !== "function") { const m = "This script needs jArchi 1.11 or later, with CommonJS on: in Archi, open Preferences > Scripting and tick \"Enable CommonJS Support\" (no such option: update jArchi first). Then run the script again."; try { window.alert(m); } catch (e) { console.error(m); } exit(); }
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const Log     = require(REPO_ROOT + "_lib/log");
+const Folders = require(REPO_ROOT + "_lib/archi_folders");
+
+const EMPTY = "–";
+const INLINE_MAX = 60;   // a short property value (relation cell, occurrence's view) is cut off after this many characters
+
+Log.start(__FILE__, true);
+
+if (!model.isSet()) {
+  Log.warn("No model selected", { action: "Select an object in the model tree or on a view, then run the script again." });
+} else {
+  const selected = _selectedObjects();
+  if (selected.length === 0) {
+    Log.warn("No concept or view selected", { action: "Select an element, relation or view, then run the script again." });
+  }
+  for (const { object, occurrence } of selected) _print(_report(object, occurrence));
+}
+
+Log.finish();
+
+// ── Selection ─────────────────────────────────────────────────────────────────
+
+/**
+ * The selected concepts and views, each once; an element or relation selected on a view keeps that
+ * occurrence (the same concept on two views: twice).
+ * @returns {{ object: any, occurrence: any }[]}
+ */
+function _selectedObjects() {
+  const seen = new Set();
+  const selected = [];
+  $(selection).each((o) => {
+    const object = _modelObject(o);
+    if (!object) {
+      Log.warn(`Skipped "${o.name || o.type}" (${o.type}): not a concept or view`);
+      return;
+    }
+    const occurrence = o.view && o.concept ? o : null;
+    const key = occurrence ? occurrence.id : object.id;
+    if (seen.has(key)) return;
+    seen.add(key);
+    selected.push({ object, occurrence });
+  });
+  return selected;
+}
+
+/** The concept or view a selected object stands for, or null. */
+function _modelObject(o) {
+  if (o.view) {
+    if (o.concept) return o.concept;
+    return o.refView || null;   // a view reference (it reports the view's type); notes and groups have none
+  }
+  if ($(o).is("concept") || _isView(o)) return o;
+  return null;
+}
+
+/** A view in the model tree (not a visual: that has a .view). */
+function _isView(o) {
+  return !o.view && /-model$/.test(o.type);
+}
+
+// ── Report ────────────────────────────────────────────────────────────────────
+
+/**
+ * All sections of one object, as lines. Selected on a view: the view of that occurrence; in the
+ * model tree: the views the object is on.
+ */
+function _report(object, occurrence) {
+  const lines = [];
+  lines.push(`## ${object.name || "[geen naam]"} (${object.type})`, "");
+  lines.push(..._table(["Kenmerk", "Waarde"], _generalRows(object)), "");
+  lines.push(..._referenceSection(object, occurrence));
+  lines.push("### Documentatie", "", object.documentation ? object.documentation : EMPTY, "");
+  lines.push(..._propertiesSection(object));
+  if (!_isView(object)) {
+    lines.push(...(occurrence ? _occurrenceSection(occurrence) : _viewsSection(object)));
+    lines.push(..._relationsSection(object));
+  }
+  return lines;
+}
+
+/**
+ * What points to the object, each on a line of its own to copy (triple click) for a question or finding:
+ * - short, to see it is the object selected: on a view `name op view "view"`, in the model tree `name in /folder/…/`
+ * - with ids, to stand without context: `Model [file] › type "name" (id) op view "name" (id)`
+ */
+function _referenceSection(object, occurrence) {
+  const name = _name(object);
+  const file = object.model.getPath();
+  let short = `${name} in ${Folders.printFolderPath(object)}`;
+  let byId = `${object.model.name}${file ? ` [${file}]` : ""} › ${object.type} "${name}" (${object.id})`;
+  if (occurrence) {
+    short = `${name} op view "${occurrence.view.name}"`;
+    byId += ` op view "${occurrence.view.name}" (${occurrence.view.id})`;
+  }
+  return ["### Verwijzing", "", short, "", byId, ""];
+}
+
+/** The name of a concept or view; a relation without a name: its ends. */
+function _name(object) {
+  if (object.name) return object.name;
+  if ($(object).is("relationship")) return `[${object.source.name} → ${object.target.name}]`;
+  return "[geen naam]";
+}
+
+/** Name, type, specialization, folder, id; a relation also its ends; a view its viewpoint. */
+function _generalRows(object) {
+  const rows = [
+    ["Naam", object.name || EMPTY],
+    ["Type", object.type],
+  ];
+  if (_isView(object)) {
+    if (object.viewpoint) rows.push(["Viewpoint", object.viewpoint.name || EMPTY]);
+  } else {
+    rows.push(["Specialisatie", object.specialization || EMPTY]);
+  }
+  if ($(object).is("relationship")) {
+    rows.push(["Bron", _label(object.source)], ["Doel", _label(object.target)]);
+  }
+  rows.push(["Folder", Folders.printFolderPath(object)], ["Technisch id", object.id]);
+  return rows;
+}
+
+function _propertiesSection(object) {
+  const rows = _propertyPairs(object);
+  return [`### Properties (${rows.length})`, "", ...(rows.length ? _table(["Property", "Waarde"], rows) : [EMPTY]), ""];
+}
+
+function _relationsSection(object) {
+  const rows = [];
+  $(object).rels().each((rel) => rows.push(_relationRow(object, rel)));
+  rows.sort((a, b) => a.slice(0, 3).join("\u0000").localeCompare(b.slice(0, 3).join("\u0000")));
+  const headers = ["Richting", "Type", "Gerelateerd object", "Naam", "Documentatie", "Properties", "Technisch id"];
+  return [`### Relaties (${rows.length})`, "", ...(rows.length ? _table(headers, rows) : [EMPTY]), ""];
+}
+
+/** One relation seen from the object: outgoing, incoming or to itself. */
+function _relationRow(object, rel) {
+  const out = rel.source.id === object.id, into = rel.target.id === object.id;
+  const direction = out && into ? "↻ zelf" : out ? "→ uit" : "← in";
+  const other = out ? rel.target : rel.source;
+  return [
+    direction,
+    rel.type.replace(/-relationship$/, ""),
+    _label(other),
+    rel.name || EMPTY,
+    _oneLine(rel.documentation) || EMPTY,
+    _propertiesInline(rel),
+    rel.id,
+  ];
+}
+
+/** The views the object is on (selected in the model tree): name and folder. */
+function _viewsSection(object) {
+  const rows = [];
+  $(object).viewRefs().each((view) => rows.push([view.name || EMPTY, Folders.printFolderPath(view)]));
+  rows.sort((a, b) => a[0].localeCompare(b[0]));
+  return [`### Views (${rows.length})`, "", ...(rows.length ? _table(["View", "Folder"], rows) : [EMPTY]), ""];
+}
+
+/** The view of the selected occurrence, as label: value lines; its properties short. */
+function _occurrenceSection(occurrence) {
+  const view = occurrence.view;
+  const pairs = [["View", view.name || EMPTY], ["Folder", Folders.printFolderPath(view)], ["Technisch id", view.id]];
+  const properties = _propertiesShort(view).map((p) => ["  " + p.key, p.text]);
+  const width = Math.max(...[...pairs, ...properties].map(([label]) => label.length)) + 2;
+  const line = ([label, value]) => `${label}:`.padEnd(width) + value;
+  return [
+    "### Occurrence", "",
+    ...pairs.map(line),
+    `Properties view (${properties.length}):${properties.length ? "" : " " + EMPTY}`,
+    ...properties.map(line), "",
+  ];
+}
+
+// ── Formatting ────────────────────────────────────────────────────────────────
+
+/** Name and type of a concept: `Klant (business-actor)`. A relation without a name shows its ends. */
+function _label(concept) {
+  return `${_name(concept)} (${concept.type})`;
+}
+
+/** All [key, value] pairs, in model order; a key with more values gives a row per value. */
+function _propertyPairs(object) {
+  const pairs = [];
+  for (const key of new Set(object.prop())) {
+    for (const value of object.prop(key, true) || []) pairs.push([key, value]);
+  }
+  return pairs;
+}
+
+/**
+ * Properties short, a key once: a key with more values gives its count `(217×)`, a long value is cut
+ * off. Views made by View carry hundreds of properties, which made megabytes of console text.
+ * @returns {{ key: string, text: string, repeated: boolean }[]}
+ */
+function _propertiesShort(object) {
+  const short = [];
+  for (const key of new Set(object.prop())) {
+    const values = object.prop(key, true) || [];
+    const repeated = values.length > 1;
+    short.push({ key, text: repeated ? `(${values.length}×)` : _cut(_oneLine(values[0])), repeated });
+  }
+  return short;
+}
+
+/** Properties short, in one cell: `key=value; key (217×)`. */
+function _propertiesInline(object) {
+  const parts = _propertiesShort(object).map((p) => (p.repeated ? `${p.key} ${p.text}` : `${p.key}=${p.text}`));
+  return parts.length ? parts.join("; ") : EMPTY;
+}
+
+/** @param {string} text */
+function _cut(text) {
+  return text.length > INLINE_MAX ? text.substring(0, INLINE_MAX - 1) + "…" : text;
+}
+
+/** Text in one table cell: line breaks become ⏎. */
+function _oneLine(text) {
+  return String(text || "").trim().replace(/\r?\n/g, " ⏎ ");
+}
+
+/** A Markdown table with padded columns. */
+function _table(headers, rows) {
+  const cells = [headers, ...rows].map((row) => row.map((c) => String(c).replace(/\|/g, "\\|")));
+  const widths = headers.map((_, i) => Math.max(3, ...cells.map((row) => row[i].length)));
+  const line = (row) => "| " + row.map((c, i) => c.padEnd(widths[i])).join(" | ") + " |";
+  return [line(cells[0]), "|" + widths.map((w) => "-".repeat(w + 2)).join("|") + "|", ...cells.slice(1).map(line)];
+}
+
+/**
+ * The report on the console as is (Log would wrap the table lines), and in the log file.
+ * @param {string[]} lines
+ */
+function _print(lines) {
+  const text = lines.join("\n");
+  console.log(text);
+  Log.detail("INFO", text);
+}
