@@ -460,7 +460,8 @@ function _generateSingle(preset, uiSelection, actionId, target, runtime) {
     const copy = written.get(id);
     keep.set(copy ? String(copy.id) : id, block);
   }
-  Appearance.applyAppearance(view, preset, actionId, TextMeasure.defaultViewFont(), keep, Arrangement.elementsOf(planned.objectSet.arrangements));
+  Appearance.applyAppearance(view, preset, actionId, TextMeasure.defaultViewFont(), keep,
+    { elements: Arrangement.elementsOf(planned.objectSet.arrangements), looks: planned.objectSet.backgroundLooks || new Map() });
   applyViewProperties(view, preset);
   _recordOrigin(view, actionId, target);
   timer.lap("appearance");

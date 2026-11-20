@@ -5,7 +5,7 @@
  * and line widths to VisualElements/VisualConnections based on preset.appearance.
  *
  * Condition precedence (later overrides earlier for the same VO):
- *   nestingLevel → highlightRepeated → styleByProperty conditions (in list order)
+ *   nestingLevel → background appearance (Keep appearance) → highlightRepeated → styleByProperty conditions (in list order)
  *
  * Reset on Modify (layout_only, expand_view): a disabled nesting-level or highlight feature
  * resets the elements it would have styled to Archi defaults (fillColor = null, font = Archi's
@@ -30,6 +30,10 @@ const ConditionLists = require(REPO_ROOT + "View/lib/rel_filter");
 const Palettes  = require(REPO_ROOT + "View/lib/palettes");
 const { compareNames } = Defs;
 
+// Keep appearance: what an element of the background view takes from its visual there. Not its font
+// size (Style by nesting level gives it), nor a note's text and border or a label expression.
+const KEPT_ATTRIBUTES = Defs.VISUAL_ATTRIBUTES.filter(a => !["text", "labelExpression", "fontSize", "borderType"].includes(a));
+
 // Qualitative schemes are discrete color sets; padding is meaningless on them.
 
 /**
@@ -41,6 +45,11 @@ const { compareNames } = Defs;
  * @property {number}        depth
  * @property {boolean}       isContainer
  * @property {boolean}       [onBackground]  an element of the background view: styled as a container, also with nothing in it
+ * @property {string}        [keptColor]     Keep appearance: the fill it keeps from the background view (lower-case hex)
+ *
+ * @typedef {object} KeptColors  how followNestingChains continues from a kept fill
+ * @property {(color: string) => string | null} hexOf  the lower-case hex of a condition color; null for Default
+ * @property {number} darkenStart  the level at which a fill is its color unshaded
  *
  * @typedef {object} NestingStyle  how followNestingChains styles a visual
  * @property {number}  depthSinceChange  levels since the last nesting type or color change: lightening
@@ -67,9 +76,10 @@ const DEFAULT_FONT_STYLE = "normal";
  * @param {string}        actionId
  * @param {TextFont}      defaultFont  Archi's default view font: the name of a nesting font, and a reset
  * @param {Map<string, string>} [diagramBlockOf]  visuals inside a diagram-block: they keep their appearance
- * @param {Set<string>} [backgroundElements]  elements of the background view: styled as containers
+ * @param {{ elements: Set<string>, looks: Map<string, BackgroundLook[]> }} [background]  elements of the background
+ *   view, styled as containers; looks: Keep appearance, element id → its visuals there (backgroundLook)
  */
-function applyAppearance(view, preset, actionId, defaultFont, diagramBlockOf, backgroundElements = new Set()) {
+function applyAppearance(view, preset, actionId, defaultFont, diagramBlockOf, background = { elements: new Set(), looks: new Map() }) {
   const keep = diagramBlockOf || new Map();
   const app  = preset.appearance;
   const isModify = actionId === "layout_only" || actionId === "expand_view";
@@ -79,7 +89,7 @@ function applyAppearance(view, preset, actionId, defaultFont, diagramBlockOf, ba
 
   const anyEnabled =
     nl.fontEnabled || nl.colorEnabled || hr.enabled ||
-    sbp.conditions.some(r => r.on !== false && r.property);
+    sbp.conditions.some(r => r.on !== false && r.property) || background.looks.size > 0;
 
   if (!anyEnabled && !isModify) return;
 
@@ -102,7 +112,8 @@ function applyAppearance(view, preset, actionId, defaultFont, diagramBlockOf, ba
   /** @type {Set<string>} */
   const styledVoIds = new Set();
 
-  _applyNestingLevel(view, nl, palette, isModify, defaultFont, styledVoIds, keep, backgroundElements);
+  _applyNestingLevel(view, nl, palette, isModify, defaultFont, styledVoIds, keep, background);
+  _applyBackgroundAppearance(view, background.looks, styledVoIds, keep);
   _applyHighlightRepeated(view, hr, palette, isModify, styledVoIds, keep);
   _applyStyleConditions(view, sbp, palette, isModify, styledVoIds, keep);
 }
@@ -137,11 +148,15 @@ function _onView(view, selector, keep) {
  * font size, the size is its parent's less fontDecreasePerLevel, never below DEFAULT_FONT_SIZE.
  * A leaf beside a container (same parent, or both roots), and an element of the background view, is styled as a container.
  * @param {NestingNode[]}           nodes       every element visual; order = view order (determinism)
+ * An element with a kept fill (Keep appearance) takes that fill as its color, unshaded; a child of the
+ * same type whose condition color is that fill continues one level lighter, any other child starts at
+ * a nesting color change.
  * @param {NestingStyleCondition[]} conditions
  * @param {number}                  fontDecreasePerLevel
+ * @param {KeptColors}              [kept]
  * @returns {{ styles: Map<string, NestingStyle>, conflicts: string[] }}  conflicts: equally specific conditions ("2, 3") that select the same elements with different styles
  */
-function followNestingChains(nodes, conditions, fontDecreasePerLevel) {
+function followNestingChains(nodes, conditions, fontDecreasePerLevel, kept = { hexOf: () => null, darkenStart: 0 }) {
   const active = conditions.map((r, i) => ({ r, nr: i + 1 })).filter(x => x.r.on !== false);
   const byId   = new Map(nodes.map(n => [n.id, n]));
   /** @type {Map<string, NestingStyle>} */
@@ -158,7 +173,7 @@ function followNestingChains(nodes, conditions, fontDecreasePerLevel) {
       const sel = active.filter(x => _selectsRoot(x.r, n.type));
       if (sel.length === 0) continue;
       const win = _mostSpecific(sel, conflicts, _rootSpecificity);
-      styles.set(n.id, Object.assign({ depthSinceChange: 0, color: win.r.color, nr: win.nr, asContainer }, _font(win.r, DEFAULT_FONT_SIZE)));
+      styles.set(n.id, _keptColor(Object.assign({ depthSinceChange: 0, color: win.r.color, nr: win.nr, asContainer }, _font(win.r, DEFAULT_FONT_SIZE)), n, kept));
       continue;
     }
     const ps = styles.get(n.parentId);
@@ -168,12 +183,24 @@ function followNestingChains(nodes, conditions, fontDecreasePerLevel) {
     if (sel.length === 0) continue;
     const win = _mostSpecific(sel, conflicts);
     const color = win.r.color;
-    const depthSinceChange = n.type === parent.type && color === ps.color ? ps.depthSinceChange + 1 : 0;
+    const sameColor = color === ps.color || (!!parent.keptColor && kept.hexOf(color) === parent.keptColor);
+    const depthSinceChange = n.type === parent.type && sameColor ? ps.depthSinceChange + 1 : 0;
     const smaller = Math.max(DEFAULT_FONT_SIZE, ps.fontSize - fontDecreasePerLevel);
     const font = win.nr === ps.nr ? { fontSize: smaller, bold: false } : _font(win.r, smaller);
-    styles.set(n.id, Object.assign({ depthSinceChange, color, nr: win.nr, asContainer }, font));
+    styles.set(n.id, _keptColor(Object.assign({ depthSinceChange, color, nr: win.nr, asContainer }, font), n, kept));
   }
   return { styles, conflicts: [...conflicts] };
+}
+
+/**
+ * A style with the node's kept fill as its color, unshaded; the style as it is without one.
+ * @param {NestingStyle} st
+ * @param {NestingNode}  n
+ * @param {KeptColors}   kept
+ * @returns {NestingStyle}
+ */
+function _keptColor(st, n, kept) {
+  return n.keptColor ? Object.assign(st, { color: n.keptColor, depthSinceChange: kept.darkenStart }) : st;
 }
 
 /**
@@ -279,12 +306,13 @@ function _rootSpecificity(r) {
  * between the two elements.
  * @param {VisualObject} vo
  * @param {Map<string, string>} keep  visuals inside a diagram-block: not a parent
- * @param {Set<string>}         backgroundElements  elements of the background view
+ * @param {{ elements: Set<string>, looks: Map<string, BackgroundLook[]> }} background  elements of the background view, and the visuals whose appearance they keep
  * @returns {NestingNode}
  */
-function _nestingNode(vo, keep, backgroundElements) {
+function _nestingNode(vo, keep, background) {
   const parentVo = $(vo).parent().filter("element").first();
   const parentId = parentVo && !keep.has(String(parentVo.id)) ? String(parentVo.id) : null;
+  const look = vo.concept ? backgroundLook(background.looks, String(vo.concept.id), _parentElementId(vo)) : undefined;
   /** @type {{ type: string, outgoing: boolean }[]} */
   const rels = [];
   if (parentVo && parentVo.concept && vo.concept) {
@@ -295,7 +323,8 @@ function _nestingNode(vo, keep, backgroundElements) {
   return {
     id: String(vo.id), parentId, type: (vo.concept && vo.concept.type) || "", rels,
     depth: _voDepth(vo), isContainer: $(vo).children("element").length > 0,
-    onBackground: !!vo.concept && backgroundElements.has(String(vo.concept.id)),
+    onBackground: !!vo.concept && background.elements.has(String(vo.concept.id)),
+    ...(look ? { keptColor: String(look.fillColor).toLowerCase() } : {}),
   };
 }
 
@@ -315,19 +344,21 @@ function _voDepth(vo) {
  * @param {TextFont}                               defaultFont  Archi's default view font
  * @param {Set<string>}                            styledVoIds
  * @param {Map<string, string>}                    keep  visuals inside a diagram-block: left out
- * @param {Set<string>}                            backgroundElements  elements of the background view
+ * @param {{ elements: Set<string>, looks: Map<string, BackgroundLook[]> }} background  elements of the background view, and the visuals whose appearance they keep
  */
-function _applyNestingLevel(view, settings, palette, isModify, defaultFont, styledVoIds, keep, backgroundElements) {
+function _applyNestingLevel(view, settings, palette, isModify, defaultFont, styledVoIds, keep, background) {
   let fontSet = 0, fontReset = 0, colorSet = 0, colorReset = 0;
   const vos = _onView(view, "element", keep).filter(vo => !!vo.id);
-  const nodes = vos.map(vo => _nestingNode(vo, keep, backgroundElements));
-  const { styles, conflicts } = followNestingChains(nodes, settings.conditions, settings.fontDecreasePerLevel);
-  if (conflicts.length > 0)
-    Log.warn(`Style by nesting level: conditions ${conflicts.join(" · ")} are equally specific and select the same elements with different styles; the last condition wins.`);
+  const nodes = vos.map(vo => _nestingNode(vo, keep, background));
   // One message per color name the palette does not hold.
   /** @type {Set<string>} */
   const reported = new Set();
   const reportOnce = (/** @type {string} */ m) => { if (!reported.has(m)) { reported.add(m); Log.warn(`Appearance: ${m}`); } };
+  /** @type {KeptColors} */
+  const kept = { hexOf: color => (color ? Palettes.colorOf(palette, color, reportOnce) : null), darkenStart: settings.darkenStart };
+  const { styles, conflicts } = followNestingChains(nodes, settings.conditions, settings.fontDecreasePerLevel, kept);
+  if (conflicts.length > 0)
+    Log.warn(`Style by nesting level: conditions ${conflicts.join(" · ")} are equally specific and select the same elements with different styles; the last condition wins.`);
 
   vos.forEach((vo, i) => {
     const st = styles.get(nodes[i].id);
@@ -361,6 +392,59 @@ function _applyNestingLevel(view, settings, palette, isModify, defaultFont, styl
 
   if (settings.fontEnabled  || fontReset  > 0) Log.debug(`  nestingLevel font:  ${fontSet} set  ${fontReset} reset`);
   if (settings.colorEnabled || colorReset > 0) Log.debug(`  nestingLevel color: ${colorSet} set  ${colorReset} reset`);
+}
+
+// ── Keep appearance ───────────────────────────────────────────────────────────
+
+/**
+ * The visual on the background view whose appearance an occurrence keeps: the one in the element
+ * its occurrence lies in, else the first.
+ * @param {Map<string, BackgroundLook[]>} looks  element id → its visuals on the background view, in view order
+ * @param {string}        elementId
+ * @param {string | null} parentId  the element the occurrence lies in; null at the view root
+ * @returns {VisualObject | undefined}  undefined: not an element of the background view
+ */
+function backgroundLook(looks, elementId, parentId) {
+  const list = looks.get(elementId);
+  if (!list) return undefined;
+  return (list.find(l => l.parentId === parentId) || list[0]).visual;
+}
+
+/**
+ * The element of the element visual a visual lies in; null at the view root.
+ * @param {VisualObject} vo
+ * @returns {string | null}
+ */
+function _parentElementId(vo) {
+  const p = /** @type {VisualObject | null} */ ($(vo).parent().filter("element").first());   // Cast: on a view, "element" selects element visuals
+  return p && p.concept ? String(p.concept.id) : null;
+}
+
+/**
+ * Keep appearance: each occurrence of an element of the background view takes the appearance of its
+ * visual there (backgroundLook: KEPT_ATTRIBUTES, and a custom image), over Style by nesting level;
+ * Highlight repeated and Style by property come after it. Its font size stays as Style by nesting level left it.
+ * @param {ArchimateView}              view
+ * @param {Map<string, BackgroundLook[]>} looks  element id → its visuals on the background view
+ * @param {Set<string>}                styledVoIds
+ * @param {Map<string, string>}        keep  visuals inside a diagram-block: left out
+ */
+function _applyBackgroundAppearance(view, looks, styledVoIds, keep) {
+  if (looks.size === 0) return;
+  let n = 0;
+  for (const vo of _onView(view, "element", keep)) {
+    const look = vo.concept ? backgroundLook(looks, String(vo.concept.id), _parentElementId(vo)) : undefined;
+    if (!look) continue;
+    // Casts: the attributes are read and set by name.
+    const from = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (look));
+    const to   = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (vo));
+    for (const a of KEPT_ATTRIBUTES) if (from[a] !== undefined && from[a] !== to[a]) to[a] = from[a];
+    const image = $(look).attr("image");
+    if (image) $(vo).attr("image", image);
+    styledVoIds.add(vo.id);
+    n++;
+  }
+  Log.debug(`  keepAppearance: ${n} VOs take the appearance of the background view`);
 }
 
 // ── Highlight repeated elements ───────────────────────────────────────────────
@@ -618,5 +702,5 @@ function _shadeHex(hex, levels, step) {
 // ── Module exports ────────────────────────────────────────────────────────────
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { applyAppearance, computeConditionTargets, followNestingChains, nestingFonts };
+  module.exports = { applyAppearance, backgroundLook, computeConditionTargets, followNestingChains, nestingFonts };
 }

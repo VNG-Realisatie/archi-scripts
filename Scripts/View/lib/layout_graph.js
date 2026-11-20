@@ -68,7 +68,7 @@ function _orderRootLeaves(nodes, order) {
  * @param {VisualDescription[] | undefined}  visuals
  * @param {VisualConnection[] | undefined}   visualRelations
  * @param {DiagramObject[] | undefined}      diagramConnections    connections of diagram objects (a note's line)
- * @param {{ diagramBlockOf?: Map<string, string>, diagramBlockVisualOf?: Map<string, string>, positions?: Map<string, VisualPosition>, visualElements?: VisualObject[], joinRun?: Map<string, number>, arrangements?: Arrangements }} diagramBlocks
+ * @param {{ diagramBlockOf?: Map<string, string>, diagramBlockVisualOf?: Map<string, string>, positions?: Map<string, VisualPosition>, visualElements?: VisualObject[], joinRun?: Map<string, number>, arrangements?: Arrangements, backgroundLooks?: Map<string, BackgroundLook[]> }} diagramBlocks
  *   contents of diagram-blocks, the target view's objects, the run each element joined in and the background view's arrangements (ObjectSet)
  * @param {import("./label_size").LabelInput} labels  measuring and fonts for the label heights
  * @returns {LayoutGraph}
@@ -245,7 +245,8 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
 
   const engineParams = preset.engineParams || {};
   const backgroundElements = Arrangement.elementsOf(diagramBlocks && diagramBlocks.arrangements);
-  const fonts = _labelLayouts(nodes, elements, nesting, (diagramBlocks && diagramBlocks.visualElements) || [], preset, labels, backgroundElements);
+  const background = { elements: backgroundElements, looks: (diagramBlocks && diagramBlocks.backgroundLooks) || new Map() };
+  const fonts = _labelLayouts(nodes, elements, nesting, (diagramBlocks && diagramBlocks.visualElements) || [], preset, labels, background);
   if (params.labelSizing) _sizeToLabels(nodes, fonts, params, engineParams, labels.measure);
   expandNodeSizesForEdgeDensity(nodes, edges, params);   // after label sizing, which would overwrite it
   const { labelHeightAt, widthAt } = _fitLabels(nodes, nesting, fonts, preset, labels.measure);
@@ -288,10 +289,11 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
  * @param {VisualObject[]}    visualElements  the element visuals on the target view
  * @param {MaskedPreset}      preset
  * @param {import("./label_size").LabelInput} labels
- * @param {Set<string>}       backgroundElements  elements of the background view: styled as containers
+ * @param {{ elements: Set<string>, looks: Map<string, BackgroundLook[]> }} background  elements of the background
+ *   view, styled as containers; looks: Keep appearance, element id → its visuals there
  * @returns {NodeLabels}
  */
-function _labelLayouts(nodes, elements, nesting, visualElements, preset, labels, backgroundElements) {
+function _labelLayouts(nodes, elements, nesting, visualElements, preset, labels, background) {
   const elementById = new Map(elements.map(e => [e.id, e]));
   /** @type {Map<string, ArchiElement>} */
   const elementOf = new Map();
@@ -304,7 +306,8 @@ function _labelLayouts(nodes, elements, nesting, visualElements, preset, labels,
     elementOf:    id => elementOf.get(id),
     visualOf:     id => { const v = nesting.visualOf[id]; return v ? visualById.get(v) : undefined; },
     nestingLevel: preset.appearance.nestingLevel,
-    backgroundElements,
+    backgroundElements: background.elements,
+    backgroundLooks:    background.looks,
     input:        labels,
   });
   return { layoutOf, isElement: id => elementOf.has(id) };

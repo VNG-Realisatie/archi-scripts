@@ -150,7 +150,8 @@ function standInView(run) {
   }
   const view = { isView: true, all: [...visuals.values()] };
   global.$ = o => o === view ? { find: sel => collection(sel === "element" ? view.all : []) }
-    : visuals.has(o.id) && o.concept ? { parent: () => collection(o.parent ? [o.parent] : []), children: () => collection(o.children) }
+    : o.isLook ? { attr: () => o.image || null }
+    : visuals.has(o.id) && o.concept ? { parent: () => collection(o.parent ? [o.parent] : []), children: () => collection(o.children), attr: (k, v) => { if (v !== undefined) o.image = v; return o.image || null; } }
     : { outRels: () => collection(relationsOf(o).filter(r => r.source.id === o.id)), inRels: () => collection(relationsOf(o).filter(r => r.target.id === o.id)),
         rels: () => collection(relationsOf(o)) };
   return { view, visuals: [...visuals.values()] };
@@ -198,6 +199,56 @@ function standInView(run) {
   eq(new Set(repeated.map(n => on[n][0])).size, repeated.length, "Highlight repeated: each repeated element its own color");
   eq(on["Ontvangst"][0] !== off["Ontvangst"][0], true, "Highlight repeated: its color replaces the nesting color");
   eq(Object.keys(on).filter(n => on[n].length === 1).every(n => on[n][0] === off[n][0]), true, "Highlight repeated: an element on the view once keeps its nesting color");
+}
+
+// ── Keep appearance: the background view's look over Style by nesting level, but for font size ─────────────────────
+{
+  const conditions = [{ child: "", color: "A", direction: "either" }].map(c => ({ on: true, parent: "", relation: "", fontSize: 0, bold: false, ...c }));
+  const nodes = [
+    { id: "p", parentId: null, type: "grouping", rels: [], depth: 0, isContainer: true, keptColor: "#aabbcc" },
+    { id: "same", parentId: "p", type: "grouping", rels: [], depth: 1, isContainer: false },
+    { id: "other", parentId: "p", type: "application-service", rels: [], depth: 1, isContainer: false },
+  ];
+  const kept = { hexOf: c => (c === "A" ? "#aabbcc" : null), darkenStart: 2 };
+  const { styles } = Appearance.followNestingChains(nodes, conditions, 2, kept);
+  eq([styles.get("p").color, styles.get("p").depthSinceChange], ["#aabbcc", 2], "Keep appearance: a kept fill is its color, unshaded (at darkenStart)");
+  eq(styles.get("same").depthSinceChange, 3, "Keep appearance: a child of its type and color continues one level lighter from the kept fill");
+  eq(styles.get("other").depthSinceChange, 0, "Keep appearance: a child of another type starts at a nesting type change");
+  const other = Appearance.followNestingChains(nodes, conditions, 2, { hexOf: () => "#000000", darkenStart: 2 }).styles;
+  eq(other.get("same").depthSinceChange, 0, "Keep appearance: a child of another color starts at a nesting color change");
+}
+{
+  const run = newView("Bedrijfsfuncties background", "6 GEMMA");
+  const { view, visuals } = standInView(run);
+  const preset = { ...run.preset, params: Defs.effectiveParams(run.preset) };
+  const root = visuals.find(v => v.concept.name === "Bedrijfsfunctiemodel");
+  const look = { isLook: true, fillColor: "#123456", fontName: "Serif", fontSize: 30, fontStyle: "italic", fontColor: "#ff0000", figureType: 1, image: "img-1" };
+  const quiet = console.log; console.log = () => {};
+  Appearance.applyAppearance(view, preset, Defs.ACTION.NEW_VIEW.id, SYMBOL_FONT, new Map(),
+    { elements: new Set([root.concept.id]), looks: new Map([[root.concept.id, [{ visual: look, parentId: null }]]]) });
+  console.log = quiet;
+  eq([root._fill, root.fontName, root.fontStyle, root.fontColor, root.figureType, root.image], ["#123456", "Serif", "italic", "#ff0000", 1, "img-1"],
+     "Keep appearance: an element of the background view takes its fill, font name and style, font color, figure and image");
+  eq(root.fontSize, 16, "Keep appearance: the font size stays the one Style by nesting level gives");
+}
+{
+  const looks = new Map([["e", [{ visual: "under A", parentId: "A" }, { visual: "under B", parentId: "B" }]]]);
+  eq([Appearance.backgroundLook(looks, "e", "B"), Appearance.backgroundLook(looks, "e", "C"), Appearance.backgroundLook(looks, "x", "A")], ["under B", "under A", undefined],
+     "Keep appearance: an occurrence keeps the look of the element's visual in the same container on the background view, else the first");
+}
+
+{
+  const planWith = keepAppearance => {
+    const preset = presetOf("Bedrijfsfuncties background");
+    preset.params.backgroundKeepAppearance = keepAppearance;
+    const quiet = console.log; console.log = () => {};
+    const planned = H.planView(model, H.findView(model, "Views/Test/6 GEMMA"), preset, Defs.ACTION.NEW_VIEW.id, true);
+    console.log = quiet;
+    return planned.objectSet;
+  };
+  const on = planWith(true);
+  eq([planWith(false).backgroundLooks, on.backgroundLooks.size, [...on.backgroundLooks].every(([id, list]) => list.every(l => l.visual.concept.id === id))], [undefined, 20, true],
+     "Keep appearance: off, no looks; on, one visual of the background view per element of it");
 }
 
 // ── View properties: a ticked row written, an unticked or empty one removed, a hidden key left alone, an id once ──────

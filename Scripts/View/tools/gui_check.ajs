@@ -8,7 +8,8 @@
  *   SELECT_ID  the object to select, by id (the command line has no selection)
  *   PRESET     the dialog opens on this preset instead of the session
  *   SHOTS      folder for the screenshots (NN_<name>.png), must exist
- *   SUITE      the steps to run: "tables" (default, the condition-table checklist) or "open" (the dialog as it opens)
+ *   SUITE      the steps to run: "tables" (default, the condition-table checklist), "open" (the dialog as it opens)
+ *              or "keepAppearance" (Layout › Keep appearance and its notes on the Appearance tab)
  * Each key logs the control that has the focus ("key … → focus List"), so a key that went elsewhere shows.
  *
  * Do not touch mouse or keyboard while it runs: the input is posted to the desktop (Display.post).
@@ -225,6 +226,22 @@ function button(text) {
   if (!b) throw new Error(`no button ${text}`);
   return b;
 }
+/** Scroll the tab so the control shows. @param {any} c */
+function showInScroll(c) {
+  for (let p = c.getParent(); p; p = p.getParent()) if (p instanceof ScrolledComposite) { p.showControl(c); break; }
+}
+/** The texts of the visible note labels on every tab. @returns {string[]} */
+function notes() {
+  /** @type {string[]} */
+  const out = [];
+  /** @param {any} c */
+  const walk = c => {
+    if (c instanceof Label && c.getData("note") && c.getVisible() && String(c.getText())) out.push(String(c.getText()).slice(0, 70));
+    if (c instanceof Composite) for (const ch of c.getChildren()) walk(ch);
+  };
+  walk(shell);
+  return out;
+}
 /** @param {string} name */
 function clickTab(name) {
   const it = tabFolder.getItems().find((/** @type {any} */ i) => String(i.getText()) === name);
@@ -268,6 +285,22 @@ const SUITES = {
     [1500, () => { logActionArea("new_view"); shotShell("new_view"); }],
     [1000, () => { if (button("Layout only").getEnabled()) clickControl(button("Layout only")); }],
     [1500, () => { logActionArea("layout_only"); shotShell("layout_only"); }],
+  ],
+  // Keep appearance (Layout, Containers): the switch under Leaves in place, and the notes it shows on the Appearance tab.
+  keepAppearance: [
+    [2500, () => clickTab("Layout")],
+    [1000, () => showInScroll(button("Keep appearance"))],
+    [1000, () => { log(`keep appearance enabled: ${button("Keep appearance").getEnabled()}`); shotShell("layout_keep_off"); }],
+    [800,  () => moveToControl(button("Keep appearance"))],
+    [300,  () => clickControl(button("Keep appearance"))],
+    [1500, () => shotShell("layout_keep_on")],
+    [100,  () => clickTab("Appearance")],
+    [1500, () => { log(`notes: ${notes().join(" | ")}`); shotShell("appearance_keep_on"); }],
+    [100,  () => clickTab("Layout")],
+    [800,  () => { showInScroll(button("Keep appearance")); moveToControl(button("Keep appearance")); }],
+    [300,  () => clickControl(button("Keep appearance"))],
+    [100,  () => clickTab("Appearance")],
+    [1500, () => { log(`notes: ${notes().join(" | ")}`); shotShell("appearance_keep_off"); }],
   ],
   // The condition-table checklist (plan/view-condition-table-as-native-table.md § To agree, "Behaviour that stays").
   tables: [

@@ -85,6 +85,7 @@ const PARAM_LABELS = Object.freeze({
   columnsAcrossContainers:  "Columns across containers",
   backgroundView:           "Background",
   backgroundLeavesInPlace:  "Leaves in place",
+  backgroundKeepAppearance: "Keep appearance",
   direction:                "Direction",
   acyclicer:                "Cycles",
   ranking:                  "Ranking",
@@ -132,6 +133,8 @@ const PARAM_TOOLTIPS = Object.freeze({
                              "Path of the view, e.g. /Views/Backgrounds/Map. An element under nothing on it brings its parents; one that reaches it by no path is left out."],
   backgroundLeavesInPlace:  ["The leaves of the background view keep their place too.",
                              "Off: only its containers keep theirs; its leaves are always on the view, and the layout places them (sorted, compact)."],
+  backgroundKeepAppearance: ["The elements of the background view keep its appearance: fill, line, font and text.",
+                             "Font size follows Style by nesting level; Highlight repeated and Style by property still color them."],
   direction:                ["Direction of the main flow.", ""],
   acyclicer:                ["How relation cycles are broken before layout; no effect without cycles.",
                              "Default: depth-first search. Greedy: reverses as few relations as it can."],
@@ -193,7 +196,7 @@ const LAYOUT_GROUPS = Object.freeze({
   Nesting:     ["nestingConditions"],
   Reverse:     ["reverseConditions"],
   Containers:  ["containerAlgorithm", "connectionsMode", "padding",
-                "sort", "sameWidth", "columnsAcrossContainers", "backgroundView", "backgroundLeavesInPlace"],
+                "sort", "sameWidth", "columnsAcrossContainers", "backgroundView", "backgroundLeavesInPlace", "backgroundKeepAppearance"],
   Flow:        ["direction", "acyclicer", "ranking", "nodePlacement", "circles", "layerSpacing"],
   Elements:    ["elementWidth", "elementHeight", "labelSizing", "labelMaxLineWidth", "elementSpacing"],
   Connections: ["routing", "labelPosition", "connectionLabelSpacing", "connectionSpacing", "connectionElementSpacing"],
@@ -355,7 +358,7 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    false,  // tiles position nodes only — they do not route edges
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, "nestingConditions", "padding", "sort", "sameWidth", "columnsAcrossContainers",
-      ...PARAMS_VIEW_SIZE, "labelSizing", "labelMaxLineWidth", "elementSpacing", "reverseConditions", "backgroundView", "backgroundLeavesInPlace",
+      ...PARAMS_VIEW_SIZE, "labelSizing", "labelMaxLineWidth", "elementSpacing", "reverseConditions", "backgroundView", "backgroundLeavesInPlace", "backgroundKeepAppearance",
     ],
     supportedOptions:     { sameWidth: Object.values(SAME_WIDTH) },
     labelPositionDefault: null,
@@ -705,6 +708,11 @@ const DIAGRAM_TYPES = Object.freeze(
   Object.fromEntries(DIAGRAM_OBJECT_TYPES.map(t => [t, true]))
 );
 
+/** Attributes of a visual a copy takes over (view_writer); for an element visual, name, documentation and properties are its element's and are left alone. */
+const VISUAL_ATTRIBUTES = Object.freeze(["text", "labelExpression", "fillColor", "fontColor", "fontName", "fontSize", "fontStyle",
+  "lineColor", "lineWidth", "lineStyle", "opacity", "outlineOpacity", "gradient", "figureType", "textAlignment",
+  "textPosition", "showIcon", "iconColor", "imageSource", "imagePosition", "deriveLineColor", "borderType"]);
+
 // Display labels for diagram object types. Excludes "archimate-diagram-model" (internal alias);
 // strips the "diagram-model-" prefix.
 const DIAGRAM_TYPE_LABELS = Object.freeze(
@@ -787,6 +795,7 @@ const DEFAULT_PRESET = Object.freeze({
     connectionLabelSpacing:      true,   // reserve space for connection labels in ELK Layered (prevents overlap)
     backgroundView:        { id: "", path: "" },   // Tiles: the view the selection fills (lib/background.js); id finds it, path is its label
     backgroundLeavesInPlace: false, // the leaves of the background view keep their place too; false: only its containers (Arrangement.arrangementsWithContainers)
+    backgroundKeepAppearance: false, // the elements of the background view keep its appearance, but for font size (Appearance.applyBackgroundAppearance)
   },
   // Filter lists (empty = keep everything); condition shapes in rel_filter.js.
   filter: {
@@ -1223,7 +1232,7 @@ if (typeof module !== "undefined" && module.exports) {
     RANKING, NODE_PLACEMENT, CIRCLES, ACYCLICER, SELECTION_ORDER, SORT_MODE, SAME_WIDTH, LABEL_POSITIONS, AR_OPTIONS, AR_DEFAULT,
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
-    DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,
+    DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID, VISUAL_ATTRIBUTES,
     PROP_ID, PROP_MANAGED_OCCURRENCE, PROP_ORIGIN,
     GENERATED_VIEW_FOLDER, SESSION_FILENAME, ONE_EACH_CONFIRM_ABOVE, viewFolderPath,
     SPLINE_SAMPLE_POINTS,

@@ -92,6 +92,7 @@ const PARAM_WIDGETS = Object.freeze({
   columnsAcrossContainers:        { w: "chkColumnsAcrossContainers",               kind: "check" },
   backgroundView:           { w: "txtBackgroundView",            kind: "view" },
   backgroundLeavesInPlace:  { w: "chkBackgroundLeavesInPlace",   kind: "check" },
+  backgroundKeepAppearance: { w: "chkBackgroundKeepAppearance",  kind: "check" },
 });
 
 /**
@@ -244,13 +245,16 @@ function buildLayoutTab(tabFolder, ctx) {
   Widgets.addCheck(row, "Columns across containers", null, 2, w, "chkColumnsAcrossContainers");
   row = Widgets.formRow(grpCtr, "Background:", formRows);
   w.txtBackgroundView = new TextWidget(row, SWT.BORDER);
-  GridDataFactory.fillDefaults().grab(true, false).span(4, 1).hint(300, SWT.DEFAULT).applyTo(w.txtBackgroundView);
+  GridDataFactory.fillDefaults().grab(true, false).span(2, 1).hint(300, SWT.DEFAULT).applyTo(w.txtBackgroundView);
   w.txtBackgroundView.setMessage("path of a view, e.g. /Views/Backgrounds/Map");
   w.txtBackgroundView.addListener(SWT.Modify, () => ctx.markModified());
   // Read the view when the path is complete: Enter or leaving the field, not at every key.
   w.txtBackgroundView.addListener(SWT.DefaultSelection, () => ctx.backgroundChanged());
   w.txtBackgroundView.addListener(SWT.FocusOut, () => ctx.backgroundChanged());
   Widgets.addCheck(row, "Leaves in place", null, 2, w, "chkBackgroundLeavesInPlace");
+  Widgets.addCheck(row, "Keep appearance", null, 2, w, "chkBackgroundKeepAppearance");
+  w.chkBackgroundKeepAppearance.addListener(SWT.Selection, () => TabAppearance.updateKeepAppearanceNotes(ctx));
+  w.txtBackgroundView.addListener(SWT.Modify, () => TabAppearance.updateKeepAppearanceNotes(ctx));
 
   // ── Flow ──────────────────────────────────────────────────────────────────────
   const grpFlow = Widgets.group(page, "Flow", 1);
@@ -474,6 +478,7 @@ function updateAlgorithmControls(ctx) {
   // View size radios: unsupported options are greyed; a selected unsupported option falls back to None.
   Widgets.enable(w.radioViewSizeMaxWidth,    active.has("maxWidth"));
   Widgets.enable(w.radioViewSizeAspectRatio, active.has("aspectRatio"));
+  TabAppearance.updateKeepAppearanceNotes(ctx);   // Appearance: Keep appearance takes effect only where it is active
   const vsMode = getViewSizeMode(w);
   if (vsMode !== "none" && !active.has(vsMode) && w.radioViewSizeNone) {
     w.radioViewSizeNone.setSelection(true);

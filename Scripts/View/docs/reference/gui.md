@@ -197,7 +197,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 │ ┌─ Containers ──────────────────────────────────────────────────────────┐ │
 │ │  Layout:   Layout inside [Layered ▼]  Connections [Across… ▼]    Padding [20] │
 │ │            Sort [Elements ▼]          Same width [Off ▼]   ☐ Columns across containers │
-│ │  Background: [/Views/Backgrounds/Map              ]  ☐ Leaves in place │
+│ │  Background: [/Views/Backgrounds/Map   ]  ☐ Leaves in place  ☐ Keep appearance │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Flow ────────────────────────────────────────────────────────────────┐ │
 │ │  Order:    Direction [Right ▼]  Cycles [Default ▼]  Ranking [Balanced ▼] │
@@ -291,6 +291,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 | Columns across containers | `columnsAcrossContainers` | off | Line up the columns of the tiles on one grid across the whole view. — Elements of one level line up along their parent's edge, leaves fill their column; neighbours stay Distance apart. | Tiles |
 | Background | `backgroundView` | [object Object] | A view the selection fills: its elements are always on the view, in its arrangement of rows and columns. — Path of the view, e.g. /Views/Backgrounds/Map. An element under nothing on it brings its parents; one that reaches it by no path is left out. | Tiles |
 | Leaves in place | `backgroundLeavesInPlace` | off | The leaves of the background view keep their place too. — Off: only its containers keep theirs; its leaves are always on the view, and the layout places them (sorted, compact). | Tiles |
+| Keep appearance | `backgroundKeepAppearance` | off | The elements of the background view keep its appearance: fill, line, font and text. — Font size follows Style by nesting level; Highlight repeated and Style by property still color them. | Tiles |
 
 **Flow**
 
@@ -385,7 +386,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 - The row tooltip reads the condition as a sentence.
 - **Reset on Expand view / Layout only**, when there is at least one style condition (on or off): first every element's fill, and every relation's line color and width, is reset on the view. Then the active conditions color again, so a changed condition never leaves colors of an earlier run behind. Colors set in the same pass by nesting level or highlight repeated are kept; colors set by hand on the view are lost. Without style conditions, nothing is reset.
 
-**Colors.** The first group holds the palette: one combo with the palettes of `presets/_palettes.json` ([presets.md](presets.md#palettes)); there is always one, the first being the default. Every color and color range of the tab comes from it. Switching it changes the pickers at once: a color or range the new palette does not hold becomes its first color or range (a color of its own, chosen with *Other…*, stays), so a picker always shows what the run writes. A palette the file does not hold shows the first one.
+**Colors.** The first group holds the palette: one combo with the palettes of `presets/_palettes.json` ([presets.md](presets.md#palettes)); there is always one, the first being the default. Every color and color range of the tab comes from it. With *Keep appearance* on (Layout tab, a background view named) the note above it says the elements of the background view keep their colors, and a note under the explanation of *Style by nesting level* says they take only the font size there. Switching it changes the pickers at once: a color or range the new palette does not hold becomes its first color or range (a color of its own, chosen with *Other…*, stays), so a picker always shows what the run writes. A palette the file does not hold shows the first one.
 
 **Style by nesting level.** Emphasizes significant nesting levels: each condition marks one. Active only when a Nesting condition is on; otherwise an informational label replaces the controls. From top to bottom: the explanation, the *Font* and *Color* switches with their numbers in one raster, and the nesting style conditions ([condition lists](presets.md#condition-lists)). The switches come first because they decide which columns take effect: *Font* off greys *Font size*, *Bold* and *Smaller per level*; *Color* off greys *Color*, *Lighter per level* and *Start darker*.
 - **Chain.** From each root container, a nesting step parent → child is selected when an active condition matches its parent type, child type (*Same as parent*: the parent's type) and a model relation between the two of the condition's type and direction (seen from the parent). Relation *All* with direction *Either* needs no relation. A root container is styled by a condition that would select it as a child under a parent of its own type: parent its type or *All*, child its type, *Same as parent* or *All*; relation and direction do not count. A step no condition selects stops the chain: neither the child nor anything inside it is styled. The order of the conditions does not matter.

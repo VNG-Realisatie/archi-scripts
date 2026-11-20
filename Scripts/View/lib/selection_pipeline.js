@@ -88,6 +88,25 @@ function _backgroundOf(snapshot, params, isModifyAction) {
 }
 
 /**
+ * Keep appearance: the visuals of each element on the background view, in view order, with the
+ * element each lies in, outside a diagram-block (an element in a diagram-block keeps that one's own).
+ * Appearance.backgroundLook picks the one an occurrence keeps.
+ * @param {BackgroundSnapshot} background
+ * @returns {Map<string, BackgroundLook[]>}  element id → its visuals
+ */
+function _backgroundLooks(background) {
+  /** @type {Map<string, BackgroundLook[]>} */
+  const looks = new Map();
+  for (const vo of background.sourceVisualElements) {
+    if (background.diagramBlockOf.has(String(vo.id))) continue;
+    const id = String(/** @type {ArchiElement} */ (vo.concept).id);   // Cast: a source element visual has its element
+    if (!looks.has(id)) looks.set(id, []);
+    /** @type {BackgroundLook[]} */ (looks.get(id)).push({ visual: vo, parentId: background.parentOf.get(String(vo.id)) || null });
+  }
+  return looks;
+}
+
+/**
  * EXPAND_VIEW or LAYOUT_ONLY: the actions that change the selected view in place.
  * @param {string} actionId
  */
@@ -202,6 +221,7 @@ function composeObjectSet(snapshot, preset, actionId) {
       visuals,
       joinRun,
       ...(arranged ? { arrangements: arranged.arrangements } : {}),
+      ...(arranged && preset.params.backgroundKeepAppearance ? { backgroundLooks: _backgroundLooks(arranged) } : {}),
     },
     filteredCounts,
     filteredBaseRels,

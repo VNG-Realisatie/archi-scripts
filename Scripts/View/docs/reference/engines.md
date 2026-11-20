@@ -67,6 +67,7 @@ An option outside the active set is greyed in the dialog, keeps its value, and i
 | Columns across containers `columnsAcrossContainers` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — | — |
 | Background `backgroundView` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — | — |
 | Leaves in place `backgroundLeavesInPlace` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — | — |
+| Keep appearance `backgroundKeepAppearance` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — | — |
 | Direction `direction` | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — |
 | Cycles `acyclicer` | — | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
 | Ranking `ranking` | — | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |

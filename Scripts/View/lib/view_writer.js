@@ -14,12 +14,8 @@ Log.debug("Loading view_writer.js");
 
 /** @type {typeof import("./defs")} */
 const Defs = require(REPO_ROOT + "View/lib/defs");
-const { PROP_MANAGED_OCCURRENCE } = Defs;
+const { PROP_MANAGED_OCCURRENCE, VISUAL_ATTRIBUTES } = Defs;
 
-/** Attributes of a visual a copy takes over; for an element visual, name, documentation and properties are its element's and are left alone. */
-const VISUAL_ATTRIBUTES = ["text", "labelExpression", "fillColor", "fontColor", "fontName", "fontSize", "fontStyle",
-  "lineColor", "lineWidth", "lineStyle", "opacity", "outlineOpacity", "gradient", "figureType", "textAlignment",
-  "textPosition", "showIcon", "iconColor", "imageSource", "imagePosition", "deriveLineColor", "borderType"];
 /** Attributes of a connection a copy takes over (a relation's name and documentation are the relation's). */
 const CONNECTION_ATTRIBUTES = ["labelExpression", "fontColor", "fontName", "fontSize", "fontStyle", "lineColor",
   "lineWidth", "textPosition", "textAlignment", "labelVisible", "style"];
@@ -165,7 +161,7 @@ function _copyConnection(view, c, end) {
  * object also takes its name, documentation and properties.
  * @param {DiagramComponent} source
  * @param {DiagramComponent} copy
- * @param {string[]}         attributes
+ * @param {readonly string[]} attributes
  * @param {boolean}          own  the visual is a diagram object: name, documentation and properties are its own
  */
 function _copyAttributes(source, copy, attributes, own) {

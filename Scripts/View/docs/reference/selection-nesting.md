@@ -147,6 +147,13 @@ Only these relations are drawn. An element the selection put under one of its ow
 
 **Expand view, Layout only** lay out the view in the arrangement of the background view, for the containers on it; they add and leave out nothing.
 
+**Keep appearance.** Every action gives each element of the background view the appearance it has there:
+- What it keeps: fill, opacity, gradient, line color, width and style, font name, style and color, text alignment and position, figure, icon and image. The font size comes from *Style by nesting level*, or stays the default; the bold of a nesting style condition does not apply. A label expression is not kept.
+- Which visual: an element the background view holds more than once (a nesting condition with *every container*) takes, per occurrence, the appearance of its visual in the same container there, else of its first. An element inside a diagram-block keeps that one's own.
+- Order: it comes after *Style by nesting level* and before *Highlight repeated* and *Style by property*, which still color it. Every run, *Layout only* too, takes it again from the background view as it is then.
+- The chain: a kept fill is the color of that element in *Style by nesting level*, unshaded. A child of its type whose condition color is that fill continues one level lighter; any other child starts at a nesting color change.
+- Labels are measured in the font name and style it keeps, with its figure and text layout.
+
 ## Sizing refinements
 
 ### Same width

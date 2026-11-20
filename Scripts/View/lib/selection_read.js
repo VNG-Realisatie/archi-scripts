@@ -463,13 +463,20 @@ function readBackground(ref) {
     elements.push(/** @type {ArchiElement} */ (ve.concept));   // Cast: an element visual's concept is an element
   });
   const blocks = _readDiagramBlocks([view]);
+  const sourceVisualElements = _elementVisualsRead($(view));
+  /** @type {Map<string, string | null>} */
+  const parentOf = new Map();
+  for (const ve of sourceVisualElements) {
+    const p = /** @type {VisualObject | null} */ ($(ve).parent().filter("element").first());   // Cast: on a view, "element" selects element visuals
+    parentOf.set(String(ve.id), p && p.concept && !(p.type in Defs.DIAGRAM_TYPES) ? String(p.concept.id) : null);
+  }
   const arrangements = Arrangement.arrangementsOf(_boxTree(view));
   Log.debug(`  Background view "${path}": ${elements.length} elements, ${Object.keys(arrangements).length} arrangement(s)`);
   return {
     path, elements,
     diagramObjects: _expandViews($(view)).diagramObjects,
     diagramBlockOf: blocks.diagramBlockOf, blockContents: blocks.blockContents,
-    sourceVisualElements: _elementVisualsRead($(view)),
+    sourceVisualElements, parentOf,
     arrangements,
   };
 }

@@ -224,6 +224,8 @@ type PresetParams = {
   backgroundView: BackgroundRef;
   /** Tiles: the leaves of the background view keep their place too; false: only its containers. */
   backgroundLeavesInPlace: boolean;
+  /** Tiles: the elements of the background view keep its appearance, but for font size. */
+  backgroundKeepAppearance: boolean;
 };
 
 /** A background view as a preset names it: found by id; the path (folders and name) is a label, and finds it when the id is empty. */
@@ -239,7 +241,15 @@ interface BackgroundSnapshot {
   diagramBlockOf: Map<string, string>;
   blockContents: Map<string, BlockContents>;
   sourceVisualElements: VisualObject[];
+  /** Element visual id → the element of the element visual it lies in; null at the view root. */
+  parentOf: Map<string, string | null>;
   arrangements: Arrangements;
+}
+
+/** Keep appearance: a visual of an element on the background view, and the element it lies in there (null: the view root). */
+interface BackgroundLook {
+  visual: VisualObject;
+  parentId: string | null;
 }
 
 /**
@@ -391,6 +401,8 @@ interface ObjectSet {
   joinRun?: Map<string, number>;
   /** The arrangement of the background view's containers (Tiles); absent without a background view. */
   arrangements?: Arrangements;
+  /** Keep appearance: element id → its visuals on the background view, in view order; absent when off. */
+  backgroundLooks?: Map<string, BackgroundLook[]>;
 }
 
 /** One expand-selection step's result (expandStepWithRelations). */
@@ -954,6 +966,8 @@ type DialogWidgets = {
   pickMixedColor: ColorPicker;
   cmbStyleLineWidth: Swt.Combo;
   lblNestingInfo: Swt.Label;
+  lblNestKeepAppearance: Swt.Label;
+  lblPaletteNote: Swt.Label;
   nestDescLbl: Swt.Label;
   chkNestFont: CheckBox;
   lblNestDecrease: Swt.Label;
@@ -985,6 +999,7 @@ type DialogWidgets = {
   txtViewFolder: Swt.Text;
   txtBackgroundView: Swt.Text;
   chkBackgroundLeavesInPlace: CheckBox;
+  chkBackgroundKeepAppearance: CheckBox;
   rdoMirrored: Swt.Button;
   lblMirroredUnder: Swt.Label;
   lblMirrored: Swt.Label;

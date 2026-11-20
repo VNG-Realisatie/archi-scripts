@@ -66,6 +66,7 @@ const ICON_OFFSET = Object.freeze({
  * @property {(nodeId: string) => VisualObject | undefined} visualOf   the visual on the target view paired with the occurrence
  * @property {Preset["appearance"]["nestingLevel"]} nestingLevel
  * @property {Set<string>} backgroundElements  elements of the background view: styled as containers
+ * @property {Map<string, BackgroundLook[]>} backgroundLooks  Keep appearance: element id → its visuals on the background view (Appearance.backgroundLook), whose font and text layout it keeps
  * @property {LabelInput} input
  *
  * @typedef {object} LabelLayout  how Archi lays out one node's label
@@ -77,9 +78,12 @@ const ICON_OFFSET = Object.freeze({
 
 /**
  * How each element node's label is laid out. Font: the one Style by nesting level sets or resets,
- * else the visual's, else Archi's default view font. Text width: the visual's figure type, text
- * alignment, text position and icon; a new visual as Archi creates it (figure type, text alignment
- * and text position from Archi's preferences, a grouping left-aligned; icon shown).
+ * else the visual's, else Archi's default view font; an element that keeps the appearance of the
+ * background view (Keep appearance) takes the font name and style from its visual there, the size as
+ * before. Text width: the visual's figure type, text alignment, text position and icon (the
+ * background view's visual for an element that keeps its appearance); a new visual as Archi creates
+ * it (figure type, text alignment and text position from Archi's preferences, a grouping
+ * left-aligned; icon shown).
  * @param {LayoutNode[]}           nodes
  * @param {Record<string, string>} parentMap
  * @param {LabelSources}           src
@@ -103,9 +107,13 @@ function labelLayouts(nodes, parentMap, src) {
   }
   const styled = Appearance.nestingFonts(nestingNodes, src.nestingLevel, src.input.isModify, src.input.defaultFont);
   return id => {
-    const vo = src.visualOf(id);
     const el = src.elementOf(id);
-    const font = styled.get(id) || (vo ? { name: vo.fontName, size: vo.fontSize, style: vo.fontStyle } : null);
+    const parentEl = parentMap[id] ? src.elementOf(parentMap[id]) : undefined;
+    const look = el ? Appearance.backgroundLook(src.backgroundLooks, el.id, parentEl ? parentEl.id : null) : undefined;
+    const vo = look || src.visualOf(id);
+    const own = src.visualOf(id);
+    let font = styled.get(id) || (own ? { name: own.fontName, size: own.fontSize, style: own.fontStyle } : null);
+    if (look) font = { name: look.fontName, size: (font || src.input.defaultFont).size, style: look.fontStyle };
     return { font, ...(el ? _iconRoom(el.type, vo, src.input.newVisual) : { iconCut: 0, iconClear: 0 }), breaks: src.input.breaks };
   };
 }

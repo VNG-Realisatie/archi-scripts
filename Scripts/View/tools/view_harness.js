@@ -311,9 +311,11 @@ function readBackground(model, ref) {
   const view = model.views.find(v => v.id === ref.id) || model.views.find(v => "/" + v.path === ref.path);
   if (!view) throw new Error(`Background view "${ref.path || ref.id}" is not in this model.`);
   const w = _walkView(model, view);
+  const conceptOf = new Map(w.visualElements.map(v => [v.id, v.concept.id]));
+  const parentOf = new Map(w.visualElements.map(v => [v.id, conceptOf.get(w.positions.get(v.id).parentId) || null]));
   return {
     path: "/" + view.path, elements: w.elements, diagramObjects: w.diagramObjects,
-    diagramBlockOf: w.diagramBlockOf, blockContents: w.blockContents, sourceVisualElements: w.visualElements,
+    diagramBlockOf: w.diagramBlockOf, blockContents: w.blockContents, sourceVisualElements: w.visualElements, parentOf,
     arrangements: Arrangement.arrangementsOf(_boxTree(model, view.node)),
   };
 }

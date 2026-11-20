@@ -149,7 +149,7 @@ function buildAppearanceTab(tabFolder, ctx) {
   try { ctx.palettes = Palettes.readPalettes(); }
   catch (e) { ctx.palettes = []; Log.warn(`Appearance: ${/** @type {Error} */ (e).message}`); }
   const grpColors = Widgets.group(page, "Colors", 1);
-  Widgets.noteLabel(grpColors, "Every color and color range on this tab comes from the palette.");
+  w.lblPaletteNote = Widgets.noteLabel(grpColors, PALETTE_NOTE);
   const paletteRow = Widgets.formRow(grpColors, "Palette:", formRows);
   const cmbPalette = new ComboWidget(paletteRow, SWT.READ_ONLY | SWT.DROP_DOWN);
   ctx.palettes.forEach(p => cmbPalette.add(p.name));
@@ -214,6 +214,11 @@ function buildAppearanceTab(tabFolder, ctx) {
   w.lblNestingInfo = Widgets.noteLabel(grpNest, "Turn on a Nesting condition in the Layout tab to use this.");
   w.nestDescLbl = Widgets.noteLabel(grpNest, "Emphasize significant nesting levels with color and font. " +
     "Each condition marks a level; deeper levels get lighter and smaller.");
+  // Keep appearance note — shown via updateKeepAppearanceNotes.
+  w.lblNestKeepAppearance = Widgets.noteLabel(grpNest, "The elements of the background view keep their appearance " +
+    "(Layout › Keep appearance); here they take only the font size. Elements inside them continue from their color.");
+  w.lblNestKeepAppearance.setVisible(false);
+  w.lblNestKeepAppearance.getLayoutData().exclude = true;
 
   // Switches first, then the conditions both use. One raster: the first label after each
   // switch lines up.
@@ -325,6 +330,28 @@ function _spinnerWithUnit(row, unit) {
   return { spinner, unit: lbl };
 }
 
+const PALETTE_NOTE = "Every color and color range on this tab comes from the palette.";
+const PALETTE_NOTE_KEEP = "The elements of the background view keep their colors (Layout › Keep appearance); every other color comes from the palette.";
+
+/**
+ * The notes of Keep appearance (Layout tab): shown while it takes effect, a background view named
+ * and the switch on and active for the algorithm.
+ * @param {DialogContext} ctx
+ */
+function updateKeepAppearanceNotes(ctx) {
+  const w = ctx.widgets;
+  if (!w.lblPaletteNote || !w.chkBackgroundKeepAppearance || !w.txtBackgroundView) return;   // a tab not yet built
+  const on = w.chkBackgroundKeepAppearance.isEnabled() && w.chkBackgroundKeepAppearance.getSelection()
+    && String(w.txtBackgroundView.getText()).trim() !== "";
+  const text = on ? PALETTE_NOTE_KEEP : PALETTE_NOTE;
+  if (String(w.lblPaletteNote.getText()) === text) return;
+  w.lblPaletteNote.setText(text);
+  w.lblNestKeepAppearance.setVisible(on);
+  w.lblNestKeepAppearance.getLayoutData().exclude = !on;
+  try { ctx.appearancePage.layout(true, true); } catch (e) {}   // silent: layout on a page that may be disposed
+  Widgets.resizeScrolled(ctx.appearanceScrolled, ctx.appearancePage);
+}
+
 // Enable/disable the "Style by nesting level" controls based on whether any nesting
 // conditions are configured in the Layout tab. Called from _syncToUI and when the nesting conditions
 // change, so both tabs stay in sync.
@@ -363,10 +390,11 @@ function updateNestingLevelState(ctx) {
   Widgets.enable(w.lblNestLighten,        hasColor);
   Widgets.enable(w.spinNestLighten,       hasColor);
   Widgets.enable(w.lblNestLightenPct,     hasColor);
+  updateKeepAppearanceNotes(ctx);
 }
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    buildAppearanceTab, updateNestingLevelState, updateAppearancePropStates, updateStyleWarnings,
+    buildAppearanceTab, updateNestingLevelState, updateAppearancePropStates, updateStyleWarnings, updateKeepAppearanceNotes,
   };
 }
