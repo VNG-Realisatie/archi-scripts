@@ -19,8 +19,8 @@ const Defs    = require(REPO_ROOT + "View/lib/defs");
 const Nesting = require(REPO_ROOT + "View/lib/nesting");
 /** @type {typeof import("./label_size")} */
 const LabelSize = require(REPO_ROOT + "View/lib/label_size");
-/** @type {typeof import("./arrangement")} */
-const Arrangement = require(REPO_ROOT + "View/lib/arrangement");
+/** @type {typeof import("./table")} */
+const Table = require(REPO_ROOT + "View/lib/table");
 /** @type {typeof import("./engines/engine-utils")} */
 const { expandNodeSizesForEdgeDensity, ORDER_COMPARE } = require(REPO_ROOT + "View/lib/engines/engine-utils");
 const { ALGORITHMS, RELATION_WEIGHT_MAP } = Defs;
@@ -68,8 +68,8 @@ function _orderRootLeaves(nodes, order) {
  * @param {VisualDescription[] | undefined}  visuals
  * @param {VisualConnection[] | undefined}   visualRelations
  * @param {DiagramObject[] | undefined}      diagramConnections    connections of diagram objects (a note's line)
- * @param {{ diagramBlockOf?: Map<string, string>, diagramBlockVisualOf?: Map<string, string>, positions?: Map<string, VisualPosition>, visualElements?: VisualObject[], joinRun?: Map<string, number>, arrangements?: Arrangements, backgroundLooks?: Map<string, BackgroundLook[]> }} diagramBlocks
- *   contents of diagram-blocks, the target view's objects, the run each element joined in and the background view's arrangements (ObjectSet)
+ * @param {{ diagramBlockOf?: Map<string, string>, diagramBlockVisualOf?: Map<string, string>, positions?: Map<string, VisualPosition>, visualElements?: VisualObject[], joinRun?: Map<string, number>, tables?: Tables, backgroundLooks?: Map<string, BackgroundLook[]> }} diagramBlocks
+ *   contents of diagram-blocks, the target view's objects, the run each element joined in and the background view's tables (ObjectSet)
  * @param {import("./label_size").LabelInput} labels  measuring and fonts for the label heights
  * @returns {LayoutGraph}
  */
@@ -244,7 +244,7 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
   _orderEdges(nodes, edges, params.selectionOrder);
 
   const engineParams = preset.engineParams || {};
-  const backgroundElements = Arrangement.elementsOf(diagramBlocks && diagramBlocks.arrangements);
+  const backgroundElements = Table.elementsOf(diagramBlocks && diagramBlocks.tables);
   const background = { elements: backgroundElements, looks: (diagramBlocks && diagramBlocks.backgroundLooks) || new Map() };
   const fonts = _labelLayouts(nodes, elements, nesting, (diagramBlocks && diagramBlocks.visualElements) || [], preset, labels, background);
   if (params.labelSizing) _sizeToLabels(nodes, fonts, params, engineParams, labels.measure);

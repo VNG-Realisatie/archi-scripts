@@ -1,5 +1,5 @@
 /**
- * Arrangement: which boxes of a container stand side by side and which one above the other, read
+ * Table: which boxes of a container stand side by side and which one above the other, read
  * from the boxes of a background view by cuts that cross no box, so no tolerance in pixels decides it
  * (recursive XY-cut):
  *   - columns: a vertical line that crosses no box splits the boxes into columns, left to right;
@@ -8,10 +8,10 @@
  * Columns come first: a band that spans the container leaves no vertical cut, so bands become rows,
  * and a column of bands beside another column stays a column. Boxes no line separates (they overlap,
  * or interlock) form a stack in reading order (top, then left).
- * An arrangement holds no sizes or positions, and not which objects are drawn: the selection decides
- * that. Tiles places the children of a container that has one in this arrangement.
+ * a table holds no sizes or positions, and not which objects are drawn: the selection decides
+ * that. Tiles places the children of a container that has one in this table.
  *
- * Pure: Node loads it (tools/arrangement_test.js).
+ * Pure: Node loads it (tools/table_test.js).
  */
 
 const REPO_ROOT = (() => {
@@ -20,42 +20,42 @@ const REPO_ROOT = (() => {
 })();
 /** @type {typeof import("../../_lib/log")} */
 const Log = require(REPO_ROOT + "_lib/log");
-Log.debug("Loading arrangement.js");
+Log.debug("Loading table.js");
 
 /**
  * @typedef {{ id: string, x: number, y: number, width: number, height: number }} Box
  * @typedef {{ id: string, x: number, y: number, width: number, height: number, children: BoxTree[] }} BoxTree
  */
 
-/** The key of the view itself in an Arrangements record: its root has no id. */
+/** The key of the view itself in an Tables record: its root has no id. */
 const ROOT = "";
 
 /**
- * The arrangement of sibling boxes.
+ * The table of sibling boxes.
  * @param {Box[]} boxes  at least one
- * @returns {Arrangement}
+ * @returns {Table}
  */
-function arrangementOf(boxes) {
+function tableOf(boxes) {
   if (boxes.length === 1) return boxes[0].id;
   const columns = _bands(boxes, b => b.x, b => b.width);
-  if (columns.length > 1) return { cut: "H", parts: columns.map(arrangementOf) };
+  if (columns.length > 1) return { cut: "H", parts: columns.map(tableOf) };
   const rows = _bands(boxes, b => b.y, b => b.height);
-  if (rows.length > 1) return { cut: "V", parts: rows.map(arrangementOf) };
+  if (rows.length > 1) return { cut: "V", parts: rows.map(tableOf) };
   return { cut: "V", parts: boxes.slice().sort((p, q) => p.y - q.y || p.x - q.x || _byId(p, q)).map(b => b.id) };
 }
 
 /**
- * The arrangement of every box with children, and of the root, in a tree of boxes.
+ * The table of every box with children, and of the root, in a tree of boxes.
  * @param {BoxTree[]} roots
- * @returns {Arrangements}  ROOT for the view itself
+ * @returns {Tables}  ROOT for the view itself
  */
-function arrangementsOf(roots) {
-  /** @type {Arrangements} */
+function tablesOf(roots) {
+  /** @type {Tables} */
   const out = {};
   /** @param {string} key @param {BoxTree[]} boxes */
   const visit = (key, boxes) => {
     if (!boxes.length) return;
-    out[key] = arrangementOf(boxes);
+    out[key] = tableOf(boxes);
     for (const b of boxes) visit(b.id, b.children);
   };
   visit(ROOT, roots);
@@ -89,50 +89,50 @@ function _byId(p, q) {
 }
 
 /**
- * The ids of an arrangement in reading order.
- * @param {Arrangement} arrangement
+ * The ids of a table in reading order.
+ * @param {Table} table
  * @returns {string[]}
  */
-function idsOf(arrangement) {
-  return typeof arrangement === "string" ? [arrangement] : arrangement.parts.flatMap(idsOf);
+function idsOf(table) {
+  return typeof table === "string" ? [table] : table.parts.flatMap(idsOf);
 }
 
 /**
- * An arrangement on one line for the log file: side by side joined by " | ", one above the other
+ * a table on one line for the log file: side by side joined by " | ", one above the other
  * by " / ", a nested part in brackets.
- * @param {Arrangement}            arrangement
+ * @param {Table}            table
  * @param {(id: string) => string} name
  * @returns {string}
  */
-function describe(arrangement, name) {
-  if (typeof arrangement === "string") return name(arrangement);
-  const inner = arrangement.parts.map(p => typeof p === "string" ? name(p) : `[${describe(p, name)}]`);
-  return inner.join(arrangement.cut === "H" ? " | " : " / ");
+function describe(table, name) {
+  if (typeof table === "string") return name(table);
+  const inner = table.parts.map(p => typeof p === "string" ? name(p) : `[${describe(p, name)}]`);
+  return inner.join(table.cut === "H" ? " | " : " / ");
 }
 
 /**
- * The arrangements of the containers that hold a container of the background view. Their children
+ * The tables of the containers that hold a container of the background view. Their children
  * keep their places; the children of the other containers are only there, and the layout places them.
- * One container among the children is enough to keep a container's arrangement.
- * @param {Arrangements} arrangements
- * @returns {Arrangements}
+ * One container among the children is enough to keep a container's table.
+ * @param {Tables} tables
+ * @returns {Tables}
  */
-function arrangementsWithContainers(arrangements) {
-  /** @type {Arrangements} */
+function tablesWithContainers(tables) {
+  /** @type {Tables} */
   const out = {};
-  for (const [key, a] of Object.entries(arrangements)) if (idsOf(a).some(id => id in arrangements)) out[key] = a;
+  for (const [key, a] of Object.entries(tables)) if (idsOf(a).some(id => id in tables)) out[key] = a;
   return out;
 }
 
 /**
- * Every element of the background view the arrangements name: the containers and their children.
- * @param {Arrangements | undefined} arrangements
+ * Every element of the background view the tables name: the containers and their children.
+ * @param {Tables | undefined} tables
  * @returns {Set<string>}
  */
-function elementsOf(arrangements) {
+function elementsOf(tables) {
   /** @type {Set<string>} */
   const out = new Set();
-  for (const [key, a] of Object.entries(arrangements || {})) {
+  for (const [key, a] of Object.entries(tables || {})) {
     if (key !== ROOT) out.add(key);
     for (const id of idsOf(a)) out.add(id);
   }
@@ -140,5 +140,5 @@ function elementsOf(arrangements) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { ROOT, arrangementOf, arrangementsOf, idsOf, arrangementsWithContainers, elementsOf, describe };
+  module.exports = { ROOT, tableOf, tablesOf, idsOf, tablesWithContainers, elementsOf, describe };
 }

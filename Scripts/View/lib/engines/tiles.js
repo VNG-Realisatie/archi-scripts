@@ -52,10 +52,10 @@ const CHUNK_SIZE = 24;
  * (side by side `H` or one above the other `V`); `a` and `b` index the shapes of the two parts.
  * @typedef {{ w: number, h: number, child?: number, k?: number, dir?: "H" | "V", a?: number, b?: number, turns?: number }} Shape
  *   turns: how often the cuts inside switch between side by side and one above the other (turnsOf)
- * @typedef {{ id: string, shapes: Shape[], table?: Table, chunk?: boolean }} Tile  one box of a run: a leaf, a
+ * @typedef {{ id: string, shapes: Shape[], floorplan?: Floorplan, chunk?: boolean }} Tile  one box of a run: a leaf, a
  *   container, or a chunk of a long run (no node of its own, no padding)
- * @typedef {{ tiles: Tile[], best: Shape[][][], arranged?: boolean }} Table  best[i][j]: the shapes of tiles i … j;
- *   arranged: in the arrangement of the background view (arrangedTable)
+ * @typedef {{ tiles: Tile[], best: Shape[][][], tabled?: boolean }} Floorplan  best[i][j]: the shapes of tiles i … j;
+ *   tabled: in the table of the background view (tableFloorplan)
  */
 
 /**
@@ -65,7 +65,7 @@ const CHUNK_SIZE = 24;
  * @param {Shape[]} shapes
  * @param {number}  widthCap  0 = no cap
  * @param {number}  [maxShapes]
- * @param {number}  [maxWaste]  Infinity: keep the wasteful shapes too (a box of an arrangement, see tileOf)
+ * @param {number}  [maxWaste]  Infinity: keep the wasteful shapes too (a box of a table, see tileOf)
  * @returns {Shape[]}
  */
 function prune(shapes, widthCap, maxShapes = MAX_SHAPES, maxWaste = MAX_WASTE) {
@@ -108,10 +108,10 @@ function turnsOf(s, dir) {
  * @param {number} widthCap
  * @param {number} [finalShapes]  shapes kept for the whole run (the view: more, so Max width can come close)
  * @param {number} [maxWaste]
- * @returns {Table}
+ * @returns {Floorplan}
  */
-function buildTable(tiles, gap, widthCap, finalShapes = MAX_SHAPES, maxWaste = MAX_WASTE) {
-  if (tiles.length > FULL_SEARCH_MAX) return buildTable(chunksOf(tiles, gap, widthCap, maxWaste), gap, widthCap, finalShapes, maxWaste);
+function buildFloorplan(tiles, gap, widthCap, finalShapes = MAX_SHAPES, maxWaste = MAX_WASTE) {
+  if (tiles.length > FULL_SEARCH_MAX) return buildFloorplan(chunksOf(tiles, gap, widthCap, maxWaste), gap, widthCap, finalShapes, maxWaste);
   const n = tiles.length;
   /** @type {Shape[][][]} */
   const best = Array.from({ length: n }, () => Array.from({ length: n }, () => /** @type {Shape[]} */ ([])));
@@ -138,27 +138,27 @@ function buildTable(tiles, gap, widthCap, finalShapes = MAX_SHAPES, maxWaste = M
 }
 
 /**
- * The table of a container's children in the arrangement of the background view: parts side by side
- * or one above the other as the arrangement cuts them, so only the sizes are searched. Children the
- * arrangement does not hold come last, below the rest, tiled freely; an arranged child the view does
- * not hold drops out, and so does a part left empty. `arranged` marks the table: placeRun widens the
+ * The floorplan of a container's children in the table of the background view: parts side by side
+ * or one above the other as the table cuts them, so only the sizes are searched. Children the
+ * table does not hold come last, below the rest, tiled freely; a child of the table the view does
+ * not hold drops out, and so does a part left empty. `tabled` marks the floorplan: placeRun widens the
  * containers of a part one above the other to its width, so they read as bands.
  * @param {Tile[]}      tiles        in sorted order
- * @param {Arrangement} arrangement  ids: element ids, or the ids of diagram objects
+ * @param {Table} table  ids: element ids, or the ids of diagram objects
  * @param {number}      gap
  * @param {number}      widthCap
  * @param {number}      [finalShapes]
- * @returns {Table}
+ * @returns {Floorplan}
  */
-function arrangedTable(tiles, arrangement, gap, widthCap, finalShapes = MAX_SHAPES) {
+function tableFloorplan(tiles, table, gap, widthCap, finalShapes = MAX_SHAPES) {
   /** @type {Map<string, Tile>} */
   const byElement = new Map(tiles.map(t => [elementOf(t.id), t]));
   /** @type {Tile[]} */
   const ordered = [];
   /**
-   * The arrangement with the tiles in it: a tile's index in `ordered`, or the parts that hold any.
+   * The table with the tiles in it: a tile's index in `ordered`, or the parts that hold any.
    * @typedef {number | { cut: "H" | "V", parts: Placed[] }} Placed
-   * @param {Arrangement} a
+   * @param {Table} a
    * @returns {Placed | null}
    */
   const place = a => {
@@ -169,13 +169,13 @@ function arrangedTable(tiles, arrangement, gap, widthCap, finalShapes = MAX_SHAP
     const parts = /** @type {Placed[]} */ (a.parts.map(place).filter(p => p !== null));
     return !parts.length ? null : parts.length === 1 ? parts[0] : { cut: a.cut, parts };
   };
-  let root = place(arrangement);
-  if (root === null) return buildTable(tiles, gap, widthCap, finalShapes);
+  let root = place(table);
+  if (root === null) return buildFloorplan(tiles, gap, widthCap, finalShapes);
   const placed = new Set(ordered);
   const rest = tiles.filter(t => !placed.has(t));
   if (rest.length) {
-    const table = buildTable(rest, gap, widthCap);
-    const chunk = ordered.push({ id: "", chunk: true, table, shapes: table.best[0][rest.length - 1].map((s, child) => ({ w: s.w, h: s.h, child })) }) - 1;
+    const floorplan = buildFloorplan(rest, gap, widthCap);
+    const chunk = ordered.push({ id: "", chunk: true, floorplan, shapes: floorplan.best[0][rest.length - 1].map((s, child) => ({ w: s.w, h: s.h, child })) }) - 1;
     root = { cut: "V", parts: [root, chunk] };
   }
   const n = ordered.length;
@@ -201,12 +201,12 @@ function arrangedTable(tiles, arrangement, gap, widthCap, finalShapes = MAX_SHAP
         const P = left[a], Q = right[b];
         cands.push(p.cut === "H" ? { w: P.w + gap + Q.w, h: Math.max(P.h, Q.h), k, dir: "H", a, b } : { w: Math.max(P.w, Q.w), h: P.h + gap + Q.h, k, dir: "V", a, b });
       }
-      best[i][j] = prune(cands, widthCap, t === 0 ? keep : MAX_SHAPES, Infinity);   // the boxes of an arrangement widen for free
+      best[i][j] = prune(cands, widthCap, t === 0 ? keep : MAX_SHAPES, Infinity);   // the boxes of a table widen for free
     }
     return [runs[0][0], j];
   };
   join(root, finalShapes);
-  return { tiles: ordered, best, arranged: true };
+  return { tiles: ordered, best, tabled: true };
 }
 
 /**
@@ -231,8 +231,8 @@ function chunksOf(tiles, gap, widthCap, maxWaste = MAX_WASTE) {
   const chunks = [];
   for (let c = 0; c < count; c++) {
     const part = tiles.slice(Math.floor(c * tiles.length / count), Math.floor((c + 1) * tiles.length / count));
-    const table = buildTable(part, gap, widthCap, MAX_SHAPES, maxWaste);
-    chunks.push({ id: "", chunk: true, table, shapes: table.best[0][part.length - 1].map((s, child) => ({ w: s.w, h: s.h, child })) });
+    const floorplan = buildFloorplan(part, gap, widthCap, MAX_SHAPES, maxWaste);
+    chunks.push({ id: "", chunk: true, floorplan, shapes: floorplan.best[0][part.length - 1].map((s, child) => ({ w: s.w, h: s.h, child })) });
   }
   return chunks;
 }
@@ -346,44 +346,44 @@ function layout(graph) {
     }
   }
 
-  const arrangements = graph.arrangements || {};
+  const tables = graph.tables || {};
   /**
-   * The table of a run of children: in the arrangement of the background view when it has one for
+   * The floorplan of a run of children: in the table of the background view when it has one for
    * their container, else searched.
    * @param {string} key  the container's element id, "" for the view
    * @param {Tile[]} tiles
    * @param {number} [finalShapes]
-   * @returns {Table}
+   * @returns {Floorplan}
    */
-  const tableOf = (key, tiles, finalShapes) => arrangements[key]
-    ? arrangedTable(tiles, arrangements[key], gap, goal, finalShapes)
-    : buildTable(tiles, gap, goal, finalShapes);
-  if (Object.keys(arrangements).length) log(`Tiles: ${Object.keys(arrangements).length} arrangement(s) from the background view`);
+  const floorplanOf = (key, tiles, finalShapes) => tables[key]
+    ? tableFloorplan(tiles, tables[key], gap, goal, finalShapes)
+    : buildFloorplan(tiles, gap, goal, finalShapes);
+  if (Object.keys(tables).length) log(`Tiles: ${Object.keys(tables).length} table(s) from the background view`);
 
   /**
-   * A node as a tile. A container's shapes come from the table of its children; `child` of a shape
-   * is the index of the table shape it is built from.
+   * A node as a tile. A container's shapes come from the floorplan of its children; `child` of a shape
+   * is the index of the floorplan shape it is built from.
    * @param {LayoutNode} node
    * @returns {Tile}
    */
   const tileOf = node => {
     const kids = childrenOf[node.id];
     if (!kids) return { id: node.id, shapes: [{ w: levelWidth[node.id] || node.width, h: node.height }] };
-    // A box of an arrangement (a band) may widen for free: its wide shapes stay, its container chooses.
-    const waste = arrangements[node.parent ? elementOf(node.parent) : ""] ? Infinity : MAX_WASTE;
-    const table = arrangements[elementOf(node.id)]
-      ? tableOf(elementOf(node.id), kids.map(tileOf))
-      : buildTable(kids.map(tileOf), gap, goal, MAX_SHAPES, waste);
-    const inner = table.best[0][table.tiles.length - 1];
+    // A box of a table (a band) may widen for free: its wide shapes stay, its container chooses.
+    const waste = tables[node.parent ? elementOf(node.parent) : ""] ? Infinity : MAX_WASTE;
+    const floorplan = tables[elementOf(node.id)]
+      ? floorplanOf(elementOf(node.id), kids.map(tileOf))
+      : buildFloorplan(kids.map(tileOf), gap, goal, MAX_SHAPES, waste);
+    const inner = floorplan.best[0][floorplan.tiles.length - 1];
     const shapes = inner.map((s, child) => ({ w: Math.max(s.w + 2 * pad, levelWidth[node.id] || 0, node.minWidth), h: s.h + topOf(node.id) + pad, child }));
-    return { id: node.id, shapes: prune(shapes, goal, MAX_SHAPES, waste), table };
+    return { id: node.id, shapes: prune(shapes, goal, MAX_SHAPES, waste), floorplan };
   };
   const rootTiles = (childrenOf[""] || []).map(tileOf);
   /**
-   * Place tiles i … j of a table in the shape `index`, with its top left corner at (x, y), in
+   * Place tiles i … j of a floorplan in the shape `index`, with its top left corner at (x, y), in
    * `column`: parts one above the other share it, parts side by side each get their own.
    * @param {LayoutResultNode[]} out
-   * @param {Table}       table
+   * @param {Floorplan}       floorplan
    * @param {number}      i
    * @param {number}      j
    * @param {number}      index
@@ -391,18 +391,18 @@ function layout(graph) {
    * @param {number}      y
    * @param {string|null} parentId
    * @param {number}      column
-   * @param {Band | null} [band]  the boxes of a part one above the other in an arrangement, collected here
+   * @param {Band | null} [band]  the boxes of a part one above the other in a table, collected here
    */
-  const placeRun = (out, table, i, j, index, x, y, parentId, column, band = null) => {
-    const shape = table.best[i][j][index];
-    if (i === j) { placeTile(out, table.tiles[i], /** @type {number} */ (shape.child), x, y, parentId, column, band); return; }
+  const placeRun = (out, floorplan, i, j, index, x, y, parentId, column, band = null) => {
+    const shape = floorplan.best[i][j][index];
+    if (i === j) { placeTile(out, floorplan.tiles[i], /** @type {number} */ (shape.child), x, y, parentId, column, band); return; }
     const k = /** @type {number} */ (shape.k);
-    const left = table.best[i][k][/** @type {number} */ (shape.a)];
+    const left = floorplan.best[i][k][/** @type {number} */ (shape.a)];
     const side = shape.dir === "H";
-    // In an arrangement, the boxes one above the other become one band (fillBands); beside others it fills only its own part.
-    const part = side || !table.arranged ? null : band || _newBand(false);
-    placeRun(out, table, i, k, /** @type {number} */ (shape.a), x, y, parentId, side ? ++columns : column, part);
-    placeRun(out, table, k + 1, j, /** @type {number} */ (shape.b), side ? x + left.w + gap : x, side ? y : y + left.h + gap, parentId, side ? ++columns : column, part);
+    // In a table, the boxes one above the other become one band (fillBands); beside others it fills only its own part.
+    const part = side || !floorplan.tabled ? null : band || _newBand(false);
+    placeRun(out, floorplan, i, k, /** @type {number} */ (shape.a), x, y, parentId, side ? ++columns : column, part);
+    placeRun(out, floorplan, k + 1, j, /** @type {number} */ (shape.b), side ? x + left.w + gap : x, side ? y : y + left.h + gap, parentId, side ? ++columns : column, part);
   };
   /** @typedef {{ ids: string[], full: boolean }} Band  full: nothing beside it in its container, so it fills the container's width */
   /** @type {Band[]} */
@@ -417,20 +417,20 @@ function layout(graph) {
    * @param {number}      y
    * @param {string|null} parentId
    * @param {number}      column
-   * @param {Band | null} [band]  a band of an arrangement this tile is in; a diagram object keeps its size
+   * @param {Band | null} [band]  a band of a table this tile is in; a diagram object keeps its size
    */
   const placeTile = (out, tile, index, x, y, parentId, column, band = null) => {
     const shape = tile.shapes[index];
     if (tile.chunk) {   // its tiles go straight into the run's own container
-      const table = /** @type {Table} */ (tile.table);   // Cast: every chunk has a table
-      placeRun(out, table, 0, table.tiles.length - 1, /** @type {number} */ (shape.child), x, y, parentId, column);
+      const floorplan = /** @type {Floorplan} */ (tile.floorplan);   // Cast: every chunk has a floorplan
+      placeRun(out, floorplan, 0, floorplan.tiles.length - 1, /** @type {number} */ (shape.child), x, y, parentId, column);
       return;
     }
     columnOf[tile.id] = column;
     if (band && !isDiagram.has(tile.id)) band.ids.push(tile.id);
     out.push({ id: tile.id, x, y, width: shape.w, height: shape.h, parentId });
-    if (tile.table) placeRun(out, tile.table, 0, tile.table.tiles.length - 1, /** @type {number} */ (shape.child), x + pad, y + topOf(tile.id), tile.id, ++columns,
-      tile.table.arranged ? _newBand(true) : null);
+    if (tile.floorplan) placeRun(out, tile.floorplan, 0, tile.floorplan.tiles.length - 1, /** @type {number} */ (shape.child), x + pad, y + topOf(tile.id), tile.id, ++columns,
+      tile.floorplan.tabled ? _newBand(true) : null);
   };
 
   // Columns across containers: the leaf columns of the tiles on one grid, as after Pack.
@@ -442,16 +442,16 @@ function layout(graph) {
   /**
    * The view for one shape of the root: placed, then on the column grid when asked (that can make
    * it wider, so Max width is judged on this).
-   * @param {Table}   table
+   * @param {Floorplan}   floorplan
    * @param {number}  index
    * @param {boolean} quiet  no log
    * @returns {LayoutResultNode[]}
    */
-  const build = (table, index, quiet) => {
+  const build = (floorplan, index, quiet) => {
     /** @type {LayoutResultNode[]} */
     const out = [];
     bands = [];
-    placeRun(out, table, 0, table.tiles.length - 1, index, diagramPad, diagramPad, null, ++columns, table.arranged ? _newBand(true) : null);
+    placeRun(out, floorplan, 0, floorplan.tiles.length - 1, index, diagramPad, diagramPad, null, ++columns, floorplan.tabled ? _newBand(true) : null);
     const sharers = columnSharers(out);
     // On the grid every leaf fills its track (a leaf beside a container those of its column); without it, a leaf beside a container takes its column's width.
     // A band with nothing beside it is drawn to its container's edge (fillBands): the grid knows it beforehand.
@@ -462,7 +462,7 @@ function layout(graph) {
     return out;
   };
   /**
-   * The elements of a band of an arrangement reach as far right as the widest of them, and with
+   * The elements of a band of a table reach as far right as the widest of them, and with
    * nothing beside them to the inside of their container, once the grid has placed them: a band of
    * layers reads as one, also a layer with nothing in it. Outer bands first, so an inner band
    * fills its container as widened.
@@ -525,8 +525,8 @@ function layout(graph) {
   /** @type {LayoutResultNode[]} */
   let nodes = [];
   if (rootTiles.length) {
-    const table = tableOf("", rootTiles, VIEW_SHAPES);
-    const shapes = table.best[0][table.tiles.length - 1];
+    const floorplan = floorplanOf("", rootTiles, VIEW_SHAPES);
+    const shapes = floorplan.best[0][floorplan.tiles.length - 1];
     let chosen = 0;
     let note = "";
     if (o.maxWidth) {
@@ -534,7 +534,7 @@ function layout(graph) {
       const widest = shapes.map((s, i) => i).sort((p, q) => shapes[q].w - shapes[p].w);
       let narrowest = widest[widest.length - 1], least = Infinity, found = false;
       for (const index of widest) {
-        const w = viewWidth(build(table, index, true));
+        const w = viewWidth(build(floorplan, index, true));
         if (w <= o.maxWidth) { chosen = index; found = true; break; }
         if (w < least) { least = w; narrowest = index; }
       }
@@ -545,7 +545,7 @@ function layout(graph) {
       const near = shapes.map((s, i) => i).sort((p, q) => miss(shapes[p].w, shapes[p].h) - miss(shapes[q].w, shapes[q].h)).slice(0, RATIO_CANDIDATES);
       let least = Infinity;
       for (const index of near) {
-        const list = build(table, index, true);
+        const list = build(floorplan, index, true);
         const m = miss(viewWidth(list), Math.max(...list.map(n => n.y + n.height)) + diagramPad);
         if (m < least - 1e-9) { least = m; chosen = index; }
       }
@@ -556,7 +556,7 @@ function layout(graph) {
         if (score < chosenScore) { chosen = index; chosenScore = score; }
       });
     }
-    nodes = build(table, chosen, false);
+    nodes = build(floorplan, chosen, false);
     const maxY = Math.max(0, ...nodes.map(n => n.y + n.height));
     log(`Tiles: ${shapes.length} shape(s) for the view, chosen ${Math.round(viewWidth(nodes))}×${Math.round(maxY + diagramPad)} px` +
         (o.maxWidth ? `  (max width ${o.maxWidth} px${note})` : o.aspectRatio ? `  (aspect ratio ${o.aspectRatio} → ${(viewWidth(nodes) / (maxY + diagramPad)).toFixed(2)})` : ""));

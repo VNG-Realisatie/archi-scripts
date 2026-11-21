@@ -40,8 +40,8 @@ const rels = [
 const relationsOf = e => rels.filter(r => r.source.id === e.id || r.target.id === e.id).sort((a, b) => a.id < b.id ? -1 : 1);
 const ids = list => list.map(e => e.id);
 const relIds = list => list.map(r => r.id).sort();
-// A background view: its elements, each box in the box of its parent (arrangements as selection_read reads them).
-const bg = (elements, nested) => ({ elements, arrangements: Object.fromEntries(Object.entries(nested).map(([p, cs]) => [p, { cut: "V", parts: cs }])) });
+// A background view: its elements, each box in the box of its parent (tables as selection_read reads them).
+const bg = (elements, nested) => ({ elements, tables: Object.fromEntries(Object.entries(nested).map(([p, cs]) => [p, { cut: "V", parts: cs }])) });
 const background = bg([Primair, Uitvoering, Sturing], { "": ["Primair"], Primair: ["Uitvoering", "Sturing"] });
 
 // FL plate: the domain grouping starts, the steps reach its functions and what lies below them.

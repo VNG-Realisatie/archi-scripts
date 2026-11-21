@@ -27,7 +27,7 @@ console.log = (...a) => { if (!(typeof a[0] === "string" && a[0].startsWith("Loa
 
 const Defs     = require(LIB + "defs");
 const Nesting  = require(LIB + "nesting");   // classifyVisuals, as describeVisuals
-const Arrangement = require(LIB + "arrangement");   // arrangementsOf, as readBackground
+const Table = require(LIB + "table");   // tablesOf, as readBackground
 const TextMeasureNode = require("./text_measure_node");
 
 // ── .archimate reader ─────────────────────────────────────────────────────────
@@ -303,7 +303,7 @@ function layoutRuntime(inProcess) {
 
 /**
  * The background view as selection_read.readBackground gives it in Archi: its elements (each once), diagram
- * objects and diagram-blocks, its element visuals, and the arrangements of its boxes; null without one.
+ * objects and diagram-blocks, its element visuals, and the tables of its boxes; null without one.
  * @param {{id: string, path: string} | undefined} ref  preset.params.backgroundView
  */
 function readBackground(model, ref) {
@@ -316,7 +316,7 @@ function readBackground(model, ref) {
   return {
     path: "/" + view.path, elements: w.elements, diagramObjects: w.diagramObjects,
     diagramBlockOf: w.diagramBlockOf, blockContents: w.blockContents, sourceVisualElements: w.visualElements, parentOf,
-    arrangements: Arrangement.arrangementsOf(_boxTree(model, view.node)),
+    tables: Table.tablesOf(_boxTree(model, view.node)),
   };
 }
 

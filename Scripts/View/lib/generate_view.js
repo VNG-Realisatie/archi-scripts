@@ -38,8 +38,8 @@ const Nesting    = require(REPO_ROOT + "View/lib/nesting");
 const SelectionRead = require(REPO_ROOT + "View/lib/selection_read");
 /** @type {typeof import("./layout_graph")} */
 const LayoutGraph = require(REPO_ROOT + "View/lib/layout_graph");
-/** @type {typeof import("./arrangement")} */
-const Arrangement = require(REPO_ROOT + "View/lib/arrangement");
+/** @type {typeof import("./table")} */
+const Table = require(REPO_ROOT + "View/lib/table");
 /** @type {typeof import("./process_runner")} */
 const ProcessRun = require(REPO_ROOT + "View/lib/process_runner");
 /** @type {typeof import("./node_layout")} */
@@ -461,7 +461,7 @@ function _generateSingle(preset, uiSelection, actionId, target, runtime) {
     keep.set(copy ? String(copy.id) : id, block);
   }
   Appearance.applyAppearance(view, preset, actionId, TextMeasure.defaultViewFont(), keep,
-    { elements: Arrangement.elementsOf(planned.objectSet.arrangements), looks: planned.objectSet.backgroundLooks || new Map() });
+    { elements: Table.elementsOf(planned.objectSet.tables), looks: planned.objectSet.backgroundLooks || new Map() });
   applyViewProperties(view, preset);
   _recordOrigin(view, actionId, target);
   timer.lap("appearance");
@@ -544,10 +544,10 @@ function plan(preset, snapshot, actionId, runtime, timer = { lap() {} }) {
                    relationsOf: snapshot.relationsOf, isModify };
   const graph = LayoutGraph.buildLayoutGraph(preset, objectSet.elements, routedRels, nestingRels, objectSet.diagramObjects,
                                   objectSet.visuals, objectSet.visualRelations, objectSet.diagramConnections, objectSet, labels);
-  if (objectSet.arrangements) {
-    // Leaves in place: every arrangement of the background view; else only those of containers that hold a container.
-    graph.arrangements = preset.params.backgroundLeavesInPlace ? objectSet.arrangements : Arrangement.arrangementsWithContainers(objectSet.arrangements);
-    _checkArrangements(graph, objectSet.arrangements, graph.arrangements);
+  if (objectSet.tables) {
+    // Leaves in place: every table of the background view; else only those of containers that hold a container.
+    graph.tables = preset.params.backgroundLeavesInPlace ? objectSet.tables : Table.tablesWithContainers(objectSet.tables);
+    _checkTables(graph, objectSet.tables, graph.tables);
   }
   timer.lap("layout graph");
   if (graph.nodes.length === 0) {
@@ -584,30 +584,30 @@ function plan(preset, snapshot, actionId, runtime, timer = { lap() {} }) {
 /**
  * Where the model and the background view differ, on the console: a child of a container whose
  * places are kept that is not on the background view in it comes last; one the background view has
- * under another parent goes where the model puts it. The arrangements in the log file.
+ * under another parent goes where the model puts it. The tables in the log file.
  * @param {LayoutGraph}  graph
- * @param {Arrangements} arrangements  every arrangement of the background view
- * @param {Arrangements} kept          those whose places the layout keeps
+ * @param {Tables} tables  every table of the background view
+ * @param {Tables} kept          those whose places the layout keeps
  */
-function _checkArrangements(graph, arrangements, kept) {
+function _checkTables(graph, tables, kept) {
   const element = (/** @type {string} */ nodeId) => nodeId.replace(/_occ_\d+$/, "");
   const label = new Map(graph.nodes.map(n => [element(n.id), n.label || n.id]));
   /** @type {Map<string, string>} */
   const backgroundParent = new Map();
-  for (const [key, arrangement] of Object.entries(arrangements)) {
-    for (const id of Arrangement.idsOf(arrangement)) backgroundParent.set(id, key);
-    Log.debug(`  Arrangement of ${key === Arrangement.ROOT ? "the view" : `"${label.get(key) || key}"`} on the background view${kept[key] ? "" : " (not kept: placed by the layout)"}: ` +
-      Arrangement.describe(arrangement, id => label.get(id) || `(${id}, not on this view)`));
+  for (const [key, table] of Object.entries(tables)) {
+    for (const id of Table.idsOf(table)) backgroundParent.set(id, key);
+    Log.debug(`  Table of ${key === Table.ROOT ? "the view" : `"${label.get(key) || key}"`} on the background view${kept[key] ? "" : " (not kept: placed by the layout)"}: ` +
+      Table.describe(table, id => label.get(id) || `(${id}, not on this view)`));
   }
-  const name = (/** @type {string} */ id) => id === Arrangement.ROOT ? "the view" : `"${label.get(id) || id}"`;
+  const name = (/** @type {string} */ id) => id === Table.ROOT ? "the view" : `"${label.get(id) || id}"`;
   /** @type {string[]} */
   const missing = [];
   /** @type {string[]} */
   const moved = [];
   for (const node of graph.nodes) {
     const id = element(node.id);
-    const parent = node.parent ? element(node.parent) : Arrangement.ROOT;
-    if (!arrangements[parent]) continue;
+    const parent = node.parent ? element(node.parent) : Table.ROOT;
+    if (!tables[parent]) continue;
     const there = backgroundParent.get(id);
     if (there === parent) continue;
     if (there === undefined) { if (kept[parent]) missing.push(`${name(id)} in ${name(parent)}`); }
@@ -615,7 +615,7 @@ function _checkArrangements(graph, arrangements, kept) {
   }
   const list = (/** @type {string[]} */ l) => l.slice(0, 5).join("; ") + (l.length > 5 ? "; …" : "");
   if (missing.length) Log.warn(`Not on the background view: ${list(missing)}.`, {
-    effect: "placed after the arranged boxes of their container.", action: "add them to the background view where they belong." });
+    effect: "placed after the tabled boxes of their container.", action: "add them to the background view where they belong." });
   if (moved.length) Log.warn(`The background view differs from the model: ${list(moved)}.`, {
     effect: "placed where the model puts them.", action: "move them on the background view." });
   if (missing.length + moved.length > 5) Log.detail("WARN", [...missing, ...moved].join("\n"));
@@ -641,13 +641,13 @@ const LABEL_FIT_RUNS = 6;
  */
 function _layoutFittingLabels(graph, run) {
   const containerIds = [...new Set(Object.values(graph._parentMap))];
-  // A box of an arrangement is drawn as wide as its band (Tiles fillBands), and with Columns across
+  // A box of a table is drawn as wide as its band (Tiles fillBands), and with Columns across
   // containers every container as wide as its columns: that width is no minimum of its own, else the
   // next layout keeps it, Columns across containers widens a column for it, and that column widens
   // every container in it (GEMMA domeinen: application services 3150 px wide).
-  const arrangements = graph.arrangements || {};
+  const tables = graph.tables || {};
   const element = (/** @type {string} */ id) => id.replace(/_occ_\d+$/, "");
-  const banded = new Set(graph.columnsAcrossContainers ? containerIds : containerIds.filter(id => arrangements[graph._parentMap[id] ? element(graph._parentMap[id]) : ""]));
+  const banded = new Set(graph.columnsAcrossContainers ? containerIds : containerIds.filter(id => tables[graph._parentMap[id] ? element(graph._parentMap[id]) : ""]));
   // Casts below: the maps hold every container id, and every container is placed.
   /** @type {(r: LayoutResult) => Map<string, LabelNeed>} */
   const needed = r => {

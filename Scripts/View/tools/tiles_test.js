@@ -244,42 +244,42 @@ eq(run(graph(4, 7)), run(graph(4, 7)), "same graph, same result");
   eq(r.edges.map(e => [e.id, e.isStraight, e.bendpoints.length]), [["e1", true, 0], ["e2", false, 0]], "edges: straight line and self-loop; unknown end dropped");
 }
 
-// The arrangement of a background view: the view's rows one above the other whatever their width, a
-// container's columns side by side in the arrangement's order, a stack one above the other; children
-// the arrangement does not hold come last; an arranged child the view does not hold drops out.
+// The table of a background view: the view's rows one above the other whatever their width, a
+// container's columns side by side in the table's order, a stack one above the other; children
+// the table does not hold come last; a child of the table the view does not hold drops out.
 {
   const g = graph(3, 3);   // G0, G1 (with G1S), G2; G1 holds leaves G1L0…G1L2 and G1S
-  g.arrangements = {
+  g.tables = {
     "": { cut: "V", parts: ["G2", "G0", "G1"] },
     G1: { cut: "H", parts: ["G1L2", { cut: "V", parts: ["G1L0", "G1S"] }, "missing"] },
   };
   const r = run(g);
-  checkTree(g, r, "arranged", new Set(["G1L0"]));
+  checkTree(g, r, "tabled", new Set(["G1L0"]));
   const by = boxes(r);
-  ok(bottom(by.G2) <= by.G0.y && bottom(by.G0) <= by.G1.y, "arranged: root rows one above the other, in order");
-  ok(right(by.G1L2) <= by.G1L0.x, "arranged: G1's columns in the arrangement's order");
-  ok(by.G1S.x === by.G1L0.x && bottom(by.G1L0) <= by.G1S.y, "arranged: a stack one above the other");
-  ok(by.G1L1.y >= Math.max(bottom(by.G1L2), bottom(by.G1S)), "arranged: a child not on the background view comes last");
-  eq(r, run(g), "arranged: same graph, same result");
-  eq([by.G2.width, by.G0.width], [by.G1.width, by.G1.width], "arranged: boxes one above the other as wide as their stack (bands)");
-  eq([by.G1L0.width, by.G1L0.height], [by.G1S.width, 60], "arranged: a leaf in a band beside others takes the band's width, not its parent's");
-  eq(by.G1S.width, 340, "arranged: a band beside others keeps the width of its own part");
+  ok(bottom(by.G2) <= by.G0.y && bottom(by.G0) <= by.G1.y, "tabled: root rows one above the other, in order");
+  ok(right(by.G1L2) <= by.G1L0.x, "tabled: G1's columns in the table's order");
+  ok(by.G1S.x === by.G1L0.x && bottom(by.G1L0) <= by.G1S.y, "tabled: a stack one above the other");
+  ok(by.G1L1.y >= Math.max(bottom(by.G1L2), bottom(by.G1S)), "tabled: a child not on the background view comes last");
+  eq(r, run(g), "tabled: same graph, same result");
+  eq([by.G2.width, by.G0.width], [by.G1.width, by.G1.width], "tabled: boxes one above the other as wide as their stack (bands)");
+  eq([by.G1L0.width, by.G1L0.height], [by.G1S.width, 60], "tabled: a leaf in a band beside others takes the band's width, not its parent's");
+  eq(by.G1S.width, 340, "tabled: a band beside others keeps the width of its own part");
   // An extra occurrence follows its element's place.
   const occ = graph(1, 2);
   occ.nodes.push({ id: "X", label: "X", elementType: "grouping", width: 300, height: 60, parent: null },
     { id: "G0L1_occ_1", label: "Leaf B", elementType: "business-function", width: 300, height: 60, parent: "X" },
     { id: "XL", label: "Leaf X", elementType: "business-function", width: 300, height: 60, parent: "X" });
   occ._parentMap.G0L1_occ_1 = "X"; occ._parentMap.XL = "X";
-  occ.arrangements = { X: { cut: "H", parts: ["G0L1", "XL"] } };
+  occ.tables = { X: { cut: "H", parts: ["G0L1", "XL"] } };
   const ro = boxes(run(occ));
-  ok(right(ro.G0L1_occ_1) <= ro.XL.x, "arranged: an extra occurrence takes its element's place");
-  // A box alone in an arranged container fills it, a leaf too; a diagram object keeps its size.
+  ok(right(ro.G0L1_occ_1) <= ro.XL.x, "tabled: an extra occurrence takes its element's place");
+  // A box alone in a container with a table fills it, a leaf too; a diagram object keeps its size.
   const one = graph(2, 1);
   one.nodes.push({ id: "legend", label: "", elementType: "diagram-model-group", width: 200, height: 50, parent: null });
-  one.arrangements = { "": { cut: "V", parts: ["G0", "G1", "legend"] }, G0: "G0L0" };
+  one.tables = { "": { cut: "V", parts: ["G0", "G1", "legend"] }, G0: "G0L0" };
   const b1 = boxes(run(one));
-  eq(right(b1.G0L0), right(b1.G0) - 20, "arranged: a leaf alone in its container fills it (padding 20)");
-  eq([b1.legend.width, b1.legend.height], [200, 50], "arranged: a diagram object in a band keeps its size");
+  eq(right(b1.G0L0), right(b1.G0) - 20, "tabled: a leaf alone in its container fills it (padding 20)");
+  eq([b1.legend.width, b1.legend.height], [200, 50], "tabled: a diagram object in a band keeps its size");
 }
 
 // Same width (Per level): a diagram object keeps its size; it neither takes nor sets a level width.

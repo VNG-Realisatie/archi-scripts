@@ -62,10 +62,10 @@ interface LayoutEdge {
   weight: number;
 }
 
-/** A box id, or boxes cut side by side ("H", left to right) or one above the other ("V", top to bottom) (lib/arrangement.js). */
-type Arrangement = string | { cut: "H" | "V"; parts: Arrangement[] };
-/** Container element id ("" = the view itself) → the arrangement of its children on the background view. */
-type Arrangements = Record<string, Arrangement>;
+/** A box id, or boxes cut side by side ("H", left to right) or one above the other ("V", top to bottom) (lib/table.js). */
+type Table = string | { cut: "H" | "V"; parts: Table[] };
+/** Container element id ("" = the view itself) → the table of its children on the background view. */
+type Tables = Record<string, Table>;
 
 interface LayoutGraph {
   algorithm: string;
@@ -79,8 +79,8 @@ interface LayoutGraph {
   columnsAcrossContainers: boolean;
   /** How the boxes are sorted (defs.SORT_MODE); undefined where the algorithm has no Sort (directed views). */
   sort?: string;
-  /** The arrangement of the containers on the background view (Tiles); absent without a background view. */
-  arrangements?: Arrangements;
+  /** The table of the containers on the background view (Tiles); absent without a background view. */
+  tables?: Tables;
   /** Occurrence id → parent occurrence id (container-ness is derived from this; Scripts/View/AGENTS.md). */
   _parentMap: Record<string, string>;
   _parentRels: ParentRel[];

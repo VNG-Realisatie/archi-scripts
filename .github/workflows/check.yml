@@ -41,7 +41,7 @@ jobs:
           node Scripts/View/tools/compose_test.js
           node Scripts/View/tools/counts_test.js
           node Scripts/View/tools/tiles_test.js
-          node Scripts/View/tools/arrangement_test.js
+          node Scripts/View/tools/table_test.js
           node Scripts/View/tools/background_test.js
           node Scripts/View/tools/log_test.js
           node Scripts/View/tools/appearance_test.js

@@ -51,7 +51,7 @@ function buildObjectSet(snapshot, preset, actionId) {
   if (!_isModifyAction(actionId)) _logFilter(preset.filter);
   else Log.debug("  Modify-selected-view action: element-type filter skipped");
 
-  if (snapshot.background && _isModifyAction(actionId)) Log.debug("  Modify-selected-view action: the background view gives the arrangement only (nothing added or left out)");
+  if (snapshot.background && _isModifyAction(actionId)) Log.debug("  Modify-selected-view action: the background view gives the table only (nothing added or left out)");
   else if (snapshot.background && !(preset.params.nestingConditions || []).length) Log.warn(`The background view "${snapshot.background.path}" has no effect: nothing nests without a nesting condition.`, {
     action: "add a nesting condition on the Layout tab, or empty Background." });
   const composed = composeObjectSet(snapshot, preset, actionId);
@@ -129,8 +129,8 @@ function composeObjectSet(snapshot, preset, actionId) {
   const isExpand       = actionId === ACTION.EXPAND_VIEW.id;
   const { existing, relationsOf } = snapshot;
   const background     = _backgroundOf(snapshot, preset.params, isModifyAction);
-  // Expand view and Layout only keep what is on the view, but lay it out in the background view's arrangement.
-  const arranged       = isModifyAction && snapshot.background && preset.params.backgroundView ? snapshot.background : background;
+  // Expand view and Layout only keep what is on the view, but lay it out in the background view's table.
+  const tabled       = isModifyAction && snapshot.background && preset.params.backgroundView ? snapshot.background : background;
 
   // Filter (skipped for the Modify actions, see buildObjectSet).
   let filteredElementsArr = snapshot.elements;
@@ -220,8 +220,8 @@ function composeObjectSet(snapshot, preset, actionId) {
       diagramBlockVisualOf,
       visuals,
       joinRun,
-      ...(arranged ? { arrangements: arranged.arrangements } : {}),
-      ...(arranged && preset.params.backgroundKeepAppearance ? { backgroundLooks: _backgroundLooks(arranged) } : {}),
+      ...(tabled ? { tables: tabled.tables } : {}),
+      ...(tabled && preset.params.backgroundKeepAppearance ? { backgroundLooks: _backgroundLooks(tabled) } : {}),
     },
     filteredCounts,
     filteredBaseRels,

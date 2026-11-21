@@ -33,7 +33,7 @@ const STYLES = Object.freeze({
   Hierarchy: { algorithms: ["Tree", "Radial"],                               tooltip: "Optimized for decomposition, containment and nesting structures.\nInsights: ownership, organisation charts, product breakdowns, capability decomposition." },
   Network:   { algorithms: ["Stress", "Neato", "FDP", "SFDP"],               tooltip: "Optimized for interconnected elements without strict hierarchy or direction.\nInsights: connectivity, clustering, impact propagation, integration networks." },
   Circular:  { algorithms: ["Twopi", "Circo"],                               tooltip: "Optimized for cyclic, hub-centred and concentric relationships.\nInsights: central elements, cycles, radial influence, hub-and-spoke structures." },
-  Compact:   { algorithms: ["Grid", "Pack", "Tiles"],                        tooltip: "Optimized for overview and space efficiency: tightly arranged containers,\nlittle emphasis on relations. Insights: portfolios, catalogs, inventories." },
+  Compact:   { algorithms: ["Grid", "Pack", "Tiles"],                        tooltip: "Optimized for overview and space efficiency: tightly tabled containers,\nlittle emphasis on relations. Insights: portfolios, catalogs, inventories." },
 });
 
 // ── Algorithm param groups ────────────────────────────────────────────────────
@@ -129,7 +129,7 @@ const PARAM_TOOLTIPS = Object.freeze({
                              "Per level and type: after the last nesting type change one width per element type, as narrow as it allows. A container is never narrower than its contents."],
   columnsAcrossContainers:  ["Line up the columns of the tiles on one grid across the whole view.",
                              "Elements of one level line up along their parent's edge, leaves fill their column; neighbours stay Distance apart."],
-  backgroundView:           ["A view the selection fills: its elements are always on the view, in its arrangement of rows and columns.",
+  backgroundView:           ["A view the selection fills: its elements are always on the view, in its table of rows and columns.",
                              "Path of the view, e.g. /Views/Backgrounds/Map. An element under nothing on it brings its parents; one that reaches it by no path is left out."],
   backgroundLeavesInPlace:  ["The leaves of the background view keep their place too.",
                              "Off: only its containers keep theirs; its leaves are always on the view, and the layout places them (sorted, compact)."],
@@ -160,7 +160,7 @@ const PARAM_TOOLTIPS = Object.freeze({
   connectionElementSpacing: ["Minimum distance between a connection and the elements it passes.",
                              `px — the first and last bend stay ${CONNECTION_END_CLEARANCE} or more from it; Neato, FDP, SFDP, Circo: Distance follows.`],
   aspectRatio:              ["Arrange the layout toward this width-to-height ratio.", "Element sizes are unchanged."],
-  maxWidth:                 ["The view is at most this wide: a wider layout is arranged in more rows.",
+  maxWidth:                 ["The view is at most this wide: a wider layout is tabled in more rows.",
                              "px — element sizes are unchanged."],
 });
 
@@ -794,7 +794,7 @@ const DEFAULT_PRESET = Object.freeze({
     labelMaxLineWidth:     400,    // widest element Use label width makes before the label wraps
     connectionLabelSpacing:      true,   // reserve space for connection labels in ELK Layered (prevents overlap)
     backgroundView:        { id: "", path: "" },   // Tiles: the view the selection fills (lib/background.js); id finds it, path is its label
-    backgroundLeavesInPlace: false, // the leaves of the background view keep their place too; false: only its containers (Arrangement.arrangementsWithContainers)
+    backgroundLeavesInPlace: false, // the leaves of the background view keep their place too; false: only its containers (Table.tablesWithContainers)
     backgroundKeepAppearance: false, // the elements of the background view keep its appearance, but for font size (Appearance.applyBackgroundAppearance)
   },
   // Filter lists (empty = keep everything); condition shapes in rel_filter.js.

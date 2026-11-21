@@ -17,8 +17,8 @@ const Selection = require(REPO_ROOT + "_lib/selection");
 const Defs      = require(REPO_ROOT + "View/lib/defs");
 /** @type {typeof import("./nesting")} */
 const Nesting   = require(REPO_ROOT + "View/lib/nesting");
-/** @type {typeof import("./arrangement")} */
-const Arrangement = require(REPO_ROOT + "View/lib/arrangement");
+/** @type {typeof import("./table")} */
+const Table = require(REPO_ROOT + "View/lib/table");
 /** @type {typeof import("../../_lib/archi_folders")} */
 const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders");
 const { ACTION } = Defs;
@@ -441,7 +441,7 @@ function getSeedElements(uiSelection) {
 
 /**
  * The background view a preset names: its elements, its diagram objects with their diagram-blocks,
- * and the arrangement of its boxes. null when the preset names none.
+ * and the table of its boxes. null when the preset names none.
  * @param {BackgroundRef | undefined} ref  absent where the algorithm has no background (effectiveParams)
  * @returns {BackgroundSnapshot | null}
  * @throws when the view is not in the model
@@ -470,14 +470,14 @@ function readBackground(ref) {
     const p = /** @type {VisualObject | null} */ ($(ve).parent().filter("element").first());   // Cast: on a view, "element" selects element visuals
     parentOf.set(String(ve.id), p && p.concept && !(p.type in Defs.DIAGRAM_TYPES) ? String(p.concept.id) : null);
   }
-  const arrangements = Arrangement.arrangementsOf(_boxTree(view));
-  Log.debug(`  Background view "${path}": ${elements.length} elements, ${Object.keys(arrangements).length} arrangement(s)`);
+  const tables = Table.tablesOf(_boxTree(view));
+  Log.debug(`  Background view "${path}": ${elements.length} elements, ${Object.keys(tables).length} table(s)`);
   return {
     path, elements,
     diagramObjects: _expandViews($(view)).diagramObjects,
     diagramBlockOf: blocks.diagramBlockOf, blockContents: blocks.blockContents,
     sourceVisualElements, parentOf,
-    arrangements,
+    tables,
   };
 }
 
@@ -509,10 +509,10 @@ function viewPath(view) {
  * The boxes of a view as a tree: an element visual by its element's id, a diagram object by its own
  * (as the layout graph names them); a diagram object's contents stay with it (a diagram-block).
  * @param {ArchiView | VisualObject} parent
- * @returns {import("./arrangement").BoxTree[]}
+ * @returns {import("./table").BoxTree[]}
  */
 function _boxTree(parent) {
-  /** @type {import("./arrangement").BoxTree[]} */
+  /** @type {import("./table").BoxTree[]} */
   const out = [];
   $(parent).children().each(o => {
     const v = /** @type {VisualObject} */ (o);   // Cast: a child of a view or visual with bounds is a visual

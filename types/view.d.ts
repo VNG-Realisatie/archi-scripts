@@ -231,7 +231,7 @@ type PresetParams = {
 /** A background view as a preset names it: found by id; the path (folders and name) is a label, and finds it when the id is empty. */
 type BackgroundRef = { id: string; path: string };
 
-/** A background view as read (selection_read.readBackground): what it puts on the view, and its arrangement. */
+/** A background view as read (selection_read.readBackground): what it puts on the view, and its table. */
 interface BackgroundSnapshot {
   /** Path of the view, as the console names it. */
   path: string;
@@ -243,7 +243,7 @@ interface BackgroundSnapshot {
   sourceVisualElements: VisualObject[];
   /** Element visual id → the element of the element visual it lies in; null at the view root. */
   parentOf: Map<string, string | null>;
-  arrangements: Arrangements;
+  tables: Tables;
 }
 
 /** Keep appearance: a visual of an element on the background view, and the element it lies in there (null: the view root). */
@@ -399,8 +399,8 @@ interface ObjectSet {
   diagramBlockVisualOf?: Map<string, string>;
   /** The run in which each added element joined (joinRuns); the selection and the view's elements are absent (0). */
   joinRun?: Map<string, number>;
-  /** The arrangement of the background view's containers (Tiles); absent without a background view. */
-  arrangements?: Arrangements;
+  /** The table of the background view's containers (Tiles); absent without a background view. */
+  tables?: Tables;
   /** Keep appearance: element id → its visuals on the background view, in view order; absent when off. */
   backgroundLooks?: Map<string, BackgroundLook[]>;
 }
