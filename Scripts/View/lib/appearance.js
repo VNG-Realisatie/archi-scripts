@@ -58,6 +58,7 @@ const KEPT_ATTRIBUTES = Defs.VISUAL_ATTRIBUTES.filter(a => !["text", "labelExpre
  * @property {boolean} bold          the condition starts here and is bold
  * @property {number}  nr            the number of the condition that selected it
  * @property {boolean} asContainer   a container, or a leaf beside one: it takes the font
+ * @property {boolean} [fromKept]    its color continues from a fill kept from the background view: the next child of its type follows it
  *
  * @typedef {{ kind: "element" | "relation", values: Set<string> }} ConditionTarget
  */
@@ -149,8 +150,8 @@ function _onView(view, selector, keep) {
  * A leaf beside a container (same parent, or both roots), and an element of the background view, is styled as a container.
  * @param {NestingNode[]}           nodes       every element visual; order = view order (determinism)
  * An element with a kept fill (Keep appearance) takes that fill as its color, unshaded; a child of the
- * same type whose condition color is that fill continues one level lighter, any other child starts at
- * a nesting color change.
+ * same type, whatever color its condition gives, continues one level lighter from it (and so on down
+ * the same type); a child of another type starts at a nesting type change.
  * @param {NestingStyleCondition[]} conditions
  * @param {number}                  fontDecreasePerLevel
  * @param {KeptColors}              [kept]
@@ -182,12 +183,13 @@ function followNestingChains(nodes, conditions, fontDecreasePerLevel, kept = { h
     const sel = active.filter(x => ConditionLists.nestingStyleConditionMatches(x.r, parent.type, n.type, n.rels));
     if (sel.length === 0) continue;
     const win = _mostSpecific(sel, conflicts);
-    const color = win.r.color;
-    const sameColor = color === ps.color || (!!parent.keptColor && kept.hexOf(color) === parent.keptColor);
+    const followsKept = n.type === parent.type && !!ps.fromKept;   // no type change under a kept fill: it follows the fill
+    const color = followsKept ? ps.color : win.r.color;
+    const sameColor = followsKept || color === ps.color || (!!parent.keptColor && kept.hexOf(color) === parent.keptColor);
     const depthSinceChange = n.type === parent.type && sameColor ? ps.depthSinceChange + 1 : 0;
     const smaller = Math.max(DEFAULT_FONT_SIZE, ps.fontSize - fontDecreasePerLevel);
     const font = win.nr === ps.nr ? { fontSize: smaller, bold: false } : _font(win.r, smaller);
-    styles.set(n.id, _keptColor(Object.assign({ depthSinceChange, color, nr: win.nr, asContainer }, font), n, kept));
+    styles.set(n.id, _keptColor(Object.assign({ depthSinceChange, color, nr: win.nr, asContainer, fromKept: followsKept }, font), n, kept));
   }
   return { styles, conflicts: [...conflicts] };
 }
@@ -200,7 +202,7 @@ function followNestingChains(nodes, conditions, fontDecreasePerLevel, kept = { h
  * @returns {NestingStyle}
  */
 function _keptColor(st, n, kept) {
-  return n.keptColor ? Object.assign(st, { color: n.keptColor, depthSinceChange: kept.darkenStart }) : st;
+  return n.keptColor ? Object.assign(st, { color: n.keptColor, depthSinceChange: kept.darkenStart, fromKept: true }) : st;
 }
 
 /**

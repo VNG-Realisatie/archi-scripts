@@ -215,7 +215,13 @@ function standInView(run) {
   eq(styles.get("same").depthSinceChange, 3, "Keep appearance: a child of its type and color continues one level lighter from the kept fill");
   eq(styles.get("other").depthSinceChange, 0, "Keep appearance: a child of another type starts at a nesting type change");
   const other = Appearance.followNestingChains(nodes, conditions, 2, { hexOf: () => "#000000", darkenStart: 2 }).styles;
-  eq(other.get("same").depthSinceChange, 0, "Keep appearance: a child of another color starts at a nesting color change");
+  eq(other.get("same").depthSinceChange, 3, "Keep appearance: a child of the same type follows the kept fill, whatever color its condition gives");
+  // Down the same type: a grandchild continues from the kept fill too; a child of another type starts again, and so does what is under it.
+  const deep = [...nodes, { id: "grand", parentId: "same", type: "grouping", rels: [], depth: 2, isContainer: false },
+    { id: "under", parentId: "other", type: "application-service", rels: [], depth: 2, isContainer: false }];
+  const chain = Appearance.followNestingChains(deep, conditions, 2, { hexOf: () => "#000000", darkenStart: 2 }).styles;
+  eq([chain.get("grand").color, chain.get("grand").depthSinceChange], ["#aabbcc", 4], "Keep appearance: a grandchild of the same type follows the kept fill too");
+  eq([chain.get("other").color, chain.get("under").color], ["A", "A"], "Keep appearance: below a type change the condition's color applies");
 }
 {
   const run = newView("Bedrijfsfuncties background", "6 GEMMA");
