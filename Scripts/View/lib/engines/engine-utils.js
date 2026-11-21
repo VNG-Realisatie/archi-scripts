@@ -252,13 +252,14 @@ function labelPoint(start, end, bendpoints, labelPosition) {
  *      nothing else.
  *      A container narrower than its minWidth widens the last of its tracks, inner containers first.
  *   3. Place: a container or a leaf in `fit` spans its tracks less the paddings of its ancestors on
- *      the same edges; any other leaf, a block too, is centred in the part of its track inside its
- *      parent, never resized.
+ *      the same edges; any other leaf, a block without contents too, is centred in the part of its
+ *      track inside its parent, never resized.
  *
  * A block with its contents in one column is one box to the grid, a leaf with its contents as Tiles
- * placed them: they move with it. A block with its contents in more columns spans the grid's columns as
- * a container does, then closes around its contents. A centred leaf is centred in the part of its track inside its nearest ancestor that
- * is no block, so the leaves inside blocks of one track line up.
+ * placed them: it fills its track, and its contents move with it, centred in it. A block with its
+ * contents in more columns spans the grid's columns as a container does. So the blocks of one column
+ * stand on the same track lines. A centred leaf is centred in the part of its track inside its nearest
+ * ancestor that is no block, so the leaves inside blocks of one track line up.
  *      A box sharing an edge with its parent lies the paddings of its ancestors on that line in; an
  *      edge that faces a sibling lies on the line.
  *
@@ -280,7 +281,7 @@ function alignColumnsAcrossContainers(resultNodes, options, nameById, log, fit =
   if (blockOf.size) {
     const blockX = new Map([...atomic].map(id => [id, (resultNodes.find(n => n.id === id) || { x: 0 }).x]));
     alignColumnsAcrossContainers(resultNodes.filter(n => !blockOf.has(n.id)), options, nameById, log,
-      new Map([...fit].filter(([id]) => !blockOf.has(id))), minWidth, blocks, tables, new Set());
+      new Map([...[...fit].filter(([id]) => !blockOf.has(id)), ...[...new Set(blockOf.values())].map(id => /** @type {[string, string[]]} */ ([id, []]))]), minWidth, blocks, tables, new Set());   // a block with contents fills its track
     const moved = new Map(resultNodes.filter(n => atomic.has(n.id)).map(n => [n.id, n.x - /** @type {number} */ (blockX.get(n.id))]));
     for (const n of resultNodes) if (blockOf.has(n.id)) n.x += /** @type {number} */ (moved.get(/** @type {string} */ (blockOf.get(n.id))));
     _centreOneColumn(resultNodes.filter(n => blockOf.has(n.id)), resultNodes);
@@ -463,13 +464,6 @@ function alignColumnsAcrossContainers(resultNodes, options, nameById, log, fit =
     n.x = left + (right - left - (n.width || 0)) / 2;
     const own = n.parentId != null ? byId[n.parentId] : null;   // never in its own parent's padding
     if (own) n.x = Math.max(own.x + pad, Math.min(n.x, rightOf(own) - pad - (n.width || 0)));
-  }
-  // A block over several tracks closes around its contents, its padding as wide as a one-track block's.
-  for (const id of blocks) {
-    const n = byId[id], kids = childrenByParent[id];
-    if (!n || !kids || atomic.has(id)) continue;
-    const left = Math.min(...kids.map(k => k.x)) - pad, right = Math.max(...kids.map(rightOf)) + pad;
-    n.x = left; n.width = right - left;
   }
 
   log(`[columns] applied — ${tracks} tracks, widths [${width.map(Math.round).join(", ")}]`);

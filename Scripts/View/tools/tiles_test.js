@@ -407,5 +407,26 @@ const tableOf = (rows, columns, cells) => ({ rows, columns, cells });
   ok(by.F.width > 220, "a root's child is no block");
 }
 
+// Per level and type, on the grid: a block in one column fills its track like the blocks around it
+// (its contents centred in it), so the containers of a column line up left and right; a block over
+// more columns spans them from the first track line on.
+{
+  const EngineUtils = require("../lib/engines/engine-utils");
+  const nodes = [
+    { id: "R", x: 0, y: 0, width: 560, height: 400, parentId: null },
+    { id: "P", x: 10, y: 30, width: 200, height: 80, parentId: "R" }, { id: "K1", x: 20, y: 40, width: 180, height: 60, parentId: "P" },
+    { id: "Q", x: 10, y: 130, width: 540, height: 100, parentId: "R" },
+    { id: "K2", x: 45, y: 140, width: 180, height: 60, parentId: "Q" }, { id: "L1", x: 20, y: 210, width: 250, height: 60, parentId: "Q" },
+    { id: "L2", x: 290, y: 140, width: 250, height: 60, parentId: "Q" },
+  ];
+  console.log = () => {};
+  try { EngineUtils.alignColumnsAcrossContainers(nodes, { elementSpacing: 10, padding: 10 }, {}, () => {}, new Map(), {}, new Set(["P", "Q"])); }
+  finally { console.log = _log; }
+  const by = boxes({ nodes });
+  eq(by.P.x, by.Q.x, "blocks on the grid: a one-column block starts where the block below it starts");
+  eq(right(by.P), right(by.L1), "blocks on the grid: it fills its track, to the track line the column below it ends on");
+  eq(by.K1.x - by.P.x, right(by.P) - right(by.K1), "blocks on the grid: its contents centred in it");
+}
+
 if (failed) { console.log(`${failed} tiles test(s) failed`); process.exit(1); }
 console.log("all tiles tests passed");
