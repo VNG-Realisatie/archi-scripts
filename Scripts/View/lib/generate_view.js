@@ -564,7 +564,7 @@ function plan(preset, snapshot, actionId, runtime, timer = { lap() {} }) {
 
   Log.debug("\nLayout:");
   const engine = ALGORITHMS[preset.algorithm].engine;
-  const laid = _layoutFittingLabels(graph, g => NodeLayout.layout(g, engine, runtime));
+  const laid = _layoutFittingLeafCells(graph, g => _layoutFittingLabels(g, h => NodeLayout.layout(h, engine, runtime)));
   timer.lap("layout");
   const size = _logLayoutResult(laid.result);
 
@@ -619,6 +619,40 @@ function _checkTables(graph, tables, kept) {
   if (moved.length) Log.warn(`The background view differs from the model: ${list(moved)}.`, {
     effect: "placed where the model puts them.", action: "move them on the background view." });
   if (missing.length + moved.length > 5) Log.detail("WARN", [...missing, ...moved].join("\n"));
+}
+
+// Fittings of the leaf cells' heights per run at most (_layoutFittingLeafCells).
+const LEAF_FIT_RUNS = 3;
+
+/**
+ * A leaf that fills a cell of a background view's table is drawn wider (or narrower) than the width its
+ * height was reckoned at, so its label may need other room; its table row follows. Lay out again with
+ * every such leaf at the height its label needs at the width it was drawn, until none changes (at most
+ * LEAF_FIT_RUNS times); the first layout that fits, else the last.
+ * @param {LayoutGraph} graph
+ * @param {(graph: LayoutGraph) => LabelAttempt} fit  a layout with the container labels fitted
+ * @returns {LabelAttempt}
+ */
+function _layoutFittingLeafCells(graph, fit) {
+  let attempt = fit(graph);
+  if (!graph.tables) return attempt;
+  const element = (/** @type {string} */ id) => id.replace(/_occ_\d+$/, "");
+  const cells = new Set(Object.values(graph.tables).flatMap(t => t.cells.flatMap(c => c.ids)));
+  const containers = new Set(Object.values(graph._parentMap));
+  for (let k = 1; k <= LEAF_FIT_RUNS; k++) {
+    const drawn = new Map(attempt.result.nodes.map(n => [n.id, n.width]));
+    /** @type {Map<string, number>} */
+    const heights = new Map();
+    for (const n of attempt.graph.nodes) {
+      if (!cells.has(element(n.id)) || containers.has(n.id) || n.elementType in Defs.DIAGRAM_TYPES || !drawn.has(n.id)) continue;
+      const need = attempt.graph._leafHeightAt(n.id, /** @type {number} */ (drawn.get(n.id)));
+      if (Math.abs(need - n.height) > 0.5) heights.set(n.id, need);
+    }
+    if (!heights.size) break;
+    Log.debug(`  Leaf cells: ${heights.size} need another height at the width they were drawn — laid out again`);
+    attempt = fit({ ...attempt.graph, nodes: attempt.graph.nodes.map(n => heights.has(n.id) ? { ...n, height: /** @type {number} */ (heights.get(n.id)) } : n) });
+  }
+  return attempt;
 }
 
 // Layouts per run at most to fit the container labels (_layoutFittingLabels).

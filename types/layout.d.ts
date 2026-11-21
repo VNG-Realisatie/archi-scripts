@@ -96,6 +96,8 @@ interface LayoutGraph {
   _labelHeightAt: (nodeId: string, width: number) => number;
   /** The width a container needs when drawn at a width: wider when its label's first line, as Archi wraps it, runs under the type icon (label_size.clearOfIcon); not passed to the adapter. */
   _widthAt: (nodeId: string, width: number) => number;
+  /** The height a leaf needs when drawn at a width: its own height, or its label's at that width when that is more (label_size.leafHeightForLabel); not passed to the adapter. */
+  _leafHeightAt: (nodeId: string, width: number) => number;
   /** Edges with an end inside a diagram-block: edge id → the visual at that end (layout direction). */
   _diagramBlockEnds: Map<string, { source: string | null; target: string | null }>;
   _nestingStats: { candidates: number; applied: number; circularNestings: number; notNestedNestings: number };

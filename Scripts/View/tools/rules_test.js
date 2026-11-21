@@ -213,5 +213,20 @@ const NEW = Defs.ACTION.NEW_VIEW.id, LAYOUT = Defs.ACTION.LAYOUT_ONLY.id;
   eq(Object.keys(Defs.validatePreset(raw)).filter(k => UI.test(k)), [], "validation does not carry it into the preset");
 }
 
+// ── leaf cells: a leaf that fills a cell of a background view's table has the height its label needs at the width drawn ──
+{
+  const file = path.join(Expected.GEMMA_PRESET_DIR, "Bedrijfsfuncties background.json");
+  const preset = presetFile(file); preset.algorithm = "Tiles";
+  const planned = plan(preset, "6 GEMMA", NEW);
+  const { graph, result } = planned;
+  const cells = new Set(Object.values(graph.tables || {}).flatMap(t => t.cells.flatMap(c => c.ids)));
+  const containers = new Set(Object.values(graph._parentMap));
+  const drawn = new Map(result.nodes.map(n => [n.id, n]));
+  const leaves = graph.nodes.filter(n => cells.has(n.id) && !containers.has(n.id) && !(n.elementType in Defs.DIAGRAM_TYPES) && drawn.has(n.id));
+  eq(leaves.length > 0, true, "leaf cells: the GEMMA run has leaves in a table");
+  eq(leaves.filter(n => Math.abs(graph._leafHeightAt(n.id, drawn.get(n.id).width) - n.height) > 0.5).map(n => n.label), [],
+     "leaf cells: every leaf's height is what its label needs at the width it is drawn");
+}
+
 if (failed) { _log(`rules_test: ${failed} failed`); process.exitCode = 1; }
 else _log("rules_test: all passed");
