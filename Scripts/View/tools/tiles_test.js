@@ -244,42 +244,106 @@ eq(run(graph(4, 7)), run(graph(4, 7)), "same graph, same result");
   eq(r.edges.map(e => [e.id, e.isStraight, e.bendpoints.length]), [["e1", true, 0], ["e2", false, 0]], "edges: straight line and self-loop; unknown end dropped");
 }
 
-// The table of a background view: the view's rows one above the other whatever their width, a
-// container's columns side by side in the table's order, a stack one above the other; children
+// The table of a background view: the cells in their table rows and table columns, a cell spanning
+// several; every cell fills its table columns and table rows; a stack one above the other; children
 // the table does not hold come last; a child of the table the view does not hold drops out.
+const cell = (ids, row, column, rowSpan = 1, columnSpan = 1) => ({ ids, row, column, rowSpan, columnSpan });
+const tableOf = (rows, columns, cells) => ({ rows, columns, cells });
 {
   const g = graph(3, 3);   // G0, G1 (with G1S), G2; G1 holds leaves G1L0…G1L2 and G1S
   g.tables = {
-    "": { cut: "V", parts: ["G2", "G0", "G1"] },
-    G1: { cut: "H", parts: ["G1L2", { cut: "V", parts: ["G1L0", "G1S"] }, "missing"] },
+    "": tableOf(3, 1, [cell(["G2"], 0, 0), cell(["G0"], 1, 0), cell(["G1"], 2, 0)]),
+    G1: tableOf(2, 2, [cell(["G1L2"], 0, 0), cell(["G1L0", "missing"], 0, 1), cell(["G1S"], 1, 1), cell(["gone"], 1, 0)]),
   };
   const r = run(g);
-  checkTree(g, r, "tabled", new Set(["G1L0"]));
+  checkTree(g, r, "tabled", new Set(["G1L0", "G1S0", "G1L2", "G1S"]));
   const by = boxes(r);
-  ok(bottom(by.G2) <= by.G0.y && bottom(by.G0) <= by.G1.y, "tabled: root rows one above the other, in order");
-  ok(right(by.G1L2) <= by.G1L0.x, "tabled: G1's columns in the table's order");
-  ok(by.G1S.x === by.G1L0.x && bottom(by.G1L0) <= by.G1S.y, "tabled: a stack one above the other");
-  ok(by.G1L1.y >= Math.max(bottom(by.G1L2), bottom(by.G1S)), "tabled: a child not on the background view comes last");
+  ok(bottom(by.G2) <= by.G0.y && bottom(by.G0) <= by.G1.y, "tabled: table rows one above the other, in order");
+  eq([by.G2.x, by.G0.x, by.G1.x], [by.G2.x, by.G2.x, by.G2.x], "tabled: table rows start at one x");
+  eq([by.G2.width, by.G0.width], [by.G1.width, by.G1.width], "tabled: cells in one table column as wide as each other");
+  ok(right(by.G1L2) <= by.G1L0.x, "tabled: G1's table columns in the table's order");
+  eq([by.G1S.x, by.G1S.width], [by.G1L0.x, by.G1L0.width], "tabled: cells in one table column are as wide as each other");
+  ok(bottom(by.G1L0) <= by.G1S.y, "tabled: a table row below the other");
+  eq(by.G1L2.x - by.G1.x, 20, "tabled: the first table column starts at the padding");
+  ok(by.G1L1.y >= Math.max(bottom(by.G1L2), bottom(by.G1S)), "tabled: a child not in the table comes last");
+  eq(by.G1L2.height, by.G1L0.height, "tabled: the cells in one table row are as high as each other");
   eq(r, run(g), "tabled: same graph, same result");
-  eq([by.G2.width, by.G0.width], [by.G1.width, by.G1.width], "tabled: boxes one above the other as wide as their stack (bands)");
-  eq([by.G1L0.width, by.G1L0.height], [by.G1S.width, 60], "tabled: a leaf in a band beside others takes the band's width, not its parent's");
-  eq(by.G1S.width, 340, "tabled: a band beside others keeps the width of its own part");
   // An extra occurrence follows its element's place.
   const occ = graph(1, 2);
   occ.nodes.push({ id: "X", label: "X", elementType: "grouping", width: 300, height: 60, parent: null },
     { id: "G0L1_occ_1", label: "Leaf B", elementType: "business-function", width: 300, height: 60, parent: "X" },
     { id: "XL", label: "Leaf X", elementType: "business-function", width: 300, height: 60, parent: "X" });
   occ._parentMap.G0L1_occ_1 = "X"; occ._parentMap.XL = "X";
-  occ.tables = { X: { cut: "H", parts: ["G0L1", "XL"] } };
+  occ.tables = { X: tableOf(1, 2, [cell(["G0L1"], 0, 0), cell(["XL"], 0, 1)]) };
   const ro = boxes(run(occ));
   ok(right(ro.G0L1_occ_1) <= ro.XL.x, "tabled: an extra occurrence takes its element's place");
-  // A box alone in a container with a table fills it, a leaf too; a diagram object keeps its size.
+  // A diagram object keeps its size in its cell.
   const one = graph(2, 1);
   one.nodes.push({ id: "legend", label: "", elementType: "diagram-model-group", width: 200, height: 50, parent: null });
-  one.tables = { "": { cut: "V", parts: ["G0", "G1", "legend"] }, G0: "G0L0" };
+  one.tables = { "": tableOf(3, 1, [cell(["G0"], 0, 0), cell(["G1"], 1, 0), cell(["legend"], 2, 0)]) };
   const b1 = boxes(run(one));
-  eq(right(b1.G0L0), right(b1.G0) - 20, "tabled: a leaf alone in its container fills it (padding 20)");
-  eq([b1.legend.width, b1.legend.height], [200, 50], "tabled: a diagram object in a band keeps its size");
+  eq([b1.legend.width, b1.legend.height], [200, 50], "tabled: a diagram object in a cell keeps its size");
+}
+
+// Cell spans: a cell over two table columns is as wide as both with the element distance, a cell over
+// two table rows as high as both; every table row and table column is as large as its cells need.
+{
+  const n = (id, parent, width = 300, height = 60) => ({ id, label: id, elementType: "business-function", width, height, parent });
+  const nodes = [n("wide", null, 800, 60), n("a", null, 300, 60), n("b", null, 300, 200), n("tall", null, 300, 60), n("c", null, 300, 60)];
+  const options = Object.assign({}, Defs.effectiveParams(Defs.validatePreset({ algorithm: "Tiles" })), { padding: 20, elementSpacing: 10 });
+  const g = { algorithm: "Tiles", nodes, edges: [], options, engineParams: {}, sameWidth: "Off", columnsAcrossContainers: false, sort: "None", _parentMap: {},
+    tables: { "": tableOf(3, 3, [cell(["wide"], 0, 0, 1, 3), cell(["a"], 1, 0), cell(["b"], 1, 1), cell(["tall"], 1, 2, 2, 1), cell(["c"], 2, 0, 1, 2)]) } };
+  const by = boxes(run(g));
+  eq(by.wide.width, right(by.tall) - by.wide.x, "spans: a cell over three table columns reaches the last");
+  eq(by.c.width, right(by.b) - by.c.x, "spans: a cell over two table columns is as wide as both");
+  eq(by.tall.height, bottom(by.c) - by.b.y, "spans: a cell over two table rows is as high as both");
+  eq([by.a.height, by.b.height], [200, 200], "spans: the cells of a table row are as high as the highest");
+  eq(by.b.x - right(by.a), 10, "spans: table columns the element distance apart");
+  eq(by.a.y - bottom(by.wide), 10, "spans: table rows the element distance apart");
+}
+
+// A table in a cell that grows grows with it: the extra width goes equally to its table columns and
+// the cells there are packed again; the content stays at the top of a cell that grows in height.
+{
+  const g = graph(3, 3);
+  g.nodes.push({ id: "big", label: "big", elementType: "business-function", width: 2400, height: 60, parent: null });
+  g.tables = {
+    "": tableOf(2, 2, [cell(["big"], 0, 0, 1, 2), cell(["G0"], 1, 0), cell(["G1"], 1, 1)]),
+    G0: tableOf(1, 3, [cell(["G0L0"], 0, 0), cell(["G0L1"], 0, 1), cell(["G0L2"], 0, 2)]),
+  };
+  const by = boxes(run(g));
+  eq(right(by.G1), right(by.big), "grows: the cells reach the table's far edge");
+  eq(by.G1.x - right(by.G0), 40, "grows: the table columns the element distance apart");
+  eq(right(by.G0L2), right(by.G0) - 20, "grows: its table reaches the container's padding");
+  const w = [by.G0L0, by.G0L1, by.G0L2].map(b => b.width);
+  ok(w[0] > 300 && Math.abs(w[0] - w[1]) < 1e-6 && Math.abs(w[1] - w[2]) < 1e-6, `grows: the extra width is shared equally by the table columns (${w.map(Math.round)})`);
+}
+
+// A table on the column grid (Columns across containers): the cells of one table column are as wide
+// as each other and stand on the same table column borders, whatever their content; a cell spanning
+// table columns reaches the borders of both; nothing overlaps.
+{
+  const n = (id, type, parent, width = 200, height = 60) => ({ id, label: id, elementType: type, width, height, parent });
+  const nodes = [
+    n("b0", "grouping", null, 100, 30), n("b1", "grouping", null, 100, 30), n("wide", "grouping", null, 100, 30),
+    n("A", "grouping", null), n("A0", "business-function", "A"), n("A1", "business-function", "A"),
+    n("B", "grouping", null), n("B0", "business-function", "B"), n("B1", "business-function", "B"), n("B2", "business-function", "B"), n("B3", "business-function", "B"),
+    n("C", "grouping", null), n("C0", "business-function", "C"), n("C1", "business-function", "C"), n("C2", "business-function", "C"),
+  ];
+  const parentMap = Object.fromEntries(nodes.filter(x => x.parent).map(x => [x.id, x.parent]));
+  const options = Object.assign({}, Defs.effectiveParams(Defs.validatePreset({ algorithm: "Tiles" })), { padding: 10, elementSpacing: 10, maxWidth: 3000, viewSizeMode: "maxWidth" });
+  const g = { algorithm: "Tiles", nodes, edges: [], options, engineParams: {}, sameWidth: "Off", columnsAcrossContainers: true, sort: "None", _parentMap: parentMap,
+    tables: { "": tableOf(3, 2, [cell(["b0"], 0, 0), cell(["b1"], 0, 1), cell(["A"], 1, 0), cell(["B"], 1, 1), cell(["wide"], 2, 0, 1, 2), cell(["C"], 3, 0, 1, 2)]) } };
+  g.tables[""].rows = 4;
+  const by = boxes(run(g));
+  checkTree(g, run(g), "grid table", new Set(["b0", "b1", "wide", "C0", "C1", "C2"]));
+  eq([by.b0.x, by.b0.width], [by.A.x, by.A.width], "grid table: a leaf cell is as wide as the container below it");
+  eq([by.b1.x, by.b1.width], [by.B.x, by.B.width], "grid table: the same in the other table column");
+  eq(by.B.x - right(by.A), 10, "grid table: table columns the element distance apart");
+  eq([by.wide.x, right(by.wide)], [by.A.x, right(by.B)], "grid table: a cell over both table columns reaches both borders");
+  eq([by.C.x, right(by.C)], [by.A.x, right(by.B)], "grid table: a container over both table columns reaches both borders");
+  eq(by.b0.height, by.b1.height, "grid table: the cells of one table row are as high as each other");
+  ok(by.A.y > bottom(by.b0), "grid table: table rows in order");
 }
 
 // Same width (Per level): a diagram object keeps its size; it neither takes nor sets a level width.

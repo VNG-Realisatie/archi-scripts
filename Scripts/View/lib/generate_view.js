@@ -615,7 +615,7 @@ function _checkTables(graph, tables, kept) {
   }
   const list = (/** @type {string[]} */ l) => l.slice(0, 5).join("; ") + (l.length > 5 ? "; …" : "");
   if (missing.length) Log.warn(`Not on the background view: ${list(missing)}.`, {
-    effect: "placed after the tabled boxes of their container.", action: "add them to the background view where they belong." });
+    effect: "placed after the cells of their table.", action: "add them to the background view where they belong." });
   if (moved.length) Log.warn(`The background view differs from the model: ${list(moved)}.`, {
     effect: "placed where the model puts them.", action: "move them on the background view." });
   if (missing.length + moved.length > 5) Log.detail("WARN", [...missing, ...moved].join("\n"));
@@ -641,7 +641,7 @@ const LABEL_FIT_RUNS = 6;
  */
 function _layoutFittingLabels(graph, run) {
   const containerIds = [...new Set(Object.values(graph._parentMap))];
-  // A box of a table is drawn as wide as its band (Tiles fillBands), and with Columns across
+  // A cell of a table is drawn as wide as its table columns, and with Columns across
   // containers every container as wide as its columns: that width is no minimum of its own, else the
   // next layout keeps it, Columns across containers widens a column for it, and that column widens
   // every container in it (GEMMA domeinen: application services 3150 px wide).

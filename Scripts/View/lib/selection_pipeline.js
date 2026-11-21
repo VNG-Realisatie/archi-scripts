@@ -130,7 +130,7 @@ function composeObjectSet(snapshot, preset, actionId) {
   const { existing, relationsOf } = snapshot;
   const background     = _backgroundOf(snapshot, preset.params, isModifyAction);
   // Expand view and Layout only keep what is on the view, but lay it out in the background view's table.
-  const tabled       = isModifyAction && snapshot.background && preset.params.backgroundView ? snapshot.background : background;
+  const withTables   = isModifyAction && snapshot.background && preset.params.backgroundView ? snapshot.background : background;
 
   // Filter (skipped for the Modify actions, see buildObjectSet).
   let filteredElementsArr = snapshot.elements;
@@ -220,8 +220,8 @@ function composeObjectSet(snapshot, preset, actionId) {
       diagramBlockVisualOf,
       visuals,
       joinRun,
-      ...(tabled ? { tables: tabled.tables } : {}),
-      ...(tabled && preset.params.backgroundKeepAppearance ? { backgroundLooks: _backgroundLooks(tabled) } : {}),
+      ...(withTables ? { tables: withTables.tables } : {}),
+      ...(withTables && preset.params.backgroundKeepAppearance ? { backgroundLooks: _backgroundLooks(withTables) } : {}),
     },
     filteredCounts,
     filteredBaseRels,

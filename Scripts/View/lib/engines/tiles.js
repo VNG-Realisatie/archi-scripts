@@ -54,8 +54,13 @@ const CHUNK_SIZE = 24;
  *   turns: how often the cuts inside switch between side by side and one above the other (turnsOf)
  * @typedef {{ id: string, shapes: Shape[], floorplan?: Floorplan, chunk?: boolean }} Tile  one box of a run: a leaf, a
  *   container, or a chunk of a long run (no node of its own, no padding)
- * @typedef {{ tiles: Tile[], best: Shape[][][], tabled?: boolean }} Floorplan  best[i][j]: the shapes of tiles i … j;
- *   tabled: in the table of the background view (tableFloorplan)
+ * @typedef {{ tile: Tile, c0: number, c1: number, r0: number, r1: number }} TableCellPlan  a cell of a table: its tile and the
+ *   table columns and table rows it spans (first and last)
+ * @typedef {{ w: number, h: number, cols: number[], rows: number[], pick: number[] }} TableShape  a size of a table: the width of
+ *   every table column, the height of every table row, and per cell the index of the shape of its tile
+ * @typedef {{ cells: TableCellPlan[], columns: number, rows: number, shapes: TableShape[] }} TablePlan
+ * @typedef {{ tiles: Tile[], best: Shape[][][], table?: TablePlan }} Floorplan  best[i][j]: the shapes of tiles i … j;
+ *   table: the floorplan is a table of the background view (tableFloorplan), the tiles its cells
  */
 
 /**
@@ -108,9 +113,10 @@ function turnsOf(s, dir) {
  * @param {number} widthCap
  * @param {number} [finalShapes]  shapes kept for the whole run (the view: more, so Max width can come close)
  * @param {number} [maxWaste]
+ * @param {boolean} [stackOnly]  only one above the other (the boxes of a cell)
  * @returns {Floorplan}
  */
-function buildFloorplan(tiles, gap, widthCap, finalShapes = MAX_SHAPES, maxWaste = MAX_WASTE) {
+function buildFloorplan(tiles, gap, widthCap, finalShapes = MAX_SHAPES, maxWaste = MAX_WASTE, stackOnly = false) {
   if (tiles.length > FULL_SEARCH_MAX) return buildFloorplan(chunksOf(tiles, gap, widthCap, maxWaste), gap, widthCap, finalShapes, maxWaste);
   const n = tiles.length;
   /** @type {Shape[][][]} */
@@ -128,7 +134,7 @@ function buildFloorplan(tiles, gap, widthCap, finalShapes = MAX_SHAPES, maxWaste
           const p = left[a], q = right[b];
           // One above the other first: of equally simple shapes, rows win, so the order reads left to right and down.
           cands.push({ w: Math.max(p.w, q.w), h: p.h + gap + q.h, k, dir: "V", a, b, turns: turnsOf(p, "V") + turnsOf(q, "V") });
-          cands.push({ w: p.w + gap + q.w, h: Math.max(p.h, q.h), k, dir: "H", a, b, turns: turnsOf(p, "H") + turnsOf(q, "H") });
+          if (!stackOnly) cands.push({ w: p.w + gap + q.w, h: Math.max(p.h, q.h), k, dir: "H", a, b, turns: turnsOf(p, "H") + turnsOf(q, "H") });
         }
       }
       best[i][j] = prune(cands, widthCap, i === 0 && j === n - 1 ? finalShapes : MAX_SHAPES, maxWaste);
@@ -138,75 +144,210 @@ function buildFloorplan(tiles, gap, widthCap, finalShapes = MAX_SHAPES, maxWaste
 }
 
 /**
- * The floorplan of a container's children in the table of the background view: parts side by side
- * or one above the other as the table cuts them, so only the sizes are searched. Children the
- * table does not hold come last, below the rest, tiled freely; a child of the table the view does
- * not hold drops out, and so does a part left empty. `tabled` marks the floorplan: placeRun widens the
- * containers of a part one above the other to its width, so they read as bands.
- * @param {Tile[]}      tiles        in sorted order
- * @param {Table} table  ids: element ids, or the ids of diagram objects
- * @param {number}      gap
- * @param {number}      widthCap
- * @param {number}      [finalShapes]
+ * The index of the lowest shape of a tile that fits `width`: the widest that does not exceed it, the
+ * narrowest when none does.
+ * @param {Shape[]} shapes  by width, narrow first
+ * @param {number}  width
+ */
+function _fit(shapes, width) {
+  let index = 0;
+  for (let i = 1; i < shapes.length; i++) if (shapes[i].w <= width + 1e-9) index = i;
+  return index;
+}
+
+/**
+ * The size of table tracks (columns or rows) `from` … `to` together, with the gaps between them.
+ * @param {number[]} sizes
+ * @param {number}   from
+ * @param {number}   to
+ * @param {number}   gap
+ */
+function _trackSize(sizes, from, to, gap) {
+  let size = gap * (to - from);
+  for (let i = from; i <= to; i++) size += sizes[i];
+  return size;
+}
+
+/**
+ * Grow the tracks `from` … `to` together by `extra`, each by the same.
+ * @param {number[]} sizes  changed
+ * @param {number}   from
+ * @param {number}   to
+ * @param {number}   extra
+ */
+function _spread(sizes, from, to, extra) {
+  for (let i = from; i <= to; i++) sizes[i] += extra / (to - from + 1);
+}
+
+/**
+ * A table as wide as its narrowest cells allow: a cell over several table columns shares what it
+ * lacks equally over them, the cells over the fewest first (as CSS Grid sizes its tracks).
+ * @param {TableCellPlan[]} cells
+ * @param {number}          columns
+ * @param {number}          gap
+ * @returns {number[]}  the width of every table column
+ */
+function _leastColumns(cells, columns, gap) {
+  /** @type {number[]} */
+  const widths = new Array(columns).fill(0);
+  for (const c of cells.slice().sort((p, q) => (p.c1 - p.c0) - (q.c1 - q.c0))) {
+    const lack = c.tile.shapes[0].w - _trackSize(widths, c.c0, c.c1, gap);
+    if (lack > 0) _spread(widths, c.c0, c.c1, lack);
+  }
+  return widths;
+}
+
+/**
+ * The size a table takes at the widths of its table columns: every cell the lowest shape that fits
+ * the table columns it spans, every table row as high as its cells need (a cell over several table
+ * rows shares what it lacks equally, the cells over the fewest first).
+ * @param {TableCellPlan[]} cells
+ * @param {number}          rows
+ * @param {number[]}        cols  the width of every table column
+ * @param {number}          gap
+ * @returns {TableShape}
+ */
+function _tableAt(cells, rows, cols, gap) {
+  const pick = cells.map(c => _fit(c.tile.shapes, _trackSize(cols, c.c0, c.c1, gap)));
+  /** @type {number[]} */
+  const heights = new Array(rows).fill(0);
+  for (const i of cells.map((c, k) => k).sort((p, q) => (cells[p].r1 - cells[p].r0) - (cells[q].r1 - cells[q].r0) || p - q)) {
+    const c = cells[i];
+    const lack = c.tile.shapes[pick[i]].h - _trackSize(heights, c.r0, c.r1, gap);
+    if (lack > 0) _spread(heights, c.r0, c.r1, lack);
+  }
+  return { w: _trackSize(cols, 0, cols.length - 1, gap), h: _trackSize(heights, 0, rows - 1, gap), cols: cols.slice(), rows: heights, pick };
+}
+
+/**
+ * The sizes a table can take, from its narrowest: widen one cell at a time to its next shape, its
+ * table columns by the same, and take the widening that costs the least width (`cheapest`: so every
+ * width at which a cell changes shape comes by) or that saves the most height per pixel of width
+ * (`best`: the least white space). Every step is a size; the steps end when no cell can grow.
+ * @param {TableCellPlan[]} cells
+ * @param {number}          columns
+ * @param {number}          rows
+ * @param {number}          gap
+ * @param {number}          widthCap  0 = no cap
+ * @param {"cheapest" | "best"} choose
+ * @returns {TableShape[]}
+ */
+function _tableShapes(cells, columns, rows, gap, widthCap, choose) {
+  let shape = _tableAt(cells, rows, _leastColumns(cells, columns, gap), gap);
+  const shapes = [shape];
+  while (!(widthCap && shape.w > widthCap)) {
+    /** @type {{ next: TableShape, gain: number, widen: number } | null} */
+    let best = null;
+    cells.forEach((c, i) => {
+      const next = c.tile.shapes[shape.pick[i] + 1];
+      if (!next) return;
+      const cols = shape.cols.slice();
+      _spread(cols, c.c0, c.c1, next.w - _trackSize(cols, c.c0, c.c1, gap));
+      const grown = _tableAt(cells, rows, cols, gap), widen = grown.w - shape.w;
+      if (widen <= 1e-9) return;
+      const gain = (shape.h - grown.h) / widen;
+      const better = !best || (choose === "cheapest" ? widen < best.widen - 1e-9 || (Math.abs(widen - best.widen) <= 1e-9 && gain > best.gain)
+        : gain > best.gain + 1e-12 || (Math.abs(gain - best.gain) <= 1e-12 && widen < best.widen));
+      if (better) best = { next: grown, gain, widen };
+    });
+    if (!best) break;
+    shape = /** @type {{ next: TableShape }} */ (best).next;
+    shapes.push(shape);
+  }
+  return shapes;
+}
+
+/**
+ * A table size stretched to fill a room: the extra width equally over its table columns (every cell
+ * takes the lowest shape that fits again, so a table inside a cell is stretched in turn), then the
+ * extra height equally over its table rows. The content stays at the top of its cell.
+ * @param {TablePlan}  plan
+ * @param {TableShape} shape
+ * @param {number}     width
+ * @param {number}     height
+ * @param {number}     gap
+ * @returns {TableShape}
+ */
+function _stretch(plan, shape, width, height, gap) {
+  let out = shape;
+  const wider = width - shape.w;
+  if (wider > 1e-9) out = _tableAt(plan.cells, plan.rows, shape.cols.map(w => w + wider / plan.columns), gap);
+  const higher = height - out.h;
+  if (higher > 1e-9) out = { ...out, rows: out.rows.map(h => h + higher / plan.rows), h: height };
+  return out;
+}
+
+/**
+ * The shapes of a floorplan: the sizes it can take.
+ * @param {Floorplan} floorplan
+ * @returns {Shape[] | TableShape[]}
+ */
+function shapesOf(floorplan) {
+  return floorplan.table ? floorplan.table.shapes : floorplan.best[0][floorplan.tiles.length - 1];
+}
+
+/**
+ * The tiles of boxes that overlap on the background view, one above the other in reading order, as
+ * one tile (no node of its own).
+ * @param {Tile[]} tiles
+ * @param {number} gap
+ * @param {number} widthCap
+ * @returns {Tile}
+ */
+function _stackTile(tiles, gap, widthCap) {
+  const floorplan = buildFloorplan(tiles, gap, widthCap, MAX_SHAPES, Infinity, true);
+  return { id: "", chunk: true, floorplan, shapes: floorplan.best[0][tiles.length - 1].map((s, child) => ({ w: s.w, h: s.h, child })) };
+}
+
+/**
+ * The floorplan of a container's children in the table of the background view: every child a cell in
+ * its table rows and table columns, so only the sizes are searched. Children the table does not hold
+ * come last, in a table row below the rest, tiled freely; a child of the table the view does not hold
+ * drops out, and a table row or table column left without cells with it.
+ * @param {Tile[]}  tiles   in sorted order
+ * @param {Table}   table   ids: element ids, or the ids of diagram objects
+ * @param {number}  gap
+ * @param {number}  widthCap
+ * @param {number}  [finalShapes]
  * @returns {Floorplan}
  */
 function tableFloorplan(tiles, table, gap, widthCap, finalShapes = MAX_SHAPES) {
   /** @type {Map<string, Tile>} */
   const byElement = new Map(tiles.map(t => [elementOf(t.id), t]));
-  /** @type {Tile[]} */
-  const ordered = [];
-  /**
-   * The table with the tiles in it: a tile's index in `ordered`, or the parts that hold any.
-   * @typedef {number | { cut: "H" | "V", parts: Placed[] }} Placed
-   * @param {Table} a
-   * @returns {Placed | null}
-   */
-  const place = a => {
-    if (typeof a === "string") {
-      const tile = byElement.get(a);
-      return tile ? ordered.push(tile) - 1 : null;
-    }
-    const parts = /** @type {Placed[]} */ (a.parts.map(place).filter(p => p !== null));
-    return !parts.length ? null : parts.length === 1 ? parts[0] : { cut: a.cut, parts };
+  /** @type {Set<Tile>} */
+  const placed = new Set();
+  /** @type {TableCellPlan[]} */
+  let cells = [];
+  for (const c of table.cells) {
+    const stack = /** @type {Tile[]} */ (c.ids.map(id => byElement.get(id)).filter(t => t && !placed.has(t)));   // Cast: the filter drops the missing
+    if (!stack.length) continue;
+    for (const t of stack) placed.add(t);
+    cells.push({ tile: stack.length === 1 ? stack[0] : _stackTile(stack, gap, widthCap),
+      c0: c.column, c1: c.column + c.columnSpan - 1, r0: c.row, r1: c.row + c.rowSpan - 1 });
+  }
+  if (!cells.length) return buildFloorplan(tiles, gap, widthCap, finalShapes);
+  /** @param {(c: TableCellPlan) => number} from  @param {(c: TableCellPlan) => number} to  @returns {Map<number, number>} the tracks left, renumbered */
+  const squeeze = (from, to) => {
+    /** @type {Set<number>} */
+    const used = new Set();
+    for (const c of cells) for (let k = from(c); k <= to(c); k++) used.add(k);
+    return new Map([...used].sort((p, q) => p - q).map((k, i) => [k, i]));
   };
-  let root = place(table);
-  if (root === null) return buildFloorplan(tiles, gap, widthCap, finalShapes);
-  const placed = new Set(ordered);
+  const columnOf = squeeze(c => c.c0, c => c.c1), rowOf = squeeze(c => c.r0, c => c.r1);
+  const at = (/** @type {Map<number, number>} */ map, /** @type {number} */ k) => /** @type {number} */ (map.get(k));
+  cells = cells.map(c => ({ tile: c.tile, c0: at(columnOf, c.c0), c1: at(columnOf, c.c1), r0: at(rowOf, c.r0), r1: at(rowOf, c.r1) }));
+  const columns = columnOf.size;
+  let rows = rowOf.size;
   const rest = tiles.filter(t => !placed.has(t));
   if (rest.length) {
     const floorplan = buildFloorplan(rest, gap, widthCap);
-    const chunk = ordered.push({ id: "", chunk: true, floorplan, shapes: floorplan.best[0][rest.length - 1].map((s, child) => ({ w: s.w, h: s.h, child })) }) - 1;
-    root = { cut: "V", parts: [root, chunk] };
+    cells.push({ tile: { id: "", chunk: true, floorplan, shapes: floorplan.best[0][rest.length - 1].map((s, child) => ({ w: s.w, h: s.h, child })) },
+      c0: 0, c1: columns - 1, r0: rows, r1: rows });
+    rows++;
   }
-  const n = ordered.length;
-  /** @type {Shape[][][]} */
-  const best = Array.from({ length: n }, () => Array.from({ length: n }, () => /** @type {Shape[]} */ ([])));
-  for (let i = 0; i < n; i++) best[i][i] = ordered[i].shapes.map((s, child) => ({ w: s.w, h: s.h, child }));
-  /**
-   * The shapes of a part, from the shapes of its own parts cut in its direction.
-   * @param {Placed}  p
-   * @param {number}  keep
-   * @returns {number[]}  the run i … j it covers
-   */
-  const join = (p, keep) => {
-    if (typeof p === "number") return [p, p];
-    const runs = p.parts.map(q => join(q, MAX_SHAPES));
-    const j = runs[runs.length - 1][1];
-    for (let t = runs.length - 2; t >= 0; t--) {
-      const [i, k] = runs[t];
-      const left = best[i][k], right = best[k + 1][j];
-      /** @type {Shape[]} */
-      const cands = [];
-      for (let a = 0; a < left.length; a++) for (let b = 0; b < right.length; b++) {
-        const P = left[a], Q = right[b];
-        cands.push(p.cut === "H" ? { w: P.w + gap + Q.w, h: Math.max(P.h, Q.h), k, dir: "H", a, b } : { w: Math.max(P.w, Q.w), h: P.h + gap + Q.h, k, dir: "V", a, b });
-      }
-      best[i][j] = prune(cands, widthCap, t === 0 ? keep : MAX_SHAPES, Infinity);   // the boxes of a table widen for free
-    }
-    return [runs[0][0], j];
-  };
-  join(root, finalShapes);
-  return { tiles: ordered, best, tabled: true };
+  const walked = [..._tableShapes(cells, columns, rows, gap, widthCap, "cheapest"), ..._tableShapes(cells, columns, rows, gap, widthCap, "best")];
+  const shapes = prune(/** @type {Shape[]} */ (walked), widthCap, finalShapes, Infinity);   // the boxes of a table widen for free
+  return { tiles: cells.map(c => c.tile), best: [], table: { cells, columns, rows, shapes: /** @type {TableShape[]} */ (shapes) } };
 }
 
 /**
@@ -369,12 +510,12 @@ function layout(graph) {
   const tileOf = node => {
     const kids = childrenOf[node.id];
     if (!kids) return { id: node.id, shapes: [{ w: levelWidth[node.id] || node.width, h: node.height }] };
-    // A box of a table (a band) may widen for free: its wide shapes stay, its container chooses.
+    // A box in a table (a cell) may widen for free: its wide shapes stay, the table chooses.
     const waste = tables[node.parent ? elementOf(node.parent) : ""] ? Infinity : MAX_WASTE;
     const floorplan = tables[elementOf(node.id)]
       ? floorplanOf(elementOf(node.id), kids.map(tileOf))
       : buildFloorplan(kids.map(tileOf), gap, goal, MAX_SHAPES, waste);
-    const inner = floorplan.best[0][floorplan.tiles.length - 1];
+    const inner = shapesOf(floorplan);
     const shapes = inner.map((s, child) => ({ w: Math.max(s.w + 2 * pad, levelWidth[node.id] || 0, node.minWidth), h: s.h + topOf(node.id) + pad, child }));
     return { id: node.id, shapes: prune(shapes, goal, MAX_SHAPES, waste), floorplan };
   };
@@ -391,24 +532,52 @@ function layout(graph) {
    * @param {number}      y
    * @param {string|null} parentId
    * @param {number}      column
-   * @param {Band | null} [band]  the boxes of a part one above the other in a table, collected here
    */
-  const placeRun = (out, floorplan, i, j, index, x, y, parentId, column, band = null) => {
+  const placeRun = (out, floorplan, i, j, index, x, y, parentId, column) => {
     const shape = floorplan.best[i][j][index];
-    if (i === j) { placeTile(out, floorplan.tiles[i], /** @type {number} */ (shape.child), x, y, parentId, column, band); return; }
+    if (i === j) { placeTile(out, floorplan.tiles[i], /** @type {number} */ (shape.child), x, y, parentId, column); return; }
     const k = /** @type {number} */ (shape.k);
     const left = floorplan.best[i][k][/** @type {number} */ (shape.a)];
     const side = shape.dir === "H";
-    // In a table, the boxes one above the other become one band (fillBands); beside others it fills only its own part.
-    const part = side || !floorplan.tabled ? null : band || _newBand(false);
-    placeRun(out, floorplan, i, k, /** @type {number} */ (shape.a), x, y, parentId, side ? ++columns : column, part);
-    placeRun(out, floorplan, k + 1, j, /** @type {number} */ (shape.b), side ? x + left.w + gap : x, side ? y : y + left.h + gap, parentId, side ? ++columns : column, part);
+    placeRun(out, floorplan, i, k, /** @type {number} */ (shape.a), x, y, parentId, side ? ++columns : column);
+    placeRun(out, floorplan, k + 1, j, /** @type {number} */ (shape.b), side ? x + left.w + gap : x, side ? y : y + left.h + gap, parentId, side ? ++columns : column);
   };
-  /** @typedef {{ ids: string[], full: boolean }} Band  full: nothing beside it in its container, so it fills the container's width */
-  /** @type {Band[]} */
-  let bands = [];
-  const _newBand = (/** @type {boolean} */ full) => { const b = { ids: /** @type {string[]} */ ([]), full }; bands.push(b); return b; };
+  /**
+   * The tables placed in this layout, for the grid: per table the box they lie in, its table columns,
+   * and its cells (a leaf or container with the table columns it spans).
+   * @type {PlacedTable[]}
+   */
+  let tablesPlaced = [];
   const isDiagram = new Set(graph.nodes.filter(n => n.elementType in DIAGRAM_TYPES).map(n => n.id));
+  /**
+   * Place a floorplan in the shape `index`. A table in a room larger than its shape is stretched to
+   * fill it; any other floorplan keeps its places.
+   * @param {LayoutResultNode[]} out
+   * @param {Floorplan}   floorplan
+   * @param {number}      index
+   * @param {number}      x
+   * @param {number}      y
+   * @param {string|null} parentId
+   * @param {number}      column
+   * @param {{ w: number, h: number } | null} [room]  the room inside the container the floorplan is in
+   */
+  const placeFloorplan = (out, floorplan, index, x, y, parentId, column, room = null) => {
+    const table = floorplan.table;
+    if (!table) { placeRun(out, floorplan, 0, floorplan.tiles.length - 1, index, x, y, parentId, column); return; }
+    const shape = room ? _stretch(table, table.shapes[index], room.w, room.h, gap) : table.shapes[index];
+    const columnIds = Array.from({ length: table.columns }, () => ++columns);
+    /** @param {number[]} sizes */
+    const starts = sizes => { let at = 0; return sizes.map(size => { const start = at; at += size + gap; return start; }); };
+    const columnAt = starts(shape.cols), rowAt = starts(shape.rows);
+    /** @type {PlacedTable} */
+    const placed = { parent: parentId, columns: table.columns, cells: [] };
+    table.cells.forEach((c, i) => {
+      const width = _trackSize(shape.cols, c.c0, c.c1, gap), height = _trackSize(shape.rows, c.r0, c.r1, gap);
+      placeTile(out, c.tile, shape.pick[i], x + columnAt[c.c0], y + rowAt[c.r0], parentId, columnIds[c.c0], { w: width, h: height });
+      if (!c.tile.chunk) placed.cells.push({ id: c.tile.id, c0: c.c0, c1: c.c1, fixed: isDiagram.has(c.tile.id) });
+    });
+    tablesPlaced.push(placed);
+  };
   /**
    * @param {LayoutResultNode[]} out
    * @param {Tile}        tile
@@ -417,20 +586,21 @@ function layout(graph) {
    * @param {number}      y
    * @param {string|null} parentId
    * @param {number}      column
-   * @param {Band | null} [band]  a band of a table this tile is in; a diagram object keeps its size
+   * @param {{ w: number, h: number } | null} [cell]  the cell the tile fills (a diagram object keeps its size)
    */
-  const placeTile = (out, tile, index, x, y, parentId, column, band = null) => {
+  const placeTile = (out, tile, index, x, y, parentId, column, cell = null) => {
     const shape = tile.shapes[index];
     if (tile.chunk) {   // its tiles go straight into the run's own container
-      const floorplan = /** @type {Floorplan} */ (tile.floorplan);   // Cast: every chunk has a floorplan
-      placeRun(out, floorplan, 0, floorplan.tiles.length - 1, /** @type {number} */ (shape.child), x, y, parentId, column);
+      placeFloorplan(out, /** @type {Floorplan} */ (tile.floorplan), /** @type {number} */ (shape.child), x, y, parentId, column);   // Cast: every chunk has a floorplan
       return;
     }
     columnOf[tile.id] = column;
-    if (band && !isDiagram.has(tile.id)) band.ids.push(tile.id);
-    out.push({ id: tile.id, x, y, width: shape.w, height: shape.h, parentId });
-    if (tile.floorplan) placeRun(out, tile.floorplan, 0, tile.floorplan.tiles.length - 1, /** @type {number} */ (shape.child), x + pad, y + topOf(tile.id), tile.id, ++columns,
-      tile.floorplan.tabled ? _newBand(true) : null);
+    const fills = cell && !isDiagram.has(tile.id);
+    const width = fills ? Math.max(shape.w, /** @type {{ w: number }} */ (cell).w) : shape.w;
+    const height = fills ? Math.max(shape.h, /** @type {{ h: number }} */ (cell).h) : shape.h;
+    out.push({ id: tile.id, x, y, width, height, parentId });
+    const top = topOf(tile.id);
+    if (tile.floorplan) placeFloorplan(out, tile.floorplan, /** @type {number} */ (shape.child), x + pad, y + top, tile.id, ++columns, { w: width - 2 * pad, h: height - top - pad });
   };
 
   // Columns across containers: the leaf columns of the tiles on one grid, as after Pack.
@@ -442,7 +612,7 @@ function layout(graph) {
   /**
    * The view for one shape of the root: placed, then on the column grid when asked (that can make
    * it wider, so Max width is judged on this).
-   * @param {Floorplan}   floorplan
+   * @param {Floorplan} floorplan
    * @param {number}  index
    * @param {boolean} quiet  no log
    * @returns {LayoutResultNode[]}
@@ -450,34 +620,14 @@ function layout(graph) {
   const build = (floorplan, index, quiet) => {
     /** @type {LayoutResultNode[]} */
     const out = [];
-    bands = [];
-    placeRun(out, floorplan, 0, floorplan.tiles.length - 1, index, diagramPad, diagramPad, null, ++columns, floorplan.tabled ? _newBand(true) : null);
+    tablesPlaced = [];
+    placeFloorplan(out, floorplan, index, diagramPad, diagramPad, null, ++columns);
     const sharers = columnSharers(out);
     // On the grid every leaf fills its track (a leaf beside a container those of its column); without it, a leaf beside a container takes its column's width.
-    // A band with nothing beside it is drawn to its container's edge (fillBands): the grid knows it beforehand.
-    const stretch = new Set(bands.filter(b => b.full).flatMap(b => b.ids));
-    if (gridOn) alignColumnsAcrossContainers(out, o, names, quiet ? () => {} : log, sharers, minWidths, blocks, stretch);
+    // The cells of a table reach the table column borders: the grid knows them.
+    if (gridOn) alignColumnsAcrossContainers(out, o, names, quiet ? () => {} : log, sharers, minWidths, blocks, tablesPlaced);
     else widenToColumns(out, sharers);
-    fillBands(out);
     return out;
-  };
-  /**
-   * The elements of a band of a table reach as far right as the widest of them, and with
-   * nothing beside them to the inside of their container, once the grid has placed them: a band of
-   * layers reads as one, also a layer with nothing in it. Outer bands first, so an inner band
-   * fills its container as widened.
-   * @param {LayoutResultNode[]} out
-   */
-  const fillBands = out => {
-    const byId = new Map(out.map(n => [n.id, n]));
-    for (const band of bands) {
-      if (!band.ids.length) continue;
-      const members = band.ids.map(id => /** @type {LayoutResultNode} */ (byId.get(id)));
-      const parent = members[0].parentId ? byId.get(members[0].parentId) : null;
-      let right = Math.max(...members.map(n => n.x + n.width));
-      if (band.full && parent) right = Math.max(right, parent.x + parent.width - pad);
-      for (const n of members) n.width = right - n.x;
-    }
   };
   /**
    * Per leaf, the containers whose tracks it fills on the grid: a leaf beside a container fills those
@@ -498,8 +648,9 @@ function layout(graph) {
       const right = row.filter(n => n.x > leaf.x).sort((a, b) => a.x - b.x)[0];
       return [left, right].some(n => n && !childrenOf[n.id]);
     };
+    const cellIds = new Set(tablesPlaced.flatMap(t => t.cells.map(c => c.id)));   // a leaf that is a cell fills its cell, not a column
     for (const leaf of out) {
-      if (childrenOf[leaf.id] || isDiagram.has(leaf.id) || typeChange.has(leaf.id)) continue;
+      if (childrenOf[leaf.id] || isDiagram.has(leaf.id) || typeChange.has(leaf.id) || cellIds.has(leaf.id)) continue;
       sharers.set(leaf.id, columnWide.has(leaf.id) && !inRow(leaf)
         ? out.filter(n => childrenOf[n.id] && columnOf[n.id] === columnOf[leaf.id]).map(n => n.id) : []);
     }
@@ -526,7 +677,7 @@ function layout(graph) {
   let nodes = [];
   if (rootTiles.length) {
     const floorplan = floorplanOf("", rootTiles, VIEW_SHAPES);
-    const shapes = floorplan.best[0][floorplan.tiles.length - 1];
+    const shapes = shapesOf(floorplan);
     let chosen = 0;
     let note = "";
     if (o.maxWidth) {

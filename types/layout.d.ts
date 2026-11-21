@@ -62,10 +62,15 @@ interface LayoutEdge {
   weight: number;
 }
 
-/** A box id, or boxes cut side by side ("H", left to right) or one above the other ("V", top to bottom) (lib/table.js). */
-type Table = string | { cut: "H" | "V"; parts: Table[] };
+/** One cell of a table: its boxes (a stack when several, in reading order) and its place, counted from 0 (lib/table.js). */
+interface TableCell { ids: string[]; column: number; columnSpan: number; row: number; rowSpan: number }
+/** The table rows and table columns of the boxes of a container on the background view, and their cells. */
+interface Table { columns: number; rows: number; cells: TableCell[] }
 /** Container element id ("" = the view itself) → the table of its children on the background view. */
 type Tables = Record<string, Table>;
+/** A table as Tiles placed it, for the column grid: the box it lies in (null: the view), its table columns, and its cells (the nodes
+ *  that fill them, with the table columns they span; fixed: a diagram object, which keeps its size). */
+interface PlacedTable { parent: string | null; columns: number; cells: { id: string; c0: number; c1: number; fixed: boolean }[] }
 
 interface LayoutGraph {
   algorithm: string;
