@@ -198,3 +198,25 @@ Stap 5–9. Klaar wanneer:
 - de Node-layouts de verwachtingen van stap 7 halen;
 - de baseline alleen het verwachte verschil geeft;
 - de gebruiker de drie views in Archi goedkeurt.
+
+## Overdracht (2026-11-22)
+
+**Klaar:** blok 1 (`653c717`), blok 2 (`24e4e6c`), daarna: kleur volgt overgenomen fill (`38664b3`), hoogte leaf-cel op getekende breedte (`7f6fb95`), blok vult zijn kolom (`01e1296`). Gebruiker akkoord op BF- en AS-view. Typecheck, tests, fingerprints, rule checks en Archi-baseline groen.
+
+**Afwijkingen van dit plan die de docs moeten vastleggen (blok 4):**
+- Afleiding: diagonale cellen (geen overlap in beide richtingen) krijgen een rij- én kolomgrens als er niets tussen ligt.
+- Maten: geen DP over knippen; twee verbreedpaden (goedkoopste stap, meeste hoogtewinst per pixel), samen Pareto-gesnoeid.
+- Raster: cellen aan de buitenrand van een tabel reiken tot de rand van hun container; cellen in disjuncte tabelkolommen delen geen spoor.
+- Leaf-cel: hoogte opnieuw uit het label op de getekende breedte (`_layoutFittingLeafCells`, ≤ 3 runs; ondergrens elementhoogte).
+- Blok (*Per level and type*) vult zijn spoor; inhoud van een blok van één kolom gecentreerd. Vervangt "een blok houdt zijn breedte, gecentreerd".
+- Keep appearance: onder een overgenomen fill volgt een child van hetzelfde type die fill, één stap lichter, ongeacht de conditiekleur.
+- `layout_checks.js`: een leaf in een tabelcel mag groeien tot zijn cel.
+- BF-view is 60 px smaller dan voorheen (artefact van de oude band-padding weg); hoogtes gelijk.
+- Tooltip `backgroundView` in `defs.js` zegt nog "arrangement".
+
+**Volgende:**
+1. Blok 3 (Opus): plan getrapte SPEC; gebruiker kiest de plek van de regels (`Scripts/View/AGENTS.md` of `docs/RULES.md`).
+2. Blok 4 (Sonnet): stap 10 met de afwijkingen hierboven.
+3. Apart (eigen sessie): RC-background. De background staat in één naamloze diagram group (id-563180fe…) en is daardoor één diagram-block: geen tabellen, selectie naast de background. Gebruiker haalt de group weg; daarna in preset *Alle referentiecomponenten background* beslissen over serving-nesting en *Leaves in place*.
+
+**Gebruiker beslist nog:** commit van `~/ai/shared/AGENTS.md` (werkafspraak), `Scripts/Beheren/printObjectDetails.ajs`, en de twee gewijzigde presets in de werkmap.
