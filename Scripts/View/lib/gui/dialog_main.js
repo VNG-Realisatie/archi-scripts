@@ -350,7 +350,7 @@ function open(uiSelection) {
   // Default picked in the dialog: its differences could not be logged there (console blocks)
   if (!defaultAtOpen && PresetRow.presetName(ctx) === PresetIO.DEFAULT_PRESET_NAME) PresetIO.logDefaultDifferences();
   // Dialog is fully closed here — safe to run generate_view
-  if (result === IDialogConstants.CANCEL_ID || result < 0) return;
+  if (result === IDialogConstants.CANCEL_ID || result < 0) { Log.info("Dialog cancelled: nothing written.\n"); return; }
 
   if (!RunPreset.confirmViewCount(ctx.uiSelection, ctx._actionId, ctx.config.filter)) { RunPreset.cancelled(); return; }
   try {

@@ -55,6 +55,7 @@ let _sink = null;                 // set by a caller in Node (layout process); n
 let _started = false;
 let _t0 = Date.now();
 let _timed = _t0;                 // where the duration counts from: the start, or restartDuration()
+let _noDuration = false;           // omitDuration(): the run did no work, so the console shows no Duration
 let _script = "";
 /** @type {string[]} */
 let _pending = [];                // file lines while no file is open
@@ -153,7 +154,7 @@ function finish() {
   if (_held) _flushItem();
   const ms = Date.now() - _timed;
   _open(_scriptBase());
-  info(field("Duration:", _seconds(ms)));
+  if (!_noDuration) info(field("Duration:", _seconds(ms)));
   if (_path) { info("Log file:"); info(_path); }   // the path alone on its line: a triple click copies it
   info(RULE);
   _file(`Finished ${_dateTime(new Date())} (${_seconds(ms)})`);
@@ -167,6 +168,11 @@ function finish() {
  */
 function restartDuration() {
   _timed = Date.now();
+}
+
+/** The run did no work (the dialog was cancelled): finish() prints no Duration; the log file keeps its times. */
+function omitDuration() {
+  _noDuration = true;
 }
 
 /** @returns {string} the log file's full path, as the platform writes it ("" when none) */
@@ -469,6 +475,7 @@ function _fail(e) {
 function _reset() {
   _close();
   _t0 = _timed = Date.now();
+  _noDuration = false;
   _pending = []; _path = ""; _bytes = 0; _full = false; _fileFailed = false;
   _context = "run"; _held = null; _blank = false; _itemWarnings = 0; _itemIndex = 0; _warned = new Set();
   _itemName = ""; _itemReason = "";
@@ -498,7 +505,7 @@ const _stamp = d => `${d.getFullYear()}${_two(d.getMonth() + 1)}${_two(d.getDate
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    start, name, finish, path, restartDuration,
+    start, name, finish, path, restartDuration, omitDuration,
     debug, info, warn, error, detail, write, columns, field, setSink,
     beginItem, endItem, summary, seconds,
     CONSOLE_WIDTH, DETAIL_COLUMN, MIN_JARCHI, versionBelow,
