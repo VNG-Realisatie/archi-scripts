@@ -214,4 +214,4 @@ Stap 5–9. Klaar wanneer:
 
 **Volgende:**
 1. Blok 4 (Sonnet): eerst `plan/view-regels-op-een-plek.md` § Uitvoering (eigen commit); dan stap 10 met de afwijkingen hierboven; docs en de code van test case 33 in één commit (AGENTS § Order of change, stap 5). Daarvoor draai ik zelf de Archi-baseline (skill `view-baseline`, `archi_cli.sh`).
-2. Daarna, apart: in preset *Alle referentiecomponenten background* beslissen over serving-nesting en *Leaves in place* (Sturing legt zijn vier kinderen nu vrij, 3 + 1).
+2. Besloten (2026-11-22): preset *Alle referentiecomponenten background* houdt *Leaves in place* uit (compacter, 11328 × 8769 px; aan kost 7 %) en nest serving. Geen werk meer open.
