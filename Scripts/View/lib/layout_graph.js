@@ -60,6 +60,23 @@ function _orderRootLeaves(nodes, order) {
 }
 
 /**
+ * Per id in a table of the background view: the first occurrence of the element whose table it is in.
+ * An id in the view's own table, or in the table of an element not on the view, has none.
+ * @param {Tables | undefined}       tables
+ * @param {Record<string, string[]>} occurrenceMap
+ * @returns {Map<string, string>}
+ */
+function _backgroundParents(tables, occurrenceMap) {
+  /** @type {Map<string, string>} */
+  const out = new Map();
+  for (const [key, table] of Object.entries(tables || {})) {
+    const occ = key === Table.ROOT ? undefined : (occurrenceMap[key] || [])[0];
+    if (occ) for (const id of Table.idsOf(table)) out.set(id, occ);
+  }
+  return out;
+}
+
+/**
  * @param {MaskedPreset}                     preset
  * @param {ArchiElement[]}                   elements
  * @param {ArchiRelation[]}                  routedRels       drawn as connections (extended with unapplied nestings)
@@ -126,11 +143,15 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
     }
   }
 
-  // Diagram-object nodes (root-level, sized from current canvas bounds).
+  // Diagram-object nodes, sized from current canvas bounds: at view root, or in the element they lie
+  // in on the background view (they have no model nesting to follow).
   // diagram-model-connection objects are edges, never nodes (docs/reference/selection-nesting.md: Selection run order, 6).
+  const backgroundParent = _backgroundParents(diagramBlocks && diagramBlocks.tables, occurrenceMap);
   for (const vo of diagramObjects) {
     if (vo.type === "diagram-model-connection") continue;
     if (nodeIds.has(vo.id)) continue;
+    const parent = backgroundParent.get(String(vo.id)) || null;
+    if (parent) parentMap[vo.id] = parent;
     nodes.push({
       id:          vo.id,
       label:       vo.name || "",
@@ -139,7 +160,7 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
       height:      (vo.bounds && vo.bounds.height) || params.elementHeight || 60,
       labelHeight: 0,   // never a container
       minWidth:    0,
-      parent:      null,
+      parent,
     });
     nodeIds.add(vo.id);
   }

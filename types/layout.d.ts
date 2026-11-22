@@ -69,8 +69,8 @@ interface Table { columns: number; rows: number; cells: TableCell[] }
 /** Container element id ("" = the view itself) → the table of its children on the background view. */
 type Tables = Record<string, Table>;
 /** A table as Tiles placed it, for the column grid: the box it lies in (null: the view), its table columns, and its cells (the nodes
- *  that fill them, with the table columns they span; fixed: a diagram object, which keeps its size). */
-interface PlacedTable { parent: string | null; columns: number; cells: { id: string; c0: number; c1: number; fixed: boolean }[] }
+ *  that fill them, with the table columns they span). */
+interface PlacedTable { parent: string | null; columns: number; cells: { id: string; c0: number; c1: number }[] }
 
 interface LayoutGraph {
   algorithm: string;

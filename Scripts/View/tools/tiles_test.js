@@ -302,6 +302,22 @@ const tableOf = (rows, columns, cells) => ({ rows, columns, cells });
   eq(by.a.y - bottom(by.wide), 10, "spans: table rows the element distance apart");
 }
 
+// What a cell over several table rows lacks goes into its last table row, so the table is as low as
+// its cells allow: beside a tall cell over three table rows, small cells keep their own height and
+// stand one below the other (the RC background: Primaire functies beside the legends).
+{
+  const n = (id, height) => ({ id, label: id, elementType: "business-function", width: 300, height, parent: null });
+  const options = Object.assign({}, Defs.effectiveParams(Defs.validatePreset({ algorithm: "Tiles" })), { padding: 20, elementSpacing: 10 });
+  const g = { algorithm: "Tiles", nodes: [n("top", 60), n("tall", 900), n("s1", 60), n("s2", 60), n("big", 600)], edges: [], options,
+    engineParams: {}, sameWidth: "Off", columnsAcrossContainers: false, sort: "None", _parentMap: {},
+    tables: { "": tableOf(4, 2, [cell(["top"], 0, 0), cell(["tall"], 1, 0, 3, 1), cell(["s1"], 0, 1, 2, 1), cell(["s2"], 2, 1), cell(["big"], 3, 1)]) } };
+  const by = boxes(run(g));
+  eq([by.s1.height, by.s2.height], [70, 60], "lowest: small cells beside a tall span get no share of what it lacks");
+  eq(by.s2.y - bottom(by.s1), 10, "lowest: small cells one below the other, the element distance apart");
+  eq(bottom(by.tall), bottom(by.big), "lowest: the tall cell's lack goes into its last table row");
+  eq(bottom(by.tall) - by.top.y, 60 + 10 + 900, "lowest: the table is as low as its cells allow");
+}
+
 // A table in a cell that grows grows with it: the extra width goes equally to its table columns and
 // the cells there are packed again; the content stays at the top of a cell that grows in height.
 {

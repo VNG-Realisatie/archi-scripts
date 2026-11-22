@@ -135,23 +135,36 @@ A preset names a background view by its path in the dialog; it is kept by its id
 
 Only these relations are drawn. An element the selection put under one of its own elements does not also go under another element of the background view the model nests it in, nor does an element of the background view go under a parent other than the one it lies in there.
 
-**Arrangement.** The children of every container on the background view, and the roots of the view itself, are cut by lines that cross no element: a vertical line first, so the children form columns, left to right; else a horizontal line, so they form rows, top to bottom; each part is cut again the same way. A band across its container leaves no vertical cut, so bands become rows, and a column of bands beside another column stays a column. Children no line separates form one stack in reading order. No tolerance in pixels decides it, only overlap.
+**Table.** The children of every container on the background view, and the roots of the view itself, form a table. Overlap alone decides it; no tolerance in pixels. Per container:
+1. **What counts.** Every container, leaf and diagram object in it. A diagram-block (a diagram object with objects nested in it in Archi) counts as one; diagram objects that only lie over something, without nesting, count apart.
+2. **Cell and stack.** Each is a cell. Objects that overlap share one cell as a stack, in reading order.
+3. **Borders.** Two cells side by side (they overlap in height, nothing lies between) have a column border in the empty space between them; two cells one above the other (they overlap in width, nothing lies between) a row border. Two cells diagonal to each other (no overlap either way) with nothing between get both.
+4. **Gridlines.** Borders whose empty space overlaps, also when they come from different parts of the table, are one gridline, running through the whole table. The inner edge of the container is the border of the table.
+5. **Table rows and table columns.** The space between consecutive gridlines, numbered left to right and top to bottom.
+6. **Cell span.** A cell lies in the table columns and table rows its box overlaps, so a cell that reaches over a gridline spans both sides.
+
+A border a few pixels off gives at most a thin extra table row or table column that the neighbours span, so it costs nothing. Growth of one cell reaches the other cells of its table row and table column, also where borders interlock; to decouple them, change the background view.
+
+Examples:
+- *Background applicatieservices*: 4 table columns (inwoners, gemeente, ketenpartners, and one on the right); table rows from Bestuur to Ondersteuning. Applicatieontwikkeling spans table rows 1–7 and Privacy 8–9 on the right; the cells of Generieke applicatieservices span table rows 7–8, Gedeelde applicatieservices table columns 1–3.
+- *Background alle referentiecomponenten*: 2 table columns, 7 table rows; the row borders left and right interlock. Primaire functies spans table rows 2–4 in table column 1; Informatiearchitectuur lies in table column 2 and has the table of the previous example inside; Buitengemeentelijke voorzieningen spans both table columns in table row 7. The legend groups are diagram-blocks: one cell each, of fixed size.
 
 **Places.**
-- A container keeps its arrangement when one of its children on the background view is a container. The children of the other containers are only there: the layout places them, sorted and compact. With **Leaves in place** every container keeps its arrangement.
-- In a kept arrangement the children one above the other form a band: as wide as each other, and with nothing beside them as wide as their container, also a leaf. A diagram object keeps its size. The extra width costs nothing, so the layout gives the children of an arrangement their wide shapes too.
-- A child the background view does not hold in a kept arrangement comes last, tiled freely; an arranged element not on the view drops out, and an emptied part with it.
+- A container has a table when one of its children on the background view is a container. With **Leaves in place** every container has one. The children of the other containers are only there: the layout places them, sorted and compact.
+- A cell gets its size from the table ([table sizes](#table-sizes)). A diagram object keeps its size and stands top left in its cell.
+- A child the background view does not hold in a table comes last, in a table row below, tiled freely; a child of the table that is not on the view drops out, and a table row or table column left without cells with it.
 - An element of the background view is styled as a container (*Style by nesting level*), also with nothing in it.
+- A diagram object of the background view lies in the element it lies in there; in none, it lies at the view's top level.
 
-**Model and background view differ.** The model leads. A child the background view has under another parent goes where the model puts it; a child of a kept arrangement that is not on the background view comes last. Both are warned on the console, with what to move on the background view.
+**Model and background view differ.** The model leads. A child the background view has under another parent goes where the model puts it; a child of a table that is not on the background view comes last. Both are warned on the console, with what to move on the background view.
 
-**Expand view, Layout only** lay out the view in the arrangement of the background view, for the containers on it; they add and leave out nothing.
+**Expand view, Layout only** lay out the view in the table of the background view, for the containers on it; they add and leave out nothing. Their diagram objects are matched to those of the background view by content: type, name, text and size, a diagram-block its contents too; a copy edited on the view matches nothing.
 
 **Keep appearance.** Every action gives each element of the background view the appearance it has there:
 - What it keeps: fill, opacity, gradient, line color, width and style, font name, style and color, text alignment and position, figure, icon and image. The font size comes from *Style by nesting level*, or stays the default; the bold of a nesting style condition does not apply. A label expression is not kept.
 - Which visual: an element the background view holds more than once (a nesting condition with *every container*) takes, per occurrence, the appearance of its visual in the same container there, else of its first. An element inside a diagram-block keeps that one's own.
 - Order: it comes after *Style by nesting level* and before *Highlight repeated* and *Style by property*, which still color it. Every run, *Layout only* too, takes it again from the background view as it is then.
-- The chain: a kept fill is the color of that element in *Style by nesting level*, unshaded. A child of its type whose condition color is that fill continues one level lighter; any other child starts at a nesting color change.
+- The chain: a kept fill is the color of that element in *Style by nesting level*, unshaded. A child of the same type follows it one level lighter, whatever its condition color; any other child starts at a nesting color change.
 - Labels are measured in the font name and style it keeps, with its figure and text layout.
 
 ## Sizing refinements
@@ -188,16 +201,29 @@ Example, leaf width 200, ring 20: deepest branch `B ⊃ B1 ⊃ B1a ⊃ Bx`; `A` 
 One set of columns over the whole view, so columns line up top to bottom (Tiles only). Built on the CSS Grid subgrid model.
 - **Columns.** Every leaf stands in one column; a container spans the columns of its contents. Leaves at one x under one parent form a stack; each stack takes the leftmost column right of every stack whose branch stands beside its own.
 - **Spacing.** Elements side by side stand *Distance* apart at every depth. A column is as wide as its widest leaf plus the padding of each container edge in it.
-- **Padding.** An element lies the paddings of its own ancestors in from a column line where they share that edge; an edge facing a sibling lies on the line. A container drawn to its parent's edge afterwards (a band of a background view with nothing beside it) counts as reaching that edge.
+- **Padding.** An element lies the paddings of its own ancestors in from a column line where they share that edge; an edge facing a sibling lies on the line. A cell on the outer edge of a table reaches its container's edge and counts as reaching it.
 - **Leaves fill their column**, so a row has *Distance* between its leaves. The last leaf of a row at its container's edge is narrower by that container's padding.
 - **A leaf beside containers** takes the columns of the narrowest container stacked with it, unless its nearest neighbour left or right is a leaf: then it belongs to that row and fills its own column.
 - **A leaf beside a spanning leaf** stays out of the columns that leaf spans.
-- **Blocks** (Per level and type) keep their width. A block whose children stand in one column is one element to the grid, centred in its column; one with more columns spans them and closes around its children with its padding, its children each in their column.
+- **Blocks** (Per level and type) fill their track, and are at least as wide as their contents need. A block whose children stand in one column is one element to the grid, its children centred in it; one with more columns spans them and closes around its children with its padding, its children each in their column.
+- **Tables.** Cells that end on one column border share that edge on the grid, so the table stays straight; cells in table columns with no table column in common share no track. A diagram object sets no track width: it spans the tracks of its cell, else its parent's when nothing stands beside it, and widens the last of them only when they are narrower than it.
 - **Centring.** An element that does not fill its column is centred in the part of the column inside its nearest ancestor that is no block, and never in its own parent's padding. So the components of the services in one column line up.
 - A container narrower than its label needs widens its last column.
+
+### Table sizes
+
+The layout of a container with a table (Tiles, background view) searches only sizes; the places are the table's. Every container has a list of shapes (width, height), narrow and tall to wide and low, and its parent picks one.
+1. **Width leads, height follows**, as text in a table. With the widths of the table columns given, a cell is as wide as the table columns it spans plus the *Distance* between them. Its elements are packed again at that width, in the lowest shape that fits; the white space falls at the bottom. A table row is as high as its highest cell; a cell with a cell span over table rows divides what it lacks over them, the cells over the fewest first. A leaf cell is as high as its label needs at the width it is drawn.
+2. **Start narrow.** Every table column is as wide as its narrowest cell allows; a cell spanning table columns divides its lack equally over them.
+3. **Widen step by step.** One table column at a time grows to the next shape of a cell in it; each step is a shape of the table. Two paths are followed: the cheapest step each time, and the step that gains most height per pixel.
+4. **The list.** The shapes of both paths, minus those another shape beats in width and height, are the list of the container. The view picks as before (*Max width*, *Aspect ratio*).
+5. **Outside in.** A cell given more width than its shape asks (another cell widened the table column) stretches its table in turn: the extra width equally over its table columns, the cells in them packed again. A diagram-block keeps its size.
+6. **Columns across containers** then puts the element columns of the whole view on one grid ([above](#columns-across-containers)); it moves x and widths only, never heights.
+
+Example, *Sociaal domein* on *Background applicatieservices*: the cells of inwoners are all as wide (2 element columns), those of gemeente too; Applicatieontwikkeling and Privacy stand right of everything; the cells of one table row are as high as the highest, and one tall cell makes its table row tall: the map comes before compactness.
 
 ### Sort
 
 Orders a view with containers (Grid, Pack, Tiles), at every level, always ascending by type and name: *None* keeps the selection order; *Elements* orders the elements and leaves the containers as selected; *Containers, then elements* orders the containers too and puts them first; *All together* puts containers and elements in one list. Where it sorts, it wins over *Selection order*. A view without containers is not sorted: *Selection order* orders it. Algorithms without Sort (directed views) order the elements inside a container by type and name.
 
-In Tiles, of arrangements equally compact the simplest wins, with the fewest changes between side by side and one above the other; then the one with full parts first and the rest last. So a sorted container reads in whole columns or rows, and its shortest column or row is the last.
+In Tiles, of layouts equally compact the simplest wins, with the fewest changes between side by side and one above the other; then the one with full parts first and the rest last. So a sorted container reads in whole columns or rows, and its shortest column or row is the last.

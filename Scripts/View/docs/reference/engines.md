@@ -102,7 +102,7 @@ An option outside the active set is greyed in the dialog, keeps its value, and i
 | Engine | Max width | Aspect ratio |
 |---|---|---|
 | ELK Layered, Tree, Grid, Pack | Upper bound, met by re-arranging (more rows); Grid and Pack offer Max width only. When unreachable (connection chains or the widest container set the width), the narrowest layout is used and reported | Met approximately by re-arranging |
-| Tiles | The widest arrangement that fits, with Columns across containers applied; when unreachable the narrowest layout is used and reported | Met approximately: the arrangements closest to it are placed and measured. Free leans toward portrait |
+| Tiles | The widest layout that fits, with Columns across containers applied; when unreachable the narrowest layout is used and reported | Met approximately: the layouts closest to it are placed and measured. Free leans toward portrait |
 | ELK Stress | Not supported | Met approximately by re-arranging |
 | ELK Radial | Not supported | Not supported: the engine has no such option |
 | Graphviz | Not supported: it can only widen a layout without scaling | Passed as a ratio hint; not for Circo (circles would become ellipses) |

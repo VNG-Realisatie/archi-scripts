@@ -274,14 +274,22 @@ function labelPoint(start, end, bendpoints, labelPosition) {
  *                                              its table columns and its cells. Cells in disjoint table columns lie on
  *                                              tracks of their own; cells that end (or begin) at one table column border end
  *                                              (begin) on one track line, so the table stays a table
+ * @param {Set<string>}            [diagrams]   diagram objects: they keep their size and set no track width. One spans
+ *                                              the tracks of its cell, else of its parent (the view) when nothing stands
+ *                                              beside it, else its own; it widens the last of them when they are narrower
  * @param {Set<string>}            [atomic]     (internal) the blocks the grid takes as one box
  */
-function alignColumnsAcrossContainers(resultNodes, options, nameById, log, fit = new Map(), minWidth = {}, blocks = new Set(), tables = [], atomic = _oneColumn(resultNodes, blocks)) {
+function alignColumnsAcrossContainers(resultNodes, options, nameById, log, fit = new Map(), minWidth = {}, blocks = new Set(), tables = [], diagrams = new Set(), atomic = _oneColumn(resultNodes, blocks)) {
   const blockOf = _blockOf(resultNodes, atomic);
   if (blockOf.size) {
     const blockX = new Map([...atomic].map(id => [id, (resultNodes.find(n => n.id === id) || { x: 0 }).x]));
+    const withContents = [...new Set(blockOf.values())];
+    // A block with contents fills its track, and is at least as wide as its contents need.
+    const blockFit = withContents.map(id => /** @type {[string, string[]]} */ ([id, []]));
+    const blockWidth = withContents.map(id => [id, (resultNodes.find(n => n.id === id) || { width: 0 }).width || 0]);
     alignColumnsAcrossContainers(resultNodes.filter(n => !blockOf.has(n.id)), options, nameById, log,
-      new Map([...[...fit].filter(([id]) => !blockOf.has(id)), ...[...new Set(blockOf.values())].map(id => /** @type {[string, string[]]} */ ([id, []]))]), minWidth, blocks, tables, new Set());   // a block with contents fills its track
+      new Map([...[...fit].filter(([id]) => !blockOf.has(id)), ...blockFit]), { ...minWidth, ...Object.fromEntries(blockWidth) },
+      blocks, tables, diagrams, new Set());
     const moved = new Map(resultNodes.filter(n => atomic.has(n.id)).map(n => [n.id, n.x - /** @type {number} */ (blockX.get(n.id))]));
     for (const n of resultNodes) if (blockOf.has(n.id)) n.x += /** @type {number} */ (moved.get(/** @type {string} */ (blockOf.get(n.id))));
     _centreOneColumn(resultNodes.filter(n => blockOf.has(n.id)), resultNodes);
@@ -308,18 +316,18 @@ function alignColumnsAcrossContainers(resultNodes, options, nameById, log, fit =
 
   const leaves = resultNodes.filter(n => !isContainer(n.id));
   if (leaves.length < 2) { log("[columns] skipped (no columns)"); return; }
-  /** @type {Map<string, { table: number, c0: number, c1: number, fixed: boolean }>} */
+  /** @type {Map<string, { table: number, c0: number, c1: number }>} */
   const cellOf = new Map();
-  tables.forEach((t, table) => { for (const c of t.cells) if (byId[c.id]) cellOf.set(c.id, { table, c0: c.c0, c1: c.c1, fixed: c.fixed }); });
+  tables.forEach((t, table) => { for (const c of t.cells) if (byId[c.id]) cellOf.set(c.id, { table, c0: c.c0, c1: c.c1 }); });
   // A leaf that is a cell fills its cell (a diagram object keeps its size).
-  const cellLeaves = new Set([...cellOf].filter(([id, c]) => !c.fixed && !isContainer(id)).map(([id]) => id));
+  const cellLeaves = new Set([...cellOf.keys()].filter(id => !diagrams.has(id) && !isContainer(id)));
   /**
    * The cells of table `table` that end at one table column border end on one track line, and those
    * that begin at one begin on one (the outermost of each group).
    * @param {number} table
    */
   const squareTable = table => {
-    const cells = [...cellOf].filter(([id, c]) => c.table === table && !c.fixed && span[id]).map(([id, c]) => ({ id, ...c }));
+    const cells = [...cellOf].filter(([id, c]) => c.table === table && span[id]).map(([id, c]) => ({ id, ...c }));
     for (let k = 0; k < tables[table].columns; k++) {
       const ending = cells.filter(c => c.c1 === k), beginning = cells.filter(c => c.c0 === k);
       const hi = Math.max(...ending.map(c => span[c.id].hi)), lo = Math.min(...beginning.map(c => span[c.id].lo));
@@ -406,10 +414,15 @@ function alignColumnsAcrossContainers(resultNodes, options, nameById, log, fit =
     const container = span[/** @type {string} */ (tables[table].parent)];
     if (!container) continue;
     for (const [id, c] of cellOf) {
-      if (c.table !== table || c.fixed || !span[id]) continue;
+      if (c.table !== table || !span[id]) continue;
       if (c.c1 === tables[table].columns - 1) span[id].hi = Math.max(span[id].hi, container.hi);
       if (c.c0 === 0) span[id].lo = Math.min(span[id].lo, container.lo);
     }
+  }
+  // A diagram object outside a table with nothing beside it spans its parent (the view), so it widens no track it shares.
+  for (const d of leaves) {
+    if (!diagrams.has(d.id) || cellOf.has(d.id) || leaves.some(lf => lf !== d && sideBySide(d, lf))) continue;
+    span[d.id] = d.parentId != null ? { ...span[d.parentId] } : { lo: 0, hi: tracks - 1 };
   }
   // Insets in paddings from the track line, per edge: one more than the parent's where the parent has
   // its edge on the same line; an edge that faces a sibling has none. So every box on a track line
@@ -429,17 +442,21 @@ function alignColumnsAcrossContainers(resultNodes, options, nameById, log, fit =
   /** @type {number[]} */
   const fitWidth = new Array(tracks).fill(0);
   for (const lf of leaves) {
+    if (diagrams.has(lf.id)) continue;
     const t = span[lf.id].lo, need = (lf.width || 0) + pad * (inset[lf.id].lo + inset[lf.id].hi);
     if (!(fit.get(lf.id) || []).length && !cellLeaves.has(lf.id)) width[t] = Math.max(width[t], need);
     else if (span[lf.id].hi === t) fitWidth[t] = Math.max(fitWidth[t], need);
   }
   for (let t = 0; t < tracks; t++) if (!width[t]) width[t] = fitWidth[t];
-  const spanned = [...containerIds].sort((a, b) => (span[a].hi - span[a].lo) - (span[b].hi - span[b].lo));
+  // A box with a least width (minWidth; a diagram object: its own) widens the last of its tracks to it, the fewest tracks first.
+  const least = (/** @type {string} */ id) => diagrams.has(id) ? (byId[id].width || 0) : minWidth[id] || 0;
+  const spanned = [...containerIds, ...leaves.filter(lf => least(lf.id)).map(lf => lf.id)]
+    .sort((a, b) => (span[a].hi - span[a].lo) - (span[b].hi - span[b].lo));
   for (const id of spanned) {
     const { lo, hi } = span[id];
     let w = (hi - lo) * spacing - pad * (inset[id].lo + inset[id].hi);
     for (let t = lo; t <= hi; t++) w += width[t];
-    if (w < (minWidth[id] || 0)) width[hi] += minWidth[id] - w;
+    if (w < least(id)) width[hi] += least(id) - w;
   }
   const origin = Math.min(...resultNodes.filter(n => n.parentId == null).map(n => n.x));
   /** @type {number[]} */
@@ -454,6 +471,7 @@ function alignColumnsAcrossContainers(resultNodes, options, nameById, log, fit =
     const left = start[span[n.id].lo] + pad * inset[n.id].lo;
     const right = start[span[n.id].hi] + width[span[n.id].hi] - pad * inset[n.id].hi;
     if (isContainer(n.id) || fit.has(n.id) || cellLeaves.has(n.id)) { n.x = left; n.width = right - left; }
+    else if (diagrams.has(n.id) && cellOf.has(n.id)) n.x = left;   // a diagram object in a cell: top left
     else centred.push(n);
   }
   for (const n of centred) {

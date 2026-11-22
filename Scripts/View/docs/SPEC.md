@@ -65,9 +65,12 @@ One name per concept across UI, docs, logs and code, grouped by subject.
 
 **Background**
 - **background view**: a view a preset names as the map a generated view is drawn on: its elements are always on the view, the selection fills it.
-- **arrangement**: which children of a container stand side by side and which one above the other on the background view; it holds no sizes or positions.
+- **table**: the layout of the children of a container on the background view (or of the view itself), read from the background view: table rows and table columns of cells. It holds no sizes or positions.
+- **table row**, **table column**: a horizontal, a vertical group of cells. The prefix keeps them apart from the *row* and *column* of elements.
+- **cell**: the place of one container, leaf or diagram-block in the table, with everything in it. Objects that overlap on the background view share one cell as a stack, in reading order.
+- **cell span**: a cell that runs over several table rows or table columns.
+- **gridline**: the line between table rows (a *row border*) or table columns (a *column border*).
 - **background container**: a container on the background view. It keeps its place; a leaf of the background view is only always there, unless *Leaves in place*.
-- **band**: children of an arrangement one above the other, drawn as wide as each other.
 
 **Subsystem**
 - **Layout**: algorithmic positioning of all visible objects on a view.
@@ -205,7 +208,7 @@ Only `NEW_VIEW` overwrites a view's contents, onto a matching name. A Modify act
 - **Managed occurrences** follow the settings ([§ 7](#7-layout-options)).
 - **Diagram objects** keep their size and appearance; the engine decides their position. A diagram object is never nested: nesting conditions select relations, and a diagram object has none.
 - **A diagram-block** keeps its size, appearance and contents; the engine decides only its position. A relation from outside to an object inside it is laid out as a relation to the diagram-block, and drawn to the object itself.
-- **A background view** ([§ 7](#7-layout-options)) gives only its arrangement: nothing is added or left out.
+- **A background view** ([§ 7](#7-layout-options)) gives only its table: nothing is added or left out.
 
 ---
 
@@ -267,7 +270,7 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
   - Across is unavailable, and *between* is used, when the inner layout is a packing layout or a view size is set; otherwise unconnected elements would stack in one column.
 - **Padding**: the space between a container's border and its contents. Above its contents a container keeps room for its label: its lines wrapped at the width the container is drawn, and below them half the padding, more in proportion for a larger font.
 - **Sort**, **same width** and **columns across containers** are refinements: they order the elements, give a nesting level (and, after the last nesting type change, an element type) one width, and align columns across the view. They only position or derive sizes and never scale a leaf ([§ 8](#8-engine-contract), [sizing refinements](reference/selection-nesting.md#sizing-refinements)).
-- **Background** (Tiles): a background view the selection fills, so every view of one map reads alike. Its elements and diagram objects are always on the view. An element of the selection that hangs under nothing there brings its nesting parents, up to the background view; one that reaches it by no path is left out, and the console says so. The selection decides where an element nests: another parent the model gives it on the background view is not drawn. An element of the background view nests only where the background view shows it. The background containers keep their places in its arrangement, as bands; its leaves are placed by the layout, sorted and compact. **Leaves in place** keeps the place of its leaves too. **Keep appearance** gives its elements the appearance they have there, but for the font size ([§ 10](#10-coloring--appearance)). The model leads: an element the model puts elsewhere goes there, with a warning ([background view](reference/selection-nesting.md#background-view)).
+- **Background** (Tiles): a background view the selection fills, so every view of one map reads alike. Its elements and diagram objects are always on the view. An element of the selection that hangs under nothing there brings its nesting parents, up to the background view; one that reaches it by no path is left out, and the console says so. The selection decides where an element nests: another parent the model gives it on the background view is not drawn. An element of the background view nests only where the background view shows it. The background containers keep their places in its table; a cell is as wide as its table columns, as high as its table row needs, and what is in it is packed again at that width. Its leaves are placed by the layout, sorted and compact. **Leaves in place** keeps the place of its leaves too. **Keep appearance** gives its elements the appearance they have there, but for the font size ([§ 10](#10-coloring--appearance)). The model leads: an element the model puts elsewhere goes there, with a warning ([background view](reference/selection-nesting.md#background-view)).
 - **Sort** (Grid, Pack, Tiles) orders a view with containers, at every level, always ascending by type and name: *None* keeps the selection order, *Elements* (default) orders the elements, *Containers, then elements* the containers too and first, *All together* both in one list. A visible sort wins over **Selection order**. A view without containers is not sorted: Selection order orders it. Directed views have no Sort: the elements inside a container are ordered by type and name.
 
 **Consequences** (not separate controls). For a nesting relation the **source is the parent** and the **target the child**; they are swapped if the type is also reversed. Container-ness is **derived**: an element is a container exactly when something resolves to be its child.
@@ -314,7 +317,7 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
 
 **Room for the end symbols.** Archi draws a relation's end symbol (arrowhead, dot, diamond) in the direction of the last few pixels of the line; zoomed out, a very short last stretch rounds to another angle. So a curved or polyline connection has no bend within 12 px of its elements, and no two bends closer than 5 px. A connection with no bend left is drawn straight. Orthogonal lines keep their corners.
 
-**View size.** *Free* (default), an **aspect ratio**, or a **max width**; at most one at a time. Grid and Pack offer only a max width. Tiles takes the widest arrangement within the max width, or the one closest to the aspect ratio; *Free* leans toward portrait. A target is met by **arranging elements differently** (e.g. more rows), never by scaling (rule 1). An engine that can only widen a layout offers no max width.
+**View size.** *Free* (default), an **aspect ratio**, or a **max width**; at most one at a time. Grid and Pack offer only a max width. Tiles takes the widest layout within the max width, or the one closest to the aspect ratio; *Free* leans toward portrait. A target is met by **arranging elements differently** (e.g. more rows), never by scaling (rule 1). An engine that can only widen a layout offers no max width.
 
 **Preset-only options** have no or minimal effect on the view (e.g. the canvas margin) and so no control. A preset can still set them, and a non-default value is logged.
 

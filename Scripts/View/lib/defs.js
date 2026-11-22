@@ -129,7 +129,7 @@ const PARAM_TOOLTIPS = Object.freeze({
                              "Per level and type: after the last nesting type change one width per element type, as narrow as it allows. A container is never narrower than its contents."],
   columnsAcrossContainers:  ["Line up the columns of the tiles on one grid across the whole view.",
                              "Elements of one level line up along their parent's edge, leaves fill their column; neighbours stay Distance apart."],
-  backgroundView:           ["A view the selection fills: its elements are always on the view, in its arrangement of rows and columns.",
+  backgroundView:           ["A view the selection fills: its elements are always on the view, in its table of rows and columns.",
                              "Path of the view, e.g. /Views/Backgrounds/Map. An element under nothing on it brings its parents; one that reaches it by no path is left out."],
   backgroundLeavesInPlace:  ["The leaves of the background view keep their place too.",
                              "Off: only its containers keep theirs; its leaves are always on the view, and the layout places them (sorted, compact)."],

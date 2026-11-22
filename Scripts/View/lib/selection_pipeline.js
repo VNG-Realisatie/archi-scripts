@@ -34,6 +34,8 @@ const ConditionLists = require(REPO_ROOT + "View/lib/rel_filter");
 const Nesting     = require(REPO_ROOT + "View/lib/nesting");
 /** @type {typeof import("./background")} */
 const Background  = require(REPO_ROOT + "View/lib/background");
+/** @type {typeof import("./table")} */
+const Table       = require(REPO_ROOT + "View/lib/table");
 const { ACTION } = Defs;
 
 /**
@@ -104,6 +106,47 @@ function _backgroundLooks(background) {
     /** @type {BackgroundLook[]} */ (looks.get(id)).push({ visual: vo, parentId: background.parentOf.get(String(vo.id)) || null });
   }
   return looks;
+}
+
+/**
+ * Expand view, Layout only: the diagram objects at the view's top level that are copies of those of the
+ * background view, matched by content (type, name, text, size; a diagram-block its contents too), in
+ * view order. A copy edited on the view matches nothing.
+ * @param {BackgroundSnapshot} background
+ * @param {Snapshot}           snapshot  the view's own
+ * @returns {Map<string, string>}  background view's id → the view's id
+ */
+function _copiesOnView(background, snapshot) {
+  /** @type {(objects: DiagramObject[], blockOf: Map<string, string>) => VisualObject[]} */
+  const top = (objects, blockOf) => /** @type {VisualObject[]} */ (objects.filter(o => o.type !== "diagram-model-connection" && !blockOf.has(String(o.id))));   // Cast: connections left out
+  /** @type {Map<string, string[]>} */
+  const free = new Map();
+  for (const o of top(snapshot.diagramObjects, snapshot.diagramBlockOf)) {
+    const key = _contentKey(o, snapshot.blockContents);
+    if (!free.has(key)) free.set(key, []);
+    /** @type {string[]} */ (free.get(key)).push(String(o.id));
+  }
+  /** @type {Map<string, string>} */
+  const out = new Map();
+  for (const o of top(background.diagramObjects, background.diagramBlockOf)) {
+    const ids = free.get(_contentKey(o, background.blockContents));
+    if (ids && ids.length) out.set(String(o.id), /** @type {string} */ (ids.shift()));
+  }
+  return out;
+}
+
+/**
+ * What a diagram object shows: type, name, text, element and size; for a diagram-block also every
+ * object inside it with its place there.
+ * @param {VisualObject}               o
+ * @param {Map<string, BlockContents>} blockContents
+ * @returns {string}
+ */
+function _contentKey(o, blockContents) {
+  /** @type {(v: VisualObject, b: Bounds) => (string | number)[]} */
+  const own = (v, b) => [v.type, v.name || "", v.type === "diagram-model-note" ? v.text || "" : "", v.concept ? String(v.concept.id) : "", b.width, b.height];
+  const block = blockContents.get(String(o.id));
+  return JSON.stringify([own(o, o.bounds), ...(block ? block.visuals.map(c => [...own(c.visual, c.bounds), c.bounds.x, c.bounds.y]) : [])]);
 }
 
 /**
@@ -220,7 +263,7 @@ function composeObjectSet(snapshot, preset, actionId) {
       diagramBlockVisualOf,
       visuals,
       joinRun,
-      ...(withTables ? { tables: withTables.tables } : {}),
+      ...(withTables ? { tables: isModifyAction ? Table.withIds(withTables.tables, _copiesOnView(withTables, snapshot)) : withTables.tables } : {}),
       ...(withTables && preset.params.backgroundKeepAppearance ? { backgroundLooks: _backgroundLooks(withTables) } : {}),
     },
     filteredCounts,

@@ -199,8 +199,9 @@ function _leastColumns(cells, columns, gap) {
 
 /**
  * The size a table takes at the widths of its table columns: every cell the lowest shape that fits
- * the table columns it spans, every table row as high as its cells need (a cell over several table
- * rows shares what it lacks equally, the cells over the fewest first).
+ * the table columns it spans, every table row as high as its cells need: the cells in the order of
+ * their last table row, what a cell lacks goes into its last table row (so the table is as low as
+ * its cells allow).
  * @param {TableCellPlan[]} cells
  * @param {number}          rows
  * @param {number[]}        cols  the width of every table column
@@ -211,10 +212,10 @@ function _tableAt(cells, rows, cols, gap) {
   const pick = cells.map(c => _fit(c.tile.shapes, _trackSize(cols, c.c0, c.c1, gap)));
   /** @type {number[]} */
   const heights = new Array(rows).fill(0);
-  for (const i of cells.map((c, k) => k).sort((p, q) => (cells[p].r1 - cells[p].r0) - (cells[q].r1 - cells[q].r0) || p - q)) {
+  for (const i of cells.map((c, k) => k).sort((p, q) => cells[p].r1 - cells[q].r1 || cells[q].r0 - cells[p].r0 || p - q)) {
     const c = cells[i];
     const lack = c.tile.shapes[pick[i]].h - _trackSize(heights, c.r0, c.r1, gap);
-    if (lack > 0) _spread(heights, c.r0, c.r1, lack);
+    if (lack > 0) heights[c.r1] += lack;
   }
   return { w: _trackSize(cols, 0, cols.length - 1, gap), h: _trackSize(heights, 0, rows - 1, gap), cols: cols.slice(), rows: heights, pick };
 }
@@ -574,7 +575,7 @@ function layout(graph) {
     table.cells.forEach((c, i) => {
       const width = _trackSize(shape.cols, c.c0, c.c1, gap), height = _trackSize(shape.rows, c.r0, c.r1, gap);
       placeTile(out, c.tile, shape.pick[i], x + columnAt[c.c0], y + rowAt[c.r0], parentId, columnIds[c.c0], { w: width, h: height });
-      if (!c.tile.chunk) placed.cells.push({ id: c.tile.id, c0: c.c0, c1: c.c1, fixed: isDiagram.has(c.tile.id) });
+      if (!c.tile.chunk) placed.cells.push({ id: c.tile.id, c0: c.c0, c1: c.c1 });
     });
     tablesPlaced.push(placed);
   };
@@ -625,7 +626,7 @@ function layout(graph) {
     const sharers = columnSharers(out);
     // On the grid every leaf fills its track (a leaf beside a container those of its column); without it, a leaf beside a container takes its column's width.
     // The cells of a table reach the table column borders: the grid knows them.
-    if (gridOn) alignColumnsAcrossContainers(out, o, names, quiet ? () => {} : log, sharers, minWidths, blocks, tablesPlaced);
+    if (gridOn) alignColumnsAcrossContainers(out, o, names, quiet ? () => {} : log, sharers, minWidths, blocks, tablesPlaced, isDiagram);
     else widenToColumns(out, sharers);
     return out;
   };

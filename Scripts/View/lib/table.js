@@ -171,6 +171,19 @@ function idsOf(table) {
 }
 
 /**
+ * The tables with the ids `map` names replaced by their value.
+ * @param {Tables}              tables
+ * @param {Map<string, string>} map
+ * @returns {Tables}
+ */
+function withIds(tables, map) {
+  /** @type {Tables} */
+  const out = {};
+  for (const [key, t] of Object.entries(tables)) out[key] = { ...t, cells: t.cells.map(c => ({ ...c, ids: c.ids.map(id => map.get(id) || id) })) };
+  return out;
+}
+
+/**
  * A table on one line for the log file: its size, then every cell as `name@row,column`, with its
  * spans as `+rows×columns`; a stack of boxes joined by " / ".
  * @param {Table}                  table
@@ -213,5 +226,5 @@ function elementsOf(tables) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { ROOT, tableOf, tablesOf, idsOf, tablesWithContainers, elementsOf, describe };
+  module.exports = { ROOT, tableOf, tablesOf, idsOf, withIds, tablesWithContainers, elementsOf, describe };
 }
