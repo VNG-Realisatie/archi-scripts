@@ -16,7 +16,8 @@
     ],
     "nestingConditions": [
       {"relation": "aggregation-relationship", "everyContainer": true},
-      {"relation": "realization-relationship", "everyContainer": true}
+      {"relation": "realization-relationship", "everyContainer": true},
+      {"relation": "serving-relationship", "everyContainer": true}
     ],
     "padding": 15,
     "diagramPadding": 20,
@@ -34,8 +35,8 @@
     "elementWidth": 240,
     "elementHeight": 80,
     "maxWidth": 2400,
-    "aspectRatio": 1,
-    "viewSizeMode": "maxWidth",
+    "aspectRatio": 1.33,
+    "viewSizeMode": "aspectRatio",
     "labelSizing": false,
     "labelMaxLineWidth": 400,
     "connectionLabelSpacing": false,
@@ -55,32 +56,46 @@
     "steps": [
       {
         "name": "",
-        "repeat": 2,
-        "conditions": [
-          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "application-service"},
-          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping", "property": "GEMMA subtype", "value": "Domein en doelgroep"},
-          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping", "property": "GEMMA subtype", "value": "Domein"}
-        ]
-      },
-      {
-        "name": "",
         "repeat": 4,
         "conditions": [
-          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "application-service"},
-          {"direction": "incoming", "relation": "realization-relationship", "added": "application-component"}
+          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping"}
         ]
       },
       {
         "name": "",
-        "repeat": 2,
+        "repeat": 1,
         "conditions": [
-          {"on": false, "direction": "incoming", "relation": "realization-relationship", "added": "application-component"}
+          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "application-service"},
+          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "business-function"}
+        ]
+      },
+      {
+        "name": "",
+        "repeat": "untilNothingNew",
+        "conditions": [
+          {"previous": "application-service", "direction": "outgoing", "relation": "aggregation-relationship", "added": "application-service"},
+          {"previous": "business-function", "direction": "outgoing", "relation": "aggregation-relationship", "added": "business-function"}
+        ]
+      },
+      {
+        "name": "",
+        "repeat": "untilNothingNew",
+        "conditions": [
+          {"previous": "application-service", "direction": "incoming", "relation": "realization-relationship", "added": "application-component"},
+          {"previous": "business-function", "direction": "incoming", "relation": "serving-relationship", "added": "application-service"}
+        ]
+      },
+      {
+        "name": "",
+        "repeat": 1,
+        "conditions": [
+          {"previous": "application-service", "added": "application-component"}
         ]
       }
     ]
   },
   "view": {
-    "name": "GEMMA domeinen",
+    "name": "Alle referentiecomponentgroepen",
     "folder": "/Referentiecomponenten/Background/Alle referentiecomponenten",
     "suffix": "",
     "mirrored": false,

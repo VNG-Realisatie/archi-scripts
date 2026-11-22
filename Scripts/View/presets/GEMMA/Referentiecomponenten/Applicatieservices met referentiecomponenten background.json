@@ -31,17 +31,17 @@
     "elementSpacing": 15,
     "connectionSpacing": 25,
     "connectionElementSpacing": 9,
-    "elementWidth": 240,
+    "elementWidth": 260,
     "elementHeight": 80,
     "maxWidth": 2400,
     "aspectRatio": 1,
-    "viewSizeMode": "maxWidth",
+    "viewSizeMode": "aspectRatio",
     "labelSizing": false,
     "labelMaxLineWidth": 400,
     "connectionLabelSpacing": false,
     "backgroundView": {
       "id": "id-e3defc7db98b4103aab7af54eb1b86b4",
-      "path": "/Views/Beheer/Background views/Background Applicatieservices"
+      "path": "/Views/Beheer/Background views/Background applicatieservices"
     },
     "backgroundLeavesInPlace": false,
     "backgroundKeepAppearance": true
@@ -80,7 +80,7 @@
     ]
   },
   "view": {
-    "name": "Sociaal domein",
+    "name": "Niet domeingebonden",
     "folder": "/Referentiecomponenten/Background/Applicatieservices en referentiecomponenten",
     "suffix": "",
     "mirrored": false,
