@@ -317,7 +317,7 @@ type Preset = {
     diagramConditions: DiagramCondition[];
   };
   relatedElements: { steps: Step[] };
-  view: { name: string; folder: string; suffix: string; mirrored: boolean; underGenerated: boolean };
+  view: { name: string; folder: string; suffix: string; mirrored: boolean };
   appearance: {
     /** Name of a palette in presets/_palettes.json; "" = none. */
     palette: string;
@@ -858,7 +858,7 @@ type ViewOrigin = {
   action?: string;
   selection?: OriginObject[];
   folder?: string;
-  underGenerated?: boolean;
+  mirrored?: boolean;
   element?: OriginObject;
   direction?: string;
   modified?: boolean;
@@ -922,6 +922,7 @@ type DialogWidgets = {
   btnRename: Swt.Button;
   btnDelete: Swt.Button;
   lblPresetDescription: Swt.Label;
+  btnEditDescription: Swt.Button;
   // Selection tab
   lblSelectedCount: Swt.Label;
   lblContainingCount: Swt.Label;
@@ -997,16 +998,14 @@ type DialogWidgets = {
   txtViewName: Swt.Text;
   /** The folder choice: "Save view in folder:", Under _Generated, Custom with its folder, Mirrored with its pattern. */
   lblSaveIn: Swt.Label;
-  chkUnderGenerated: CheckBox;
   rdoCustom: Swt.Button;
   /** "/_Generated" in front of the folder when Under _Generated is ticked, else "". */
-  lblCustomUnder: Swt.Label;
   txtViewFolder: Swt.Text;
+  btnViewFolder: Swt.Button;
   txtBackgroundView: Swt.Text;
   chkBackgroundLeavesInPlace: CheckBox;
   chkBackgroundKeepAppearance: CheckBox;
   rdoMirrored: Swt.Button;
-  lblMirroredUnder: Swt.Label;
   lblMirrored: Swt.Label;
   /** "View:" and the view a Modify action changes. */
   modifyView: { title: Swt.Label; text: Swt.Label };
@@ -1030,7 +1029,6 @@ type ParamWidget = { kind: "spin"; w: WidgetName<Swt.Spinner> } | { kind: "check
  */
 /** What the chosen action uses and will write (dialog_main.js _actionState). */
 /** A Custom folder: a path under Views, or under /Views/_Generated. */
-type ViewFolder = { folder: string; underGenerated: boolean };
 type ActionState = { label: string; folder: boolean; name: boolean; canRun: boolean; note: string };
 
 interface DialogContext {
@@ -1061,10 +1059,11 @@ interface DialogContext {
   _actionId?: string; // ACTION.*.id of the run, set when the run button is pressed
   holdsView?: boolean; // a view is in the selection
   selectedView?: ArchimateView; // the one selected object is this view
-  viewFolder?: ViewFolder; // its folder under Views: Custom is pre-filled with it
-  runFolder?: ViewFolder; // Custom as the run uses it; not the preset's unless changed
+  viewFolder?: string; // its folder under Views: the folder field is pre-filled with it
+  runFolder?: string; // the folder as the run uses it; not the preset's unless changed
   mirrored?: boolean; // One view each: Mirrored is chosen (preset view.mirrored)
   viewPaths?: Set<string>; // the path of every view (_viewPaths)
+  viewFolders?: string[]; // every folder below Views (_viewFolders)
   seeds?: ArchiElement[]; // the elements of One view each, before the filter
   seedFolders?: Map<string, string>; // their folders by id
   counts?: DialogCounts; // the last recount
@@ -1074,6 +1073,7 @@ interface DialogContext {
   background?: BackgroundSnapshot | null; // the view in the Background field, read; null when empty or not found
   /** Read the view in the Background field again, then recount. */
   backgroundChanged: () => void;
+  backgroundNames: () => string[]; // every view as the background field names it, without /Views/
   recount: () => void; // recount after a change of the settings (marks the dialog modified)
   markModified: () => void;
   /** Read every tab into config (the preset row's Save and Save As). */

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "GEMMA/Referentiecomponenten/Applicatieservices met referentiecomponenten background",
   "algorithm": "Tiles",
   "params": {
@@ -80,10 +80,9 @@
   },
   "view": {
     "name": "Niet domeingebonden",
-    "folder": "/Referentiecomponenten/Background/Applicatieservices en referentiecomponenten",
+    "folder": "/_Generated/Referentiecomponenten/Background/Applicatieservices en referentiecomponenten",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": true
+    "mirrored": false
   },
   "appearance": {
     "palette": "GEMMA",

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "gemma/Referentiecomponent en technische architectuur",
   "algorithm": "Layered",
   "params": {
@@ -51,9 +51,8 @@
   },
   "view": {
     "name": "Gemeentelijke servicebuscomponent",
-    "folder": "/Test",
-    "mirrored": false,
-    "underGenerated": true
+    "folder": "/_Generated/Test",
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

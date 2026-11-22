@@ -735,16 +735,16 @@ const DIAGRAM_TYPE_LABEL_TO_ID = Object.freeze(
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const GENERATED_VIEW_FOLDER = "/_Generated";  // under /Views; preset view.underGenerated puts it in front of the folder
+const GENERATED_VIEW_FOLDER = "/_Generated";  // under /Views; the default of view.folder, apart from the model's own views
 const SESSION_FILENAME     = "_session.json";
 
 /**
- * The path under /Views of a Custom folder: "/_Generated/Test", "/Test"; "/" = Views itself.
- * @param {{ folder: string, underGenerated: boolean }} view  preset view settings
+ * The path under /Views of the view folder: "/_Generated/Test", "/Test"; "/" = Views itself.
+ * @param {{ folder: string }} view  preset view settings
  * @returns {string}
  */
 function viewFolderPath(view) {
-  const path = `/${view.underGenerated ? GENERATED_VIEW_FOLDER : ""}/${view.folder}/`.replace(/\/+/g, "/");
+  const path = `/${view.folder}/`.replace(/\/+/g, "/");
   return path === "/" ? path : path.slice(0, -1);
 }
 
@@ -755,7 +755,7 @@ const SPLINE_SAMPLE_POINTS = 8;
 // ── Preset schema defaults ────────────────────────────────────────────────────
 
 const DEFAULT_PRESET = Object.freeze({
-  schemaVersion: 8,   // 2 = condition lists (rel_filter.js); 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions; 5 = nesting style conditions + palette; 6 = font size and bold per nesting style condition; 7 = sameWidth replaces alignWidthSameType, backgroundLeavesInPlace replaces backgroundEveryBox; 8 = filter.conditions (element and relation rows, applyTo) replaces filter.elementConditions and filter.relationConditions; older presets are migrated offline
+  schemaVersion: 9,   // 2 = condition lists (rel_filter.js); 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions; 5 = nesting style conditions + palette; 6 = font size and bold per nesting style condition; 7 = sameWidth replaces alignWidthSameType, backgroundLeavesInPlace replaces backgroundEveryBox; 8 = filter.conditions (element and relation rows, applyTo) replaces filter.elementConditions and filter.relationConditions; 9 = view.folder is the whole path under Views and replaces view.underGenerated (the root of Mirrored too); older presets are migrated offline
   name:      "",
   algorithm: "Layered",
   params: {
@@ -808,10 +808,9 @@ const DEFAULT_PRESET = Object.freeze({
   },
   view: {
     name:   "",
-    folder: "",   // Custom: path under /Views (under GENERATED_VIEW_FOLDER with underGenerated), e.g. "/Test"; "" = that folder itself
+    folder: GENERATED_VIEW_FOLDER,   // the folder of the views: path under /Views, e.g. "/Test"; "/" = Views itself. Mirrored: the root of the mirrored folders
     suffix: "",   // One view each: appended to each element name, e.g. " (GGM)"
-    mirrored: false,   // One view each: each view in the folder that mirrors its element's folder, not in folder (Custom)
-    underGenerated: true,   // the folder (Custom or Mirrored) under GENERATED_VIEW_FOLDER
+    mirrored: false,   // One view each: below folder each view in the folder that mirrors its element's folder, not in folder itself
   },
   appearance: {
     palette: "Brewer",   // palette name in presets/_palettes.json: every color and color range of the Appearance tab
@@ -1116,7 +1115,6 @@ function validatePreset(raw) {
     if (raw.view.folder !== undefined) preset.view.folder = String(raw.view.folder);
     if (raw.view.suffix !== undefined) preset.view.suffix = String(raw.view.suffix);
     if (raw.view.mirrored !== undefined) preset.view.mirrored = raw.view.mirrored === true;
-    if (raw.view.underGenerated !== undefined) preset.view.underGenerated = raw.view.underGenerated === true;
   }
 
   // appearance

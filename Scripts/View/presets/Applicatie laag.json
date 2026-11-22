@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Applicatie laag",
   "algorithm": "Layered",
   "params": {
@@ -57,10 +57,9 @@
   },
   "view": {
     "name": "Beleidsdomeinen ingedeeld in Iv3",
-    "folder": "",
+    "folder": "/_Generated",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": true
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

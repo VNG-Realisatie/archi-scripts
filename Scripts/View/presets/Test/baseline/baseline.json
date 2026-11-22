@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Test/baseline/baseline",
   "algorithm": "Layered",
   "params": {
@@ -59,8 +59,7 @@
     "name": "baseline",
     "folder": "/Baseline",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": false
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

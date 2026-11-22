@@ -18,7 +18,7 @@ declare namespace Swt {
     readonly RADIO: number; readonly READ_ONLY: number; readonly DROP_DOWN: number;
     readonly SINGLE: number; readonly MULTI: number; readonly WRAP: number;
     readonly SEPARATOR: number; readonly HORIZONTAL: number; readonly VERTICAL: number;
-    readonly H_SCROLL: number; readonly V_SCROLL: number; readonly BOLD: number;
+    readonly H_SCROLL: number; readonly V_SCROLL: number; readonly BOLD: number; readonly SAVE: number;
     readonly NORMAL: number; readonly ITALIC: number;
     readonly INHERIT_DEFAULT: number; readonly NO_TRIM: number; readonly SEARCH: number; readonly ICON_CANCEL: number;
     readonly LEFT: number; readonly FULL_SELECTION: number; readonly NO_SCROLL: number;
@@ -225,6 +225,7 @@ declare namespace Swt {
   interface Tree extends Composite {
     removeAll(): void;
     getItems(): TreeItem[];
+    getParentItem(): TreeItem | null;
     getItem(point: Point): TreeItem | null;
     getSelection(): TreeItem[];
     setSelection(item: TreeItem): void;
@@ -235,6 +236,7 @@ declare namespace Swt {
     setText(text: string): void;
     setFont(font: Font): void;
     getItems(): TreeItem[];
+    getParentItem(): TreeItem | null;
     getExpanded(): boolean;
     setExpanded(expanded: boolean): void;
   }
@@ -341,7 +343,7 @@ declare namespace JFace {
     setErrorMessage(message: string | null): void;
   }
 
-  interface InputDialog { open(): number; getValue(): string | null }
+  interface InputDialog { open(): number; getValue(): string | null; getText(): Swt.Text }
 }
 
 interface JavaInterop {

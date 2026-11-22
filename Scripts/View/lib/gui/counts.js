@@ -376,7 +376,7 @@ function styleConditionSentence(r) {
 function differsFromSaved(saved, config) {
   const pick  = (/** @type {Preset} */ c) => JSON.stringify({
     algorithm: c.algorithm, params: c.params, filter: c.filter, relatedElements: c.relatedElements,
-    appearance: c.appearance, view: c.view && [c.view.folder, c.view.underGenerated, c.view.mirrored],
+    appearance: c.appearance, view: c.view && [c.view.folder, c.view.mirrored],
     // the dialog lists every property of the model; only the enabled ones are settings
     viewProperties: c.viewProperties && [c.viewProperties.addObjectId,
       (c.viewProperties.properties || []).filter(r => r.enabled)],

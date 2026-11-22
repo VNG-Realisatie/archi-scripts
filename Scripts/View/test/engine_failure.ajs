@@ -80,7 +80,6 @@ function _preset(name, failing) {
   preset.algorithm = "Layered";
   preset.view.name = name;
   preset.view.folder = name ? FOLDER : `${FOLDER}/Each`;
-  preset.view.underGenerated = false;
   preset.view.mirrored = false;
   if (failing) preset.engineParams = { ELK: FAILING_ELK };
   return preset;

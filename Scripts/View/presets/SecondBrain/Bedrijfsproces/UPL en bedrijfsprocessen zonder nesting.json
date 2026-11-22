@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Bedrijfsproces/UPL en bedrijfsprocessen zonder nesting",
   "algorithm": "Layered",
   "params": {
@@ -70,8 +70,7 @@
   "view": {
     "name": "7 Volksgezondheid en Milieu",
     "folder": "/Bedrijfsprocessen",
-    "mirrored": false,
-    "underGenerated": false
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

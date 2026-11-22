@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Bestuurscontext/Thema",
   "algorithm": "Layered",
   "params": {
@@ -63,10 +63,9 @@
   },
   "view": {
     "name": "Aanbod en deelname ondersteunen",
-    "folder": "/Thema",
+    "folder": "/_Generated/Thema",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": true
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

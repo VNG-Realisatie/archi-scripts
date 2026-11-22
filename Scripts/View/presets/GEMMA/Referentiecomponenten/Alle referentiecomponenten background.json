@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "GEMMA/Referentiecomponenten/Alle referentiecomponenten background",
   "algorithm": "Tiles",
   "params": {
@@ -98,10 +98,9 @@
   },
   "view": {
     "name": "Alle referentiecomponentgroepen",
-    "folder": "/Referentiecomponenten/Background/Alle referentiecomponenten",
+    "folder": "/_Generated/Referentiecomponenten/Background/Alle referentiecomponenten",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": true
+    "mirrored": false
   },
   "appearance": {
     "palette": "GEMMA",

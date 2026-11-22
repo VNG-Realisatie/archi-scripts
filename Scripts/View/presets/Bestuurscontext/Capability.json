@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Bestuurscontext/Capability",
   "algorithm": "Layered",
   "params": {
@@ -81,10 +81,9 @@
   },
   "view": {
     "name": "Individuele jeugdhulpvoorzieningen passend kunnen bepalen",
-    "folder": "/Capability",
+    "folder": "/_Generated/Capability",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": true
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

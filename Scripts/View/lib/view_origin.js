@@ -2,15 +2,15 @@
  * The origin of a generated view: how it was made, in a hidden view property, so the view can be
  * made again (Regenerate). The start only holds in one model, so it travels with the view.
  *
- *   { preset, action, selection: [{ id, name }], folder?, underGenerated?, element?, direction?, modified?, script? }
+ *   { preset, action, selection: [{ id, name }], folder?, mirrored?, element?, direction?, modified?, script? }
  *
  *   preset     preset name, not a copy: a better preset reaches the view
  *   action     ACTION.*.id of the run
  *   selection  the start. An object is found by its id; name is a label for the reader and the
  *              messages, refreshed at every regenerate, never used to find it
- *   folder     One view each, Custom: the path under Views the views went to ("/" = Views itself);
- *              absent when the views mirror the model tree (Mirrored)
- *   underGenerated  One view each, Mirrored: the mirrored folders are under /_Generated
+ *   folder     One view each: the path under Views the views went to ("/" = Views itself); Mirrored: the root
+ *              of the mirrored folders
+ *   mirrored   One view each: the views mirror the model tree below folder
  *   element    One view each: the element of this view
  *   direction  only when the run overruled the preset
  *   modified   made with unsaved settings, or changed by Expand view since: Regenerate differs
@@ -64,7 +64,20 @@ function describeStart(uiSelection) {
  */
 function read(view) {
   const value = view.prop(Defs.PROP_ORIGIN);
-  return value ? JSON.parse(String(value)) : null;
+  return value ? _current(JSON.parse(String(value))) : null;
+}
+
+/**
+ * An origin written before view.folder was the root of Mirrored too: One view each, Mirrored, had no
+ * folder and an `underGenerated` flag. It is read as the folder and `mirrored` it stands for, so a view
+ * made earlier regenerates; the next write leaves the new shape.
+ * @param {Record<string, any>} origin
+ * @returns {ViewOrigin}
+ */
+function _current(origin) {
+  const { underGenerated, ...rest } = origin;
+  if (rest.folder !== undefined || rest.action !== Defs.ACTION.ONE_EACH.id) return /** @type {ViewOrigin} */ (rest);
+  return /** @type {ViewOrigin} */ ({ ...rest, folder: underGenerated === true ? Defs.GENERATED_VIEW_FOLDER : "/", mirrored: true });
 }
 
 /**

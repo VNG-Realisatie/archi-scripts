@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Test/baseline/AlgoTwopi",
   "algorithm": "Twopi",
   "params": {
@@ -55,8 +55,7 @@
     "name": "twopi",
     "folder": "/Test",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": false
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

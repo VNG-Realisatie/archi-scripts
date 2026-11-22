@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "GEMMA/publicerenStandaarden",
   "algorithm": "Layered",
   "params": {
@@ -60,10 +60,9 @@
   },
   "view": {
     "name": "",
-    "folder": "",
+    "folder": "/_Generated",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": true
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

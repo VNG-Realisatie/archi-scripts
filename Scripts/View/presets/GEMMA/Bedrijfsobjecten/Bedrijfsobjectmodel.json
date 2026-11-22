@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Bedrijfsobjecten/Bedrijfsobjectmodel",
   "algorithm": "Layered",
   "params": {
@@ -73,10 +73,9 @@
   },
   "view": {
     "name": "Afval",
-    "folder": "/Bedrijfsobjecten/Bedrijfsobjectmodellen",
+    "folder": "/_Generated/Bedrijfsobjecten/Bedrijfsobjectmodellen",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": true
+    "mirrored": false
   },
   "appearance": {
     "palette": "GEMMA",

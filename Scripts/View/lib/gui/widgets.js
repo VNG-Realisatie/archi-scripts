@@ -562,16 +562,16 @@ function _openTreePopup(btn, names, first, current, choose) {
   const close = () => { if (!popup.isDisposed()) popup.dispose(); };
   /** @param {string} name */
   const pick = name => { close(); choose(name); };
-  const fill = () => _fillTree(tree, names, first, txtFilter.getText().trim().toLowerCase(), current);
+  const fill = () => fillTree(tree, names, first, txtFilter.getText().trim().toLowerCase(), current);
 
   txtFilter.addListener(SWT.Modify, fill);
   txtFilter.addListener(SWT.DefaultSelection, () => {
-    const first = _firstName(tree.getItems());
+    const first = firstName(tree.getItems());
     if (first) pick(String(first.getData("name")));
   });
   txtFilter.addListener(SWT.KeyDown, e => {
     if (e.keyCode !== SWT.ARROW_DOWN) return;
-    const first = _firstName(tree.getItems());
+    const first = firstName(tree.getItems());
     if (first) tree.setSelection(first);
     tree.setFocus();
   });
@@ -608,7 +608,7 @@ function _openTreePopup(btn, names, first, current, choose) {
  * @param {string} filter  lower case; "" = all
  * @param {string} current
  */
-function _fillTree(tree, names, first, filter, current) {
+function fillTree(tree, names, first, filter, current) {
   tree.setRedraw(false);
   tree.removeAll();
   const root = _treeOfNames(filter ? names.filter(n => n.toLowerCase().includes(filter)) : names);
@@ -645,14 +645,56 @@ function _fillTree(tree, names, first, filter, current) {
 }
 
 /**
+ * Fill the tree with the folders that contain the filter (in their path), under the root "Views"; every
+ * folder can be chosen. Folders are bold, as in the preset tree. Without a filter only the folders above
+ * the current one are expanded.
+ * @param {Swt.Tree} tree
+ * @param {readonly string[]} folders  "/A", "/A/B"
+ * @param {string} filter  lower case; "" = all
+ * @param {string} current  "/A/B", or "/" for the root
+ */
+function fillFolderTree(tree, folders, filter, current) {
+  tree.setRedraw(false);
+  tree.removeAll();
+  const root = new TreeItemWidget(tree, SWT.NONE);
+  root.setText("Views");
+  root.setData("name", "/");
+  root.setFont(getBoldFont());
+  /** @type {Map<string, Swt.TreeItem>} */
+  const items = new Map([["/", root]]);
+  /**
+   * @param {string} path
+   * @returns {Swt.TreeItem}
+   */
+  const ensure = path => {
+    const have = items.get(path);
+    if (have) return have;
+    const cut = path.lastIndexOf("/");
+    const item = new TreeItemWidget(ensure(cut > 0 ? path.slice(0, cut) : "/"), SWT.NONE);
+    item.setText(path.slice(cut + 1));
+    item.setData("name", path);
+    item.setFont(getBoldFont());
+    items.set(path, item);
+    return item;
+  };
+  [...folders].filter(f => !filter || f.toLowerCase().includes(filter)).sort((a, b) => a.localeCompare(b)).forEach(f => ensure(f));
+  const open = current === "/" ? [] : [...items.keys()].filter(p => p !== "/" && (current === p || current.startsWith(p + "/")));
+  // after the children: GTK expands no empty item
+  items.forEach((item, path) => item.setExpanded(!!filter || path === "/" || open.includes(path) && path !== current));
+  tree.setRedraw(true);
+  const at = items.get(current);
+  if (at) { tree.setSelection(at); tree.showItem(at); }
+}
+
+/**
  * The first name in the tree order, depth first.
  * @param {Swt.TreeItem[]} items
  * @returns {Swt.TreeItem | null}
  */
-function _firstName(items) {
+function firstName(items) {
   for (const item of items) {
     if (item.getData("name")) return item;
-    const found = _firstName(item.getItems());
+    const found = firstName(item.getItems());
     if (found) return found;
   }
   return null;
@@ -1039,6 +1081,6 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     scrolledTab, resizeScrolled, getBoldFont, getGroupBackground, noteLabel, hasNestingConditions,
     colorPicker, paletteColorPicker, colorRangePicker, paletteColorChoice, colorRangeChoice, colorItemFor, openColorMenu, drawSwatch, SWATCH_H, SWATCH_W,
-    rangeItems, treePicker, openListPopup, group, formRow, alignFormColumns, addCombo, enable, pushBtn, addCheck, checkBox, drawCheck, CHECK_SIZE, addSpinnerRow, SPINNER_WIDTH, GAP_FIELD, GAP_PAIR, GROUP_MARGIN_H,
+    rangeItems, treePicker, fillTree, fillFolderTree, firstName, openListPopup, group, formRow, alignFormColumns, addCombo, enable, pushBtn, addCheck, checkBox, drawCheck, CHECK_SIZE, addSpinnerRow, SPINNER_WIDTH, GAP_FIELD, GAP_PAIR, GROUP_MARGIN_H,
   };
 }

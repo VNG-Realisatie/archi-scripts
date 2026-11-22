@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Bedrijfsproces/Taak",
   "algorithm": "Layered",
   "params": {
@@ -61,9 +61,8 @@
   },
   "view": {
     "name": "Verzorgen burgerzaken",
-    "folder": "",
-    "mirrored": false,
-    "underGenerated": true
+    "folder": "/_Generated",
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

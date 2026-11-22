@@ -8,9 +8,10 @@ A preset is a value: it validates against this schema and round-trips losslessly
 
 ```
 Preset {
-  schemaVersion : 6                  // 2 = condition lists; 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions;
-                                     // 5 = nesting style conditions, palette; 6 = font size and bold per nesting style condition
-  name, description : string         // description: shown under the preset combo
+  schemaVersion : 9                  // 2 = condition lists; 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions;
+                                     // 5 = nesting style conditions, palette; 6 = font size and bold per nesting style condition;
+                                     // 7 = sameWidth; 8 = filter.conditions; 9 = view.folder is the whole path, no underGenerated
+  name, description : string         // description: shown under the preset picker, edited with Edit…
   algorithm     : enum               // Algorithm
   params {                           // one key per layout option: the Parameter column of the
                                      // generated tables in gui.md (Layout options, Preset-only options)
@@ -24,10 +25,9 @@ Preset {
   relatedElements { steps : Step[] } // ordered chain, one per step block
   view {                             // Create actions only
     name   : string                  // New view; "" = first selected object
-    folder : string                  // Custom: path under Views (or /Views/_Generated); "" = that folder itself
+    folder : string                  // path under Views, default "/_Generated"; "/" = Views itself; Mirrored: the root of its folders
     suffix : string                  // One view each: appended to each element name
-    mirrored : boolean               // One view each: each view in the folder that mirrors its element's; default false
-    underGenerated : boolean         // the folder, Custom or Mirrored, under /Views/_Generated; default true
+    mirrored : boolean               // One view each: each view below folder, in the folder that mirrors its element's; default false
   }
   appearance {
     palette : string                 // name of a palette in presets/_palettes.json; default "Brewer"
@@ -188,4 +188,4 @@ The view property *View origin* holds how the view was made, as JSON, for Regene
   "folder": "/_Generated/Project", "element": { "id": "id-91bc", "name": "Klant" } }
 ```
 
-`id` finds the object; `name` is a label, refreshed at every regenerate. `direction`: only when the run overruled the preset. `folder`: *One view each* into Custom, the full path under Views (`"/"` = Views itself); absent when Mirrored. `underGenerated`: Mirrored under `/Views/_Generated`. `element`: *One view each*. `modified`: made with unsaved settings, or expanded since. `script`: made by that script; the origin then holds only this key.
+`id` finds the object; `name` is a label, refreshed at every regenerate. `direction`: only when the run overruled the preset. `folder`: *One view each*, the full path under Views (`"/"` = Views itself); with `mirrored`, the root of the mirrored folders. An origin from before schema 9 (Mirrored without `folder`, with `underGenerated`) is read as `folder` and `mirrored`. `element`: *One view each*. `modified`: made with unsaved settings, or expanded since. `script`: made by that script; the origin then holds only this key.

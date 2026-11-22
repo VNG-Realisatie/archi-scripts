@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "View script/ApplicationProces",
   "algorithm": "Layered",
   "params": {
@@ -76,10 +76,9 @@
   },
   "view": {
     "name": "CI check",
-    "folder": "/ApplicationProces",
+    "folder": "/_Generated/ApplicationProces",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": true
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

@@ -32,9 +32,9 @@ The scripts run straight from a clone: the layout libraries are included in `Scr
    Every filter — global filter, steps, nesting, reverse, style by property — is a table of conditions: *Source type · Relation type · Target type*, each condition *Include* or *Exclude*. *All* matches any type. A step's conditions read from the previous step's elements: *Previous step elements · Direction · Added relations · Added elements*.
    - **Properties** — properties written to the generated view.
 3. Choose an action and press the run button, which names the result:
-   - **New view** — create a view with *Name* in the *Custom* folder; with a view selected, these are its own, so it is replaced;
-   - **One view each** — create a view per element, in the *Custom* folder, or *Mirrored*: in the folder that mirrors the element's place in the model tree;
-   - *Save view in folder* chooses between them; *Under _Generated* puts the folder under `/Views/_Generated`. The console names the folder of every view;
+   - **New view** — create a view with *Name* in the folder; with a view selected, these are its own, so it is replaced;
+   - **One view each** — create a view per element, in the folder, or *Mirrored*: below the folder, in the folder that mirrors the element's place in the model tree;
+   - *Save view in folder* is a path under Views (default `/_Generated`, apart from the model's own views), typed or chosen with **…**, where *New folder…* makes a folder. The console names the folder of every view;
    - **Expand view** / **Layout only** — change the selected view in place.
 
 What the chosen action does not use is grey.
@@ -43,9 +43,9 @@ Hover over any setting for what it does and which algorithms use it. Settings th
 
 ## Presets
 
-A preset is a saved set of dialog settings: `presets/<folder>/<name>.json` (plain JSON). Create and change presets in the dialog — *Save*, *Save As…*, *Rename…*, *Delete*. The last-used settings are kept in `presets/_session.json` (local, not in git). Files starting with `_` are not listed in the dialog. `Default.json` holds the code defaults: the selection plus one ring. It is read-only in the dialog (start a new preset from it with *Save As…*); edit the file for your own defaults, and the console lists where they differ from the code.
+A preset is a saved set of dialog settings: `presets/<folder>/<name>.json` (plain JSON). Create and change presets in the dialog — *Save*, *Save As…* and *Rename…* (the system's save dialog), *Delete*, and *Edit…* for the description. The last-used settings are kept in `presets/_session.json` (local, not in git). Files starting with `_` are not listed in the dialog. `Default.json` holds the code defaults: the selection plus one ring. It is read-only in the dialog (start a new preset from it with *Save As…*); edit the file for your own defaults, and the console lists where they differ from the code.
 
-Presets have a `schemaVersion`. A preset in an older format is refused with a message; bring a version 7 preset up to date with `node Scripts/View/tools/migrate_presets_filter_conditions.js` (`--dry-run` first). A version 6 preset: check out commit `16582a4` and run its `tools/migrate_presets_same_width.js` first. A version 5 preset: check out commit `0597840` and run its `tools/migrate_presets_nesting_font.js` first. A version 4 preset: check out commit `8e13b2e` and run its `tools/migrate_presets_nesting_style.js` first. A version 3 preset: check out commit `deb432c` and run its `tools/migrate_presets_conditions.js` first. Older: check out commit `61c9c52`, run its `tools/migrate_presets_relrows.js` (to version 2) and `migrate_presets_everycontainer.js` (to version 3), then continue with the newer steps.
+Presets have a `schemaVersion`. A preset in an older format is refused with a message; bring a version 8 preset up to date with `node Scripts/View/tools/migrate_presets_view_folder.js` (`--dry-run` first). A version 7 preset: check out commit `450cbcb` and run its `tools/migrate_presets_filter_conditions.js` first. A version 6 preset: check out commit `16582a4` and run its `tools/migrate_presets_same_width.js` first. A version 5 preset: check out commit `0597840` and run its `tools/migrate_presets_nesting_font.js` first. A version 4 preset: check out commit `8e13b2e` and run its `tools/migrate_presets_nesting_style.js` first. A version 3 preset: check out commit `deb432c` and run its `tools/migrate_presets_conditions.js` first. Older: check out commit `61c9c52`, run its `tools/migrate_presets_relrows.js` (to version 2) and `migrate_presets_everycontainer.js` (to version 3), then continue with the newer steps.
 
 **Palettes** — `presets/_palettes.json` holds the palettes: colors and color ranges that belong together (Brewer, the default; Tol; Open Color; GEMMA, the GEMMA default fill colors). Pick one in the *Colors* group of the Appearance tab; every color and color range of the tab comes from it. Add a palette, color or range by editing the file ([presets.md](docs/reference/presets.md#palettes)).
 
@@ -110,8 +110,7 @@ const GenView    = require(REPO_ROOT + "View/lib/generate_view");
 const { ACTION } = require(REPO_ROOT + "View/lib/defs");
 
 const preset = PresetIO.readPreset("GEMMA/GGM/GGM data-object specialisaties");
-preset.view.folder = "/Data-objecten (GGM)";        // under Views; underGenerated: under /Views/_Generated
-preset.view.underGenerated = false;
+preset.view.folder = "/Data-objecten (GGM)";        // under Views; the default is "/_Generated"
 preset.view.suffix = " (GGM)";                       // One view each: appended to each name
 const views = GenView.generate_view(preset, $(selection), ACTION.ONE_EACH.id);  // → view[]
 ```

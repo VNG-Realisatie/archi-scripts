@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /**
- * Node.js migration to schemaVersion 8 (one filter list for elements and relations): rewrites every preset under
+ * Node.js migration to schemaVersion 9 (view.folder is the whole path under Views): rewrites every preset under
  * presets/ (recursively, _session.json included) in place.
- * Idempotent — only a preset at schemaVersion 7 is rewritten.
+ * Idempotent — only a preset at schemaVersion 8 is rewritten.
  *
- * Run: node Scripts/View/tools/migrate_presets_filter_conditions.js [--dry-run]
+ * Run: node Scripts/View/tools/migrate_presets_view_folder.js [--dry-run]
  *
  * Changes:
- *   filter.elementConditions  → filter.conditions, each condition with elementType renamed to source (applyTo "element")
- *   filter.relationConditions → appended to filter.conditions, each condition with applyTo "relation"
- *   schemaVersion: 8
+ *   view.underGenerated + view.folder → view.folder: "/_Generated" in front of the folder when underGenerated
+ *                                       was on (a preset without the key had it on); "/" = Views itself
+ *   schemaVersion: 9
  */
 const fs   = require("fs");
 const path = require("path");
@@ -21,7 +21,7 @@ const ConditionLists = require("../lib/rel_filter");
 
 const PRESETS_DIR = path.join(__dirname, "..", "presets");
 const DRY_RUN     = process.argv.includes("--dry-run");
-const FROM        = 7;
+const FROM        = 8;
 
 function walk(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => {
@@ -31,17 +31,16 @@ function walk(dir) {
   });
 }
 
-// The element conditions' key is replaced where it stood, so a preset's diff shows only this change.
+// The folder takes the place of underGenerated, so a preset's diff shows only this change.
 function migrate(preset) {
-  const f = preset.filter;
-  if (f) {
-    const elements  = (f.elementConditions || []).map(({ elementType, ...rest }) => elementType === undefined ? rest : { ...rest, source: elementType });
-    const relations = (f.relationConditions || []).map(r => ({ ...r, applyTo: "relation" }));
-    preset.filter = Object.fromEntries(Object.entries(f).flatMap(([k, v]) =>
-      k === "elementConditions" ? [["conditions", [...elements, ...relations]]]
-      : k === "relationConditions" ? []
-      : [[k, v]]));
-    if (!("conditions" in preset.filter) && relations.length) preset.filter.conditions = relations;
+  const v = preset.view;
+  if (v) {
+    const under = v.underGenerated !== false;
+    const path  = `/${under ? Defs.GENERATED_VIEW_FOLDER : ""}/${v.folder || ""}/`.replace(/\/+/g, "/");
+    const folder = path === "/" ? path : path.slice(0, -1);
+    preset.view = Object.fromEntries(Object.entries(v).flatMap(([k, val]) =>
+      k === "underGenerated" ? [] : k === "folder" ? [[k, folder]] : [[k, val]]));
+    if (!("folder" in preset.view)) preset.view.folder = folder;
   }
   preset.schemaVersion = Defs.DEFAULT_PRESET.schemaVersion;
   return preset;

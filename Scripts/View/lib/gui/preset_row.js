@@ -1,6 +1,6 @@
 /**
  * Preset row of the View dialog: the preset picker, the modified indicator (*), Save · Save As… |
- * Rename… · Delete, and the preset's description. Loading a preset fills every tab through the
+ * Rename… · Delete, and the preset's description (a field). Loading a preset fills every tab through the
  * dialog's callbacks (ctx.syncToUI, ctx.saveUI, ctx.recount).
  */
 
@@ -16,13 +16,14 @@ Log.debug("Loading preset_row.js");
 const PresetIO = require(REPO_ROOT + "View/lib/preset_io");
 /** @type {typeof import("./widgets")} */
 const Widgets = require(REPO_ROOT + "View/lib/gui/widgets");
-// Loaded with this module, not on the first Save As click: console output from inside an SWT
-// handler (as the module's "Loading …" line) blocks until the modal dialog closes.
-/** @type {typeof import("./dialog_presets")} */
-const PresetsDialog = require(REPO_ROOT + "View/lib/gui/dialog_presets");
 
 const SWT               = Java.type("org.eclipse.swt.SWT");
 const LabelWidget       = Java.type("org.eclipse.swt.widgets.Label");
+const GC                = Java.type("org.eclipse.swt.graphics.GC");
+const InputDialog       = Java.type("org.eclipse.jface.dialogs.InputDialog");
+const WindowConstants   = Java.type("org.eclipse.jface.window.Window");
+const FileDialog        = Java.type("org.eclipse.swt.widgets.FileDialog");
+const File              = Java.type("java.io.File");
 const CompositeWidget   = Java.type("org.eclipse.swt.widgets.Composite");
 const GridDataFactory   = Java.type("org.eclipse.jface.layout.GridDataFactory");
 const GridLayoutFactory = Java.type("org.eclipse.jface.layout.GridLayoutFactory");
@@ -48,7 +49,7 @@ function _clearModified(ctx) {
 }
 
 const SAVE_TIP    = "Overwrite this preset with the current settings.";
-const RENAME_TIP  = "Rename or move the saved preset, or change its description.\nUnsaved changes are kept in the dialog, not written.";
+const RENAME_TIP  = "Rename or move the saved preset.\nUnsaved changes are kept in the dialog, not written.";
 const DELETE_TIP  = "Delete the saved preset and load Default.";
 const DEFAULT_TIP = "Default is read-only: Save As… saves the settings as a new preset.";
 
@@ -90,12 +91,12 @@ function buildPresetRow(parent, ctx) {
 
   const btnSaveAs = Widgets.pushBtn(row, "Save As…", "Save the current settings as a new preset.", () => {
     ctx.saveUI();
-    _openPresetNameDialog(ctx, "Save As…", "Save the current settings as a new preset.", (newName, description) => {
-      if (!_written(ctx, () => PresetIO.writePreset(newName, { ...ctx.config, name: newName, description }, { quiet: true }))) return;
-      ctx.config.name        = newName;
-      ctx.config.description = description;
-      _afterPresetChange(ctx);
-    });
+    const current = presetName(ctx);
+    const newName = _chooseFile(ctx, "Save As…", current === PresetIO.DEFAULT_PRESET_NAME ? "" : current);
+    if (!newName) return;
+    if (!_written(ctx, () => PresetIO.writePreset(newName, { ...ctx.config, name: newName }, { quiet: true }))) return;
+    ctx.config.name = newName;
+    _afterPresetChange(ctx);
   });
   GridDataFactory.swtDefaults().hint(90, SWT.DEFAULT).applyTo(btnSaveAs);
 
@@ -104,16 +105,14 @@ function buildPresetRow(parent, ctx) {
 
   w.btnRename = Widgets.pushBtn(row, "Rename…", RENAME_TIP, () => {
     const oldName = presetName(ctx);
-    _openPresetNameDialog(ctx, "Rename…", `Rename or move preset "${oldName}".`, (newName, description) => {
-      const saved = PresetIO.readPreset(oldName, () => {});   // reported when it was loaded
-      saved.name        = newName;
-      saved.description = description;
-      if (!_written(ctx, () => PresetIO.writePreset(newName, saved, { quiet: true }))) return;   // the old one stays
-      if (newName !== oldName) PresetIO.deletePreset(oldName);
-      ctx.config.name        = newName;
-      ctx.config.description = description;
-      _afterPresetChange(ctx, { keepModified: true });
-    });
+    const newName = _chooseFile(ctx, "Rename…", oldName);
+    if (!newName || newName === oldName) return;
+    const saved = PresetIO.readPreset(oldName, () => {});   // reported when it was loaded
+    saved.name = newName;
+    if (!_written(ctx, () => PresetIO.writePreset(newName, saved, { quiet: true }))) return;   // the old one stays
+    PresetIO.deletePreset(oldName);
+    ctx.config.name = newName;
+    _afterPresetChange(ctx, { keepModified: true });
   });
   GridDataFactory.swtDefaults().hint(90, SWT.DEFAULT).applyTo(w.btnRename);
 
@@ -128,11 +127,16 @@ function buildPresetRow(parent, ctx) {
   });
   GridDataFactory.swtDefaults().hint(70, SWT.DEFAULT).applyTo(w.btnDelete);
 
-  // Row 2: description of the preset (hidden when empty), aligned under the picker.
+  // Row 2: the preset's description as text, room for two lines, with Edit… behind it; saved with Save.
   new LabelWidget(row, SWT.NONE);
   w.lblPresetDescription = new LabelWidget(row, SWT.WRAP);
   w.lblPresetDescription.setForeground(row.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY));
-  GridDataFactory.fillDefaults().grab(true, false).span(7, 1).hint(300, SWT.DEFAULT).applyTo(w.lblPresetDescription);
+  const gc = new GC(w.lblPresetDescription);
+  const lineHeight = gc.getFontMetrics().getHeight();
+  gc.dispose();
+  GridDataFactory.fillDefaults().grab(true, false).span(6, 1).hint(300, 2 * lineHeight).applyTo(w.lblPresetDescription);
+  w.btnEditDescription = Widgets.pushBtn(row, "Edit…", "Edit the description of the preset; Save writes it.", () => _editDescription(ctx));
+  GridDataFactory.swtDefaults().align(SWT.FILL, SWT.TOP).applyTo(w.btnEditDescription);
 
   _afterPresetChange(ctx, { keepModified: true });
 }
@@ -191,9 +195,9 @@ function _afterPresetChange(ctx, opts) {
   const desc = String(ctx.config.description || "");
   try {
     w.lblPresetDescription.setText(desc);
-    const gd = w.lblPresetDescription.getLayoutData();
-    if (gd) { gd.exclude = !desc; w.lblPresetDescription.setVisible(!!desc); }
-    w.lblPresetDescription.getParent().getParent().layout(true, true);
+    w.lblPresetDescription.setToolTipText(desc);
+    w.btnEditDescription.setEnabled(!isDefault);
+    w.btnEditDescription.setToolTipText(isDefault ? DEFAULT_TIP : "Edit the description of the preset; Save writes it.");
   } catch (x) {}   // silent: a dialog update on widgets that may be disposed
 
   if (!(opts && opts.keepModified)) _clearModified(ctx);
@@ -257,27 +261,62 @@ function _written(ctx, write) {
   catch (e) { _warn(ctx, "Preset not saved", String(/** @type {Error} */ (e).message || e)); return false; }
 }
 
-// Name + folder + description dialog for Save As / Rename. Asks before overwriting another preset.
+// The description in a small dialog of its own: several lines, OK or Cancel. It goes to the settings; Save writes it.
+/** @param {DialogContext} ctx */
+function _editDescription(ctx) {
+  /** @type {JFace.InputDialog} */
+  let dlg;
+  const Impl = Java.extend(InputDialog, {
+    getInputTextStyle() { return SWT.MULTI | SWT.WRAP | SWT.V_SCROLL | SWT.BORDER; },
+    /** @param {Swt.Composite} parent */
+    createDialogArea(parent) {
+      const area = Java.super(dlg).createDialogArea(parent);
+      const gd = dlg.getText().getLayoutData();
+      gd.heightHint = 90;
+      gd.widthHint  = 420;
+      return area;
+    },
+  });
+  dlg = new Impl(_dialogShell(ctx), "Description", "Description of the preset:", String(ctx.config.description || ""), null);
+  if (dlg.open() !== WindowConstants.OK) return;
+  ctx.config.description = String(dlg.getValue() || "").trim();
+  _afterPresetChange(ctx, { keepModified: true });
+  markModified(ctx);
+}
+
+// The OS save dialog on the preset folder: name and folder in one step, a new folder with the OS's own
+// button. Returns the preset name ("name" or "folder/sub/name"), or null when cancelled or not allowed.
 /**
  * @param {DialogContext} ctx
  * @param {string} title
- * @param {string} message
- * @param {(newName: string, description: string) => void} onConfirm
+ * @param {string} current  the preset's name, or "" for none
+ * @returns {string | null}
  */
-function _openPresetNameDialog(ctx, title, message, onConfirm) {
-  const current = presetName(ctx);
-  PresetsDialog.openSaveAs({
-    title, message,
-    defaultName:        current === PresetIO.DEFAULT_PRESET_NAME ? "" : current,
-    defaultDescription: ctx.config.description || "",
-    parentShell:        _dialogShell(ctx),
-    reservedNames:      [PresetIO.DEFAULT_PRESET_NAME],
-    onConfirm(newName, description) {
-      if (newName !== current && PresetIO.listPresets().includes(newName)
-          && !_confirm(ctx, "Overwrite preset", `Preset "${newName}" already exists. Overwrite it?`)) return;
-      onConfirm(newName, description);
-    },
-  });
+function _chooseFile(ctx, title, current) {
+  const root  = new File(PresetIO.presetDir()).getCanonicalFile();
+  const slash = current.lastIndexOf("/");
+  const dlg   = new FileDialog(_dialogShell(ctx), SWT.SAVE);
+  dlg.setText(title);
+  dlg.setFilterPath(String(new File(root, slash >= 0 ? current.slice(0, slash) : "").getPath()));
+  dlg.setFilterNames(Java.to(["Presets (*.json)"], "java.lang.String[]"));
+  dlg.setFilterExtensions(Java.to(["*.json"], "java.lang.String[]"));
+  dlg.setFileName(current ? current.slice(slash + 1) + ".json" : "");
+  dlg.setOverwrite(false);   // asked below, in the dialog's own words
+  const chosen = dlg.open();
+  if (!chosen) return null;
+
+  const prefix = String(root.getPath()).replace(/\\/g, "/") + "/";
+  const path   = String(new File(String(chosen)).getCanonicalPath()).replace(/\\/g, "/");
+  if (!path.startsWith(prefix)) {
+    _warn(ctx, "Folder not allowed", `A preset is kept in the preset folder or a folder in it:\n${prefix}`);
+    return null;
+  }
+  const name = path.slice(prefix.length).replace(/\.json$/, "");
+  if (name === PresetIO.DEFAULT_PRESET_NAME) { _warn(ctx, "Name not allowed", `"${name}" is reserved; choose another name.`); return null; }
+  if (name.slice(name.lastIndexOf("/") + 1).startsWith("_")) { _warn(ctx, "Name not allowed", "A name starting with _ is not a preset; choose another name."); return null; }
+  if (name !== current && PresetIO.listPresets().includes(name)
+      && !_confirm(ctx, "Overwrite preset", `Preset "${name}" already exists. Overwrite it?`)) return null;
+  return name;
 }
 
 // Load a validated preset into ctx.config. The preset replaces every setting — values of

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Test/gemma/Bedrijfsobjecten per beleidsdomein",
   "algorithm": "Tiles",
   "params": {
@@ -59,10 +59,9 @@
   },
   "view": {
     "name": "Bedrijfsobjecten per beleidsdomein",
-    "folder": "/Test/gemma",
+    "folder": "/_Generated/Test/gemma",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": true
+    "mirrored": false
   },
   "appearance": {
     "palette": "GEMMA",

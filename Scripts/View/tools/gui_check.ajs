@@ -79,6 +79,37 @@ function shot(name, r) {
 /** @param {string} name */
 const shotShell = name => shot(name, shell.getBounds());
 /**
+ * Press a button that opens a pop-up or a modal dialog, shoot the monitor, close what opened. A modal
+ * dialog blocks this step until it closes, so the shot and the close are timed before the press.
+ * @param {string} name
+ * @param {any} btn
+ * @param {(opened: any) => void} [inside]  runs on the shot's timer, before the shot: types into the dialog
+ */
+function pressAndShoot(name, btn, inside) {
+  display.timerExec(1200, () => {
+    const opened = display.getActiveShell();
+    if (inside) inside(opened);
+    display.timerExec(500, () => {
+      shot(name, shell.getMonitor().getBounds());
+      const now = display.getActiveShell();
+      if (now && now !== shell) now.dispose();
+      for (const s of display.getShells()) if (s !== shell && !s.isDisposed() && s.getParent() === shell) s.dispose();
+    });
+  });
+  btn.notifyListeners(SWT.Selection, new SWTEvent());
+}
+/** Every button with this text, in tree order. @param {string} text */
+function buttonsNamed(text) {
+  /** @type {any[]} */ const found = [];
+  /** @param {any} c */
+  const walk = c => {
+    if (c instanceof Button && String(c.getText()) === text) found.push(c);
+    if (c instanceof Composite) for (const ch of c.getChildren()) walk(ch);
+  };
+  walk(shell);
+  return found;
+}
+/**
  * The action area as text, cheaper and more exact than a screenshot for text, grey and bold: per group
  * every visible label, button and text field ("[…]"), "(grey)" when disabled, "*…*" when bold, "(x)" a chosen radio.
  * The run buttons follow the groups.
@@ -260,6 +291,18 @@ const NSTYLE  = () => table("Appearance", "Parent type");
 
 /** @type {Record<string, [number, () => void][]>} */
 const SUITES = {
+  // The folder and background pickers: their buttons next to the fields.
+  pickers: [
+    [2500, () => pressAndShoot("edit_description", buttonsNamed("Edit…")[0])],
+    [2500, () => clickTab("Layout")],
+    [1500, () => shotShell("layout")],
+    [100,  () => clickTab("Selection")],
+    [1500, () => { logActionArea("create"); shotShell("create"); }],
+    [300,  () => { log("… buttons: " + buttonsNamed("…").length); pressAndShoot("folder_dialog", buttonsNamed("…")[1]); }],
+    [2500, () => clickTab("Layout")],
+    [1000, () => pressAndShoot("background_dialog", buttonsNamed("…")[0])],
+    [2500, () => log("pop-up shot taken")],
+  ],
   // The dialog as it opens: the Selection tab and the action area.
   open: [
     // Each table as high as its header and rows: a shortfall cuts off the last row.
@@ -274,12 +317,8 @@ const SUITES = {
     [1000, () => moveToControl(button("Mirrored"))],
     [300,  () => clickControl(button("Mirrored"))],
     [1500, () => { logActionArea("mirrored"); shotShell("mirrored"); }],
-    [1000, () => moveToControl(button("Under _Generated"))],
-    [300,  () => clickControl(button("Under _Generated"))],
-    [1500, () => { logActionArea("mirrored_not_under_generated"); shotShell("mirrored_not_under_generated"); }],
-    [300,  () => clickControl(button("Under _Generated"))],
-    [1000, () => moveToControl(button("Custom"))],
-    [300,  () => clickControl(button("Custom"))],
+    [1000, () => moveToControl(button("In the folder"))],
+    [300,  () => clickControl(button("In the folder"))],
     [1000, () => moveToControl(button("New view"))],
     [300,  () => clickControl(button("New view"))],
     [1500, () => { logActionArea("new_view"); shotShell("new_view"); }],

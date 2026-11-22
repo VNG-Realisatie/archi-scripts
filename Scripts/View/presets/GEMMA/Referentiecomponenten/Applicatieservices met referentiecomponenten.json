@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Referentiecomponenten/Applicatieservices met referentiecomponenten",
   "algorithm": "Tiles",
   "params": {
@@ -74,10 +74,9 @@
   },
   "view": {
     "name": "Bestuur",
-    "folder": "/Referentiecomponenten/Applicatieservices en referentiecomponenten",
+    "folder": "/_Generated/Referentiecomponenten/Applicatieservices en referentiecomponenten",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": true
+    "mirrored": false
   },
   "appearance": {
     "palette": "GEMMA",

@@ -170,8 +170,8 @@ Four actions in two groups. The writer is the same for all four. An action diffe
 
 | Group | Action | Object set | Target view | VisualSet at start |
 |---|---|---|---|---|
-| **Create new view** | `NEW_VIEW` | full selection, expanded through filter + steps | a view with Name in the Custom folder (replaces by name) | empty |
-| | `ONE_EACH` | each selected element, run independently | one view per element that passes the filter, named after the element (plus an optional preset suffix): in the Custom folder, or Mirrored | empty |
+| **Create new view** | `NEW_VIEW` | full selection, expanded through filter + steps | a view with Name in the folder (replaces by name) | empty |
+| | `ONE_EACH` | each selected element, run independently | one view per element that passes the filter, named after the element (plus an optional preset suffix): in the folder, or Mirrored below it | empty |
 | **Modify selected view** | `EXPAND_VIEW` | elements selected on the view drive expansion; the whole view is laid out | the selected view, in place | captured |
 | | `LAYOUT_ONLY` | the view's current contents only, no expansion | the selected view | captured |
 
@@ -185,10 +185,9 @@ A model-tree selection can drive only the Create group, because nothing identifi
 
 **The single writer** (rule 9): *for each result object, if a counterpart exists in the VisualSet, **reposition** it (appearance preserved, parenthood re-derived from the current nesting); otherwise **create** it with default appearance.* Relations follow the same rule: an existing relation gets its bendpoints rewritten, a new one is created.
 
-**Where a new view goes.** The preset chooses the folder, under Views:
-- *Custom*: one folder, typed by the user; *New view* always writes here.
-- *Mirrored* (*One view each* only): each view in the folder that mirrors its element's place in the model tree, the layer included. The views get the structure the model has, and same-named elements from different folders do not overwrite each other.
-- *Under _Generated* puts either folder under `/Views/_Generated`, apart from the model's own views.
+**Where a new view goes.** The preset names one folder under Views (`/_Generated` by default, apart from the model's own views; `/` is Views itself). The user types it or picks it from the Views tree, where a new folder can be made.
+- *In the folder*: every view goes into that folder; *New view* always writes here.
+- *Mirrored* (*One view each* only): each view goes below that folder, in the folder that mirrors its element's place in the model tree, the layer included. The views get the structure the model has, and same-named elements from different folders do not overwrite each other.
 
 The console names the folder of every view written. An element the preset's element filter drops gets no view, so no view stays empty.
 
@@ -362,7 +361,7 @@ Element labels are intrinsic to nodes; the result carries no separate label coor
 
 The dialog defines a selection, a layout and styling, previews the result live, and runs an action. It is the only surface that edits presets. Mock-ups and per-control behaviour: [dialog reference](reference/gui.md#dialog-reference).
 
-**Preset row.** Presets are picked from a tree of their folders, or found by typing part of the name or folder. Picking a preset **loads all its settings** at once; `*` marks settings that differ from the saved preset. Save, Save As…, Rename… and Delete manage presets. **Default** always exists, is listed first and is read-only in the dialog: a new preset starts from it with Save As…. It selects the selection plus one ring, every element directly related to it. Its file may hold the user's own defaults; when Default is chosen, every setting in which it differs from the code defaults is reported. The last-used configuration and UI state are restored on open, from a user-local session that is never shared as a preset.
+**Preset row.** Presets are picked from a tree of their folders, or found by typing part of the name or folder. Picking a preset **loads all its settings** at once; `*` marks settings that differ from the saved preset. Save, Save As…, Rename… and Delete manage presets; Save As… and Rename… choose the name and folder in the operating system's save dialog, and Edit… changes the description. **Default** always exists, is listed first and is read-only in the dialog: a new preset starts from it with Save As…. It selects the selection plus one ring, every element directly related to it. Its file may hold the user's own defaults; when Default is chosen, every setting in which it differs from the code defaults is reported. The last-used configuration and UI state are restored on open, from a user-local session that is never shared as a preset.
 
 **Tabs.** Four tabs, each owning one concern, in separate modules:
 - **Selection**: the live counts (selected → containing; per filter condition, per step), the global filter, and the ordered steps. Every condition list is a table with one condition per row. Each step shows its name (or its number), its repeat and what it adds, per condition and in total, with controls to rename, collapse, reorder and remove it. When a preset loads, all steps start expanded.

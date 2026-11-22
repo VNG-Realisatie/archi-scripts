@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "regels",
   "algorithm": "Layered",
   "params": {
@@ -36,9 +36,8 @@
   },
   "view": {
     "name": "BAG",
-    "folder": "",
-    "mirrored": false,
-    "underGenerated": true
+    "folder": "/_Generated",
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

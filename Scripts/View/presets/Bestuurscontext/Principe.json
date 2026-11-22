@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Bestuurscontext/Principe",
   "algorithm": "Layered",
   "params": {
@@ -65,10 +65,9 @@
   },
   "view": {
     "name": "Belang betrokkene bij cliëntondersteuning voorop",
-    "folder": "/Principe",
+    "folder": "/_Generated/Principe",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": true
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

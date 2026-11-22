@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "GEMMA/TAenIA",
   "algorithm": "Layered",
   "params": {
@@ -86,10 +86,9 @@
   },
   "view": {
     "name": "Technologiecomponenten en -services mapping",
-    "folder": "/Technische architectuur",
+    "folder": "/_Generated/Technische architectuur",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": true
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

@@ -54,6 +54,9 @@ const TabAppearance = require(REPO_ROOT + "View/lib/gui/tab_appearance");
 const TabProperties = require(REPO_ROOT + "View/lib/gui/tab_properties");
 /** @type {typeof import("./preset_row")} */
 const PresetRow = require(REPO_ROOT + "View/lib/gui/preset_row");
+/** @type {typeof import("./dialog_tree")} */
+const DialogTree = require(REPO_ROOT + "View/lib/gui/dialog_tree");
+
 
 const { ACTION, AR_OPTIONS, DEFAULT_PRESET } = Defs;
 
@@ -106,6 +109,7 @@ function open(uiSelection) {
   const ctx = /** @type {DialogContext} */ ({ config, widgets: w, uiSelection, firstName: "", relBlocks: /** @type {StepBlock[]} */ ([]),
     recount: () => _updateFilteredCount(ctx), markModified: () => PresetRow.markModified(ctx),
     backgroundChanged: () => { _readBackgroundField(ctx); _updateFilteredCount(ctx); },
+    backgroundNames: () => _backgroundNames(ctx),
     saveUI: () => _saveUI(ctx), syncToUI: () => _syncToUI(ctx), refreshAction: () => _refreshAction(ctx) });  // firstName set below
 
   // Compute selection counts before the dialog opens.
@@ -126,7 +130,7 @@ function open(uiSelection) {
   ctx.holdsView = selectedCount.views > 0;
   if (selectedCount.views === 1 && uiSelection.size() === 1) {
     ctx.selectedView = /** @type {ArchimateView} */ (uiSelection.first());   // Cast: counted as a view
-    ctx.viewFolder = _splitFolderPath(ArchiFolders.printFolderPath(ctx.selectedView).replace(/^\/Views/, ""));
+    ctx.viewFolder = Defs.viewFolderPath({ folder: ArchiFolders.printFolderPath(ctx.selectedView).replace(/^\/Views/, "") });
   }
   ctx.firstObject = firstName ? `${Counts.typeToDisplay(firstType)}: ${firstName}` : "";
 
@@ -350,7 +354,7 @@ function open(uiSelection) {
 
   if (!RunPreset.confirmViewCount(ctx.uiSelection, ctx._actionId, ctx.config.filter)) { RunPreset.cancelled(); return; }
   try {
-    const run = { ...ctx.config, view: { ...ctx.config.view, ...ctx.runFolder } };
+    const run = { ...ctx.config, view: { ...ctx.config.view, ...(ctx.runFolder === undefined ? {} : { folder: ctx.runFolder }) } };
     GenView.generate_view(run, ctx.uiSelection, ctx._actionId, { origin: { preset: PresetRow.presetName(ctx), ...(ctx.modified ? { modified: true } : {}) } });
     RunPreset.reportOutcome();
   } catch (e) {
@@ -631,33 +635,45 @@ function _viewPaths(ctx) {
 }
 
 /**
- * @param {ViewFolder} folder  Custom, as the dialog shows it
- * @param {string}     name
+ * @param {string} folder  the view folder, as the dialog shows it
+ * @param {string} name
  * @returns {string} as _viewPaths has it
  */
 function _viewPath(folder, name) {
-  return `/Views/${Defs.viewFolderPath(folder)}/${name}`.replace(/\/+/g, "/");
+  return `/Views${Defs.viewFolderPath({ folder })}/${name}`.replace(/\/+/g, "/");
 }
 
 /**
- * A folder path under Views as Custom and Under _Generated: "/_Generated/Test/" → "/Test", ticked.
- * @param {string} path  "/_Generated/Test/", "/Test/", "/"
- * @returns {ViewFolder}
- */
-function _splitFolderPath(path) {
-  const trimmed = path.replace(/(.)\/$/, "$1");
-  const gen = Defs.GENERATED_VIEW_FOLDER;
-  const underGenerated = trimmed === gen || trimmed.startsWith(gen + "/");
-  return { folder: underGenerated ? trimmed.slice(gen.length) : trimmed === "/" ? "" : trimmed, underGenerated };
-}
-
-/**
- * Custom and Under _Generated as the dialog shows them.
+ * The view folder as the dialog shows it.
  * @param {DialogContext} ctx
- * @returns {ViewFolder}
+ * @returns {string}
  */
 function _shownFolder(ctx) {
-  return { folder: ctx.widgets.txtViewFolder.getText().trim(), underGenerated: ctx.widgets.chkUnderGenerated.getSelection() };
+  return ctx.widgets.txtViewFolder.getText().trim();
+}
+
+/**
+ * Every folder of the Views tree, as the folder field has them. Read once: a run only adds folders
+ * after the dialog closes.
+ * @param {DialogContext} ctx
+ * @returns {string[]} "/A", "/A/B"
+ */
+function _viewFolders(ctx) {
+  if (!ctx.viewFolders) {
+    ctx.viewFolders = [];
+    const views = $("folder.Views").first();
+    if (views) $(views).find("folder").each(f => { /** @type {string[]} */ (ctx.viewFolders).push(`${ArchiFolders.printFolderPath(f)}${f.name}`.replace(/^\/Views/, "")); });
+  }
+  return ctx.viewFolders;
+}
+
+/**
+ * Every view as the background field names it: "/Views/…" minus "/Views/", folders before the name.
+ * @param {DialogContext} ctx
+ * @returns {string[]}
+ */
+function _backgroundNames(ctx) {
+  return [..._viewPaths(ctx)].map(p => p.replace(/^\/Views\//, ""));
 }
 
 const MIRRORED_PATTERN = "/<folder of each element>";
@@ -678,7 +694,7 @@ const NOTHING_TO_PLACE = "Nothing to place: no selected element passes the eleme
 /**
  * What *One view each* will write: each view in Custom, or in the folder that mirrors its element's.
  * @param {DialogContext} ctx
- * @param {ViewFolder} folder  Custom, as the dialog shows it
+ * @param {string} folder  the view folder, as the dialog shows it
  * @returns {ActionState}
  */
 function _oneEachState(ctx, folder) {
@@ -686,18 +702,18 @@ function _oneEachState(ctx, folder) {
   const suffix = ctx.config.view.suffix;
   if (!ctx.seedFolders) ctx.seedFolders = new Map();
   const seedFolders = ctx.seedFolders;
-  const under = folder.underGenerated ? Defs.GENERATED_VIEW_FOLDER : "";
+  const root = Defs.viewFolderPath({ folder });
   const pathOf = (/** @type {ArchiElement} */ e) => {
     if (!ctx.mirrored) return _viewPath(folder, e.name + suffix);
     const id = String(e.id);
     if (!seedFolders.has(id)) seedFolders.set(id, ArchiFolders.printFolderPath(e));
-    return `/Views${under}${seedFolders.get(id)}${e.name}${suffix}`;
+    return `/Views${root === "/" ? "" : root}${seedFolders.get(id)}${e.name}${suffix}`;
   };
   const replaced = seeds.filter(e => _viewPaths(ctx).has(pathOf(e))).length;
   const count = `${seeds.length} view${seeds.length === 1 ? "" : "s"}`;
   // Where the views go is the folder choice; the note says only what it replaces.
   const replaces = replaced ? `${replaced} of the ${count} replace${replaced === 1 ? "s" : ""} an existing view.` : "";
-  return { label: `Create ${count}`, folder: !ctx.mirrored, name: false, canRun: seeds.length > 0,
+  return { label: `Create ${count}`, folder: true, name: false, canRun: seeds.length > 0,
            note: seeds.length ? replaces : NOTHING_TO_PLACE };
 }
 
@@ -731,30 +747,25 @@ function _showFolderChoice(ctx, nothing) {
   const w = ctx.widgets;
   const oneEach = ctx.action === ACTION.ONE_EACH.id;
   const create = oneEach || ctx.action === ACTION.NEW_VIEW.id;
-  const mirrored = oneEach && !!ctx.mirrored;   // New view has one folder: Custom
+  const mirrored = oneEach && !!ctx.mirrored;   // New view has one folder
   const folder = _shownFolder(ctx);
   const bold = Widgets.getBoldFont(), plain = w.lblSaveIn.getDisplay().getSystemFont();
   w.rdoCustom.setSelection(!mirrored);
   w.rdoMirrored.setSelection(mirrored);
   w.lblSaveIn.setEnabled(create);
-  w.chkUnderGenerated.setEnabled(create);
-  w.rdoCustom.setEnabled(create);
+  w.rdoCustom.setEnabled(oneEach);
   w.rdoMirrored.setEnabled(oneEach);
-  Widgets.enable(w.txtViewFolder, create && !mirrored);
-  // Under _Generated shows in front of each folder it applies to.
-  const under = folder.underGenerated ? Defs.GENERATED_VIEW_FOLDER : "";
-  w.lblCustomUnder.setText(under);
-  w.lblMirroredUnder.setText(oneEach ? under : "");
+  Widgets.enable(w.txtViewFolder, create);
+  Widgets.enable(w.btnViewFolder, create);
   w.lblMirrored.setText(oneEach ? MIRRORED_PATTERN : "");
-  w.lblCustomUnder.setEnabled(create && !mirrored);
-  for (const lbl of [w.lblMirroredUnder, w.lblMirrored]) lbl.setEnabled(mirrored);
-  w.txtViewFolder.setFont(create && !mirrored && !nothing ? bold : plain);
-  w.lblCustomUnder.setFont(create && !mirrored && !nothing ? bold : plain);
-  for (const lbl of [w.lblMirroredUnder, w.lblMirrored]) lbl.setFont(mirrored && !nothing ? bold : plain);
+  w.lblMirrored.setEnabled(mirrored);
+  w.txtViewFolder.setFont(create && !nothing ? bold : plain);
+  w.lblMirrored.setFont(mirrored && !nothing ? bold : plain);
   w.txtViewName.setFont(ctx.action === ACTION.NEW_VIEW.id && !nothing ? bold : plain);
   const name = oneEach ? `<element name>${ctx.config.view.suffix}` : w.txtViewName.getText().trim();
-  w.txtViewFolder.setToolTipText(`${_viewPath(folder, name)}\nA folder under Views; a view with this name in it is replaced.`);
-  w.lblMirrored.setToolTipText(`/Views${under}${MIRRORED_PATTERN}/${name}\nThe folder that mirrors the element's folder, the layer included.`);
+  const path = mirrored ? _viewPath(folder, MIRRORED_PATTERN.slice(1) + "/" + name) : _viewPath(folder, name);
+  w.txtViewFolder.setToolTipText(`${path}\nA folder under Views; a view with this name in it is replaced.`);
+  w.lblMirrored.setToolTipText(`${path}\nBelow the folder, the folder that mirrors the element's folder, the layer included.`);
 }
 
 /**
@@ -815,7 +826,7 @@ function _showTotals(ctx) {
     _showRow([w.lblOriginNote], !!w.lblOriginNote.getText());
     // The line count may change: lay out these labels and their ancestors only, not every tab.
     const changed = [w.createTotals, w.expandTotals].flatMap(t => [t.box, t.title, ...t.rows.flatMap(r => [r.sub, r.counts])]);
-    if (ctx.area) ctx.area.layout(Java.to([...changed, w.lblCustomUnder, w.lblMirroredUnder, w.lblMirrored, w.lblCreateNote, w.lblOriginNote], "org.eclipse.swt.widgets.Control[]"));
+    if (ctx.area) ctx.area.layout(Java.to([...changed, w.lblMirrored, w.lblCreateNote, w.lblOriginNote], "org.eclipse.swt.widgets.Control[]"));
   } catch (e) {}   // silent: text and layout during a dialog update, on widgets that may be disposed
 }
 
@@ -946,9 +957,9 @@ function _buildActionArea(area, ctx, dlg, target) {
 }
 
 /**
- * "Save view in folder:" at the bottom of the Create group, Under _Generated in its row on the right
- * (an exception to left-aligned: gui.md § Look and feel); below it the options, Custom with its folder
- * and Mirrored with the pattern, so the bottom lines of both groups line up.
+ * "Save view in folder:" at the bottom of the Create group, with the folder field and its picker; below
+ * it the two places of the views, in the folder or mirrored below it, so the bottom lines of both groups
+ * line up.
  * @param {Swt.Composite} group
  * @param {number} span  the columns of the group
  * @param {DialogContext} ctx
@@ -962,28 +973,32 @@ function _buildFolderChoice(group, span, ctx) {
   w.lblSaveIn = new LabelWidget(box, SWT.NONE);
   w.lblSaveIn.setText("Save view in folder:");
   GridDataFactory.swtDefaults().align(SWT.BEGINNING, SWT.CENTER).applyTo(w.lblSaveIn);
-  w.chkUnderGenerated = Widgets.checkBox(box, `Under ${Defs.GENERATED_VIEW_FOLDER.slice(1)}`);
-  GridDataFactory.swtDefaults().align(SWT.END, SWT.CENTER).grab(true, false).applyTo(w.chkUnderGenerated.control);
-  w.chkUnderGenerated.setToolTipText(`The folder under /Views${Defs.GENERATED_VIEW_FOLDER}, apart from the model's own views.`);
-  w.chkUnderGenerated.addListener(SWT.Selection, () => { PresetRow.markModified(ctx); _refreshAction(ctx); });
+  const field = new CompositeWidget(box, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(2).spacing(4, 0).applyTo(field);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(field);
+  w.txtViewFolder = new TextWidget(field, SWT.BORDER);
+  GridDataFactory.fillDefaults().grab(true, false).hint(150, SWT.DEFAULT).applyTo(w.txtViewFolder);
+  w.txtViewFolder.addListener(SWT.Modify, () => { PresetRow.markModified(ctx); _refreshAction(ctx); });
+  w.btnViewFolder = DialogTree.treeButton(field, {
+    title:   "Choose folder",
+    items:   () => _viewFolders(ctx),
+    current: () => Defs.viewFolderPath({ folder: _shownFolder(ctx) }),
+    tooltip: "Choose a folder, or make a new one.",
+    folders: true,
+    onChange: path => w.txtViewFolder.setText(path),
+  });
 
   const options = new CompositeWidget(box, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(2).spacing(6, 4).applyTo(options);
   GridDataFactory.fillDefaults().span(2, 1).grab(true, false).indent(Widgets.GAP_PAIR, 0).applyTo(options);
   w.rdoCustom = new ButtonWidget(options, SWT.RADIO);
-  w.rdoCustom.setText("Custom");
-  w.rdoCustom.setToolTipText("Every view in the folder you type.");
-  const customPath = _pathRow(options);
-  w.lblCustomUnder = customPath.under;
-  w.txtViewFolder = new TextWidget(customPath.row, SWT.BORDER);
-  GridDataFactory.fillDefaults().grab(true, false).hint(150, SWT.DEFAULT).applyTo(w.txtViewFolder);
-  w.txtViewFolder.addListener(SWT.Modify, () => { PresetRow.markModified(ctx); _refreshAction(ctx); });
+  w.rdoCustom.setText("In the folder");
+  w.rdoCustom.setToolTipText("One view each: every view in the folder.");
+  new LabelWidget(options, SWT.NONE);
   w.rdoMirrored = new ButtonWidget(options, SWT.RADIO);
   w.rdoMirrored.setText("Mirrored");
-  w.rdoMirrored.setToolTipText("One view each: each view in the folder that mirrors its element's folder.");
-  const mirroredPath = _pathRow(options);
-  w.lblMirroredUnder = mirroredPath.under;
-  w.lblMirrored = new LabelWidget(mirroredPath.row, SWT.NONE);
+  w.rdoMirrored.setToolTipText("One view each: below the folder, each view in the folder that mirrors its element's folder.");
+  w.lblMirrored = new LabelWidget(options, SWT.NONE);
   GridDataFactory.fillDefaults().align(SWT.FILL, SWT.CENTER).grab(true, false).hint(100, SWT.DEFAULT).applyTo(w.lblMirrored);
   for (const [radio, mirrored] of /** @type {[Swt.Button, boolean][]} */ ([[w.rdoCustom, false], [w.rdoMirrored, true]])) {
     radio.addListener(SWT.Selection, () => {
@@ -993,21 +1008,6 @@ function _buildFolderChoice(group, span, ctx) {
       _refreshAction(ctx);
     });
   }
-}
-
-/**
- * The path of a folder option: "/_Generated" when Under _Generated is ticked, tight in front of the
- * folder control the caller adds; empty, it takes no room.
- * @param {Swt.Composite} parent
- * @returns {{ row: Swt.Composite, under: Swt.Label }}
- */
-function _pathRow(parent) {
-  const row = new CompositeWidget(parent, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(2).spacing(2, 0).applyTo(row);
-  GridDataFactory.fillDefaults().grab(true, false).align(SWT.FILL, SWT.CENTER).applyTo(row);
-  const under = new LabelWidget(row, SWT.NONE);
-  GridDataFactory.swtDefaults().align(SWT.BEGINNING, SWT.CENTER).applyTo(under);
-  return { row, under };
 }
 
 /**
@@ -1166,9 +1166,7 @@ function _fillWidgets(ctx) {
   const viewName  = (ctx && ctx.firstName) || (c.view && c.view.name) || "";
   if (w.txtViewName)   w.txtViewName.setText(viewName);
   // One selected view: its own folder, so New view replaces it. Only the run sees it, as with the name.
-  const shown = ctx.viewFolder || c.view;
-  if (w.txtViewFolder) w.txtViewFolder.setText(shown.folder);
-  if (w.chkUnderGenerated) w.chkUnderGenerated.setSelection(shown.underGenerated);
+  if (w.txtViewFolder) w.txtViewFolder.setText(ctx.viewFolder || c.view.folder);
   ctx.mirrored = c.view.mirrored;
 
   TabLayout.updateAlgorithmControls(ctx);
@@ -1241,8 +1239,7 @@ function _saveUI(ctx) {
   if (w.txtViewFolder) {
     const run = _shownFolder(ctx);
     ctx.runFolder = run;
-    const pre = ctx.viewFolder;
-    if (!pre || pre.folder !== run.folder || pre.underGenerated !== run.underGenerated) Object.assign(c.view, run);
+    if (ctx.viewFolder === undefined || ctx.viewFolder !== run) c.view.folder = run;
   }
   c.view.mirrored = !!ctx.mirrored;
 

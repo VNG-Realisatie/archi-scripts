@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Default",
   "description": "The selection plus every element directly related to it. Start a new preset from here with Save As….",
   "algorithm": "Layered",
@@ -53,10 +53,9 @@
   },
   "view": {
     "name": "",
-    "folder": "",
+    "folder": "/_Generated",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": true
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

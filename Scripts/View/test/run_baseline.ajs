@@ -98,7 +98,6 @@ function _clearBaseline() {
 function _runPreset(presetName, run, name) {
   const preset = PresetIO.readPreset(presetName);
   if (run.algorithm) preset.algorithm = run.algorithm;
-  preset.view.underGenerated = false;
   preset.view.mirrored = false;
   if (run.action === ACTION.ONE_EACH.id) {
     preset.view.folder = `${BASELINE_FOLDER}/${name}`;   // views named after the elements

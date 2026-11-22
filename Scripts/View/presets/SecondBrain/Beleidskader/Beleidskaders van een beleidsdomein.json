@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Beleidskader/Beleidskaders van een beleidsdomein",
   "algorithm": "Layered",
   "params": {
@@ -60,8 +60,7 @@
     "name": "Burgerzaken",
     "folder": "/Beleidskaders",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": false
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

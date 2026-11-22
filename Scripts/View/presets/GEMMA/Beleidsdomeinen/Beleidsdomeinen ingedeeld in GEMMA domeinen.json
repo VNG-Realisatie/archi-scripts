@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Beleidsdomeinen/Beleidsdomeinen ingedeeld in GEMMA domeinen",
   "algorithm": "Tiles",
   "params": {
@@ -66,10 +66,9 @@
   },
   "view": {
     "name": "GEMMA domeinen",
-    "folder": "/Beleidsdomeinen",
+    "folder": "/_Generated/Beleidsdomeinen",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": true
+    "mirrored": false
   },
   "appearance": {
     "palette": "GEMMA",

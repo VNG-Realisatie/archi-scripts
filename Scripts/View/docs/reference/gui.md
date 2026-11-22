@@ -31,7 +31,7 @@ These principles hold for the whole dialog (preset row, every tab, totals line, 
 
 **Look**
 1. **One grammar.** Groups, form rows, condition tables, notes and counts look and behave the same on every tab. The same kind of setting always gets the same kind of control, in the same place.
-2. **Left to right, left-aligned.** Labels, headings, notes and column headers are left-aligned, also over several lines. Nothing is right-aligned or stretched, except free-text inputs (name, folder), wrapping notes, the closing button of the dialog (Cancel, bottom right) and a switch that applies to every option below a heading, at the right of the heading's row (*Under _Generated*).
+2. **Left to right, left-aligned.** Labels, headings, notes and column headers are left-aligned, also over several lines. Nothing is right-aligned or stretched, except free-text inputs (name, folder), wrapping notes, and the closing button of the dialog (Cancel, bottom right).
 3. **One group, one subject.** A group's title names its subject; an opening line of explanation is optional. Two subjects get two groups. Within a group: the main control first (e.g. a condition table), then switches, then numbers, then settings for the whole group. Switches that decide which columns of the table take effect come before it, with their numbers (Style by nesting level). Groups stand out from the page with a slightly lighter background, in a light and a dark theme.
 4. **Every control is named.** A label sits right before its control, or the control is a switch that names itself. A unit (px, pt, %) follows its field.
 5. **What belongs together sits together.** One row holds the options on one subject. The gap between a label and its control is small; the gap between pairs is clearly larger. An option that depends on a switch sits right behind it (*☐ Use label width  Wrap label at [400]*).
@@ -45,7 +45,7 @@ These principles hold for the whole dialog (preset row, every tab, totals line, 
 **Feel**
 1. **Immediate, honest feedback.** Every count and the totals line update on each committed change and show exactly what the action will write. `*` shows unsaved changes.
 2. **No dead ends.** When the cause of a greyed control is on the same tab, the greying is the feedback: the user sees it happen, and the tooltip gives no reason. Only when the cause is out of sight, on another tab or outside the dialog, does the tooltip say what is needed (*Needs a Nesting condition with Every*). A disabled action says what to select; a disabled button whose way out is not obvious names it (*use Save As…*).
-3. **Safe without nagging.** Switching presets or tabs needs no confirm. Only what destroys a saved preset asks first: Delete, and Save As or Rename onto another preset.
+3. **Safe without nagging.** Switching presets or tabs needs no confirm. Only what destroys a saved preset asks first: Delete, and Save As or Rename onto another preset (the operating system's save dialog asks).
 4. **Calm.** Counts recompute on commit, not per keystroke; the dialog does not jump or resize on every change.
 5. **Self-explanatory options** ([SPEC § 9](../SPEC.md#9-ux--generate-view-dialog)): a label names the result, and a tooltip gives the effect and trade-off.
 
@@ -63,7 +63,7 @@ These principles hold for the whole dialog (preset row, every tab, totals line, 
 ```
 ┌─ Generate View ────────────────────────────────────────────────────────────┐
 │ Preset: [Application Flow LR  ▾] *  [Save] [Save As…] │ [Rename…] [Delete] │
-│         Views of application flows, left to right             (description) │
+│         Views of application flows, left to right                  [Edit…]  │
 │ ┌─[Selection]──[Layout]──[Appearance]──[Properties]─────────────────────┐  │
 │ │   (tab content, below)                                                │  │
 │ └───────────────────────────────────────────────────────────────────────┘  │
@@ -73,9 +73,9 @@ These principles hold for the whole dialog (preset row, every tab, totals line, 
 │ │ On the generated view:            │ │ On the expanded view:    (grey) │  │
 │ │   elements:    24 elements        │ │   elements:    31 elements      │  │
 │ │   relations:   35 connections     │ │   relations:   44 connections   │  │
-│ │ Save view in folder: ☑ Under _Gen…│ │                                 │  │
-│ │   (•) Custom /_Generated [/Proj…] │ │                                 │  │
-│ │   ( ) Mirrored            (grey)  │ │ View: /Processen/Customer jour… │  │
+│ │ Save view in folder: [/_Gen…] […] │ │                                 │  │
+│ │   (•) In the folder               │ │                                 │  │
+│ │   ( ) Mirrored   (grey)           │ │ View: /Processen/Customer jour… │  │
 │ └───────────────────────────────────┘ └─────────────────────────────────┘  │
 │                                            [ Create view ]  [  Cancel  ]   │
 └────────────────────────────────────────────────────────────────────────────┘
@@ -89,12 +89,12 @@ Above the tab strip, left to right:
 - **Unknown keys**: a picked preset whose file has keys the dialog does not read opens a warning box that names them; they are not loaded, and saving the preset drops them.
 - **`*`**: shown while the settings differ from the saved preset, after any change. It also shows on open when the session differs from the preset it came from; the view name is not compared, because it is pre-filled from the selection. Save, Save As and loading a preset clear it.
 - **Save** overwrites the current preset.
-- **Save As…** asks Name, Folder and Description, writes a new preset and selects it.
-- **Rename…** uses the same dialog: it renames or moves the *saved* preset and edits its description. Unsaved changes stay in the dialog and are not written.
+- **Save As…** opens the operating system's save dialog on the preset folder: name and folder in one step, a new folder with the system's own button. It writes the current settings as a new preset and selects it; the old preset stays.
+- **Rename…** opens the same dialog: it renames or moves the *saved* preset, so the old name is gone. Unsaved changes stay in the dialog and are not written.
 - **Delete** deletes the saved preset after a confirm and loads Default.
-- **Description line**: the preset's description, grey, under the picker; hidden when empty.
+- **Description line**: the preset's description, grey, under the picker, with room for two lines (the tooltip has all of it), and **Edit…** behind it, under Delete. Edit… opens a small window with a field of several lines; OK puts the description in the settings, `*` shows and Save writes it. Disabled for Default.
 
-Save As and Rename ask before overwriting another preset; the name Default is refused, with a message in the name dialog. Default is created from the code defaults if absent; Save, Rename and Delete are disabled for it, and their tooltips say to use Save As…. When Default is chosen, the console lists every setting in which `Default.json` differs from the code defaults, condition lists in file form, one line each; from the dialog after it closes, because console output there blocks. A preset file holds only the [preset schema](presets.md#preset-json-schema), never the action or dialog state.
+A save dialog choice outside the preset folder, the name Default and a name that starts with `_` are refused with a message. Save As and Rename ask before overwriting another preset. Default is created from the code defaults if absent; Save, Rename and Delete are disabled for it, and their tooltips say to use Save As…. When Default is chosen, the console lists every setting in which `Default.json` differs from the code defaults, condition lists in file form, one line each; from the dialog after it closes, because console output there blocks. A preset file holds only the [preset schema](presets.md#preset-json-schema), never the action or dialog state.
 
 ### Selection tab
 
@@ -220,7 +220,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 - **No Include condition.** A Nesting or Reverse list starts from nothing. With Exclude conditions but no Include condition that is on, a grey note under the table says nothing is nested (or reversed) and that an Include condition is needed. The Mode tooltip states the starting point of its list: a filter keeps all without an Include condition; a feature list picks nothing.
 - **Locks.** Connections falls back to *Between containers* (greyed) when Layout inside is Grid or Pack, or a view size is active ([nesting reference](selection-nesting.md#containers-and-connections-mode)). Width and Height are greyed while Use label width is on; Wrap label at applies only with it.
 - **Empty Nesting / Reverse.** An empty table shows the default condition switched off, as an example; untouched, it is saved as `[]`. Reverse has an empty cell where Nesting has *Nested*, so the two tables line up.
-- **Background.** The path of a view, as folders and name. It is read when the field is left or Enter is pressed, not at every key; a path not in the model reads as none for the counts, and the field's tooltip says so (a run stops on it). The counts include the background view.
+- **Background.** The path of a view, as folders and name, typed or chosen with **…**: a window in the middle of the dialog with a filter field over the tree of views, folders bold; *Choose* (or a double click) fills the field. It is read when the field is left or Enter is pressed, not at every key; a path not in the model reads as none for the counts, and the field's tooltip says so (a run stops on it). The counts include the background view.
 - **Form rows.** Containers, Flow, Elements and Connections share the tab's heading column. Flow, Elements and Connections form one raster over their first label/control pair; Containers › Options is a full 2×2 raster.
 
 **Algorithms** (generated): five styles in a radio table.
@@ -421,11 +421,9 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 ### Action area
 
 Two groups of equal height; each holds two choices of the one action. Run and Cancel sit below, bottom right. The bottom lines of the two groups are level. What the chosen action writes or changes is bold: the name and folder of the Create group, the view of the Modify group; the group not chosen is grey.
-- **Create new view**: *New view*, *One view each*; *Name*, used by *New view* only; at the bottom *Save view in folder:* with *Under _Generated* on the right of its row, and below it two options:
-  - *Custom* with its folder, a path under Views (`/Project`; empty = the folder itself);
-  - *Mirrored* (*One view each* only) with the pattern of its folders: */\<folder of each element\>*.
-  
-  With *Under _Generated* ticked, */_Generated* stands in front of the folder of both options.
+- **Create new view**: *New view*, *One view each*; *Name*, used by *New view* only; at the bottom *Save view in folder:* with the folder, a path under Views (`/_Generated/Project`; `/` = Views itself), and **…**. **…** opens the same window as the background's, over the folders of Views: every folder can be chosen, and *New folder…* makes one under the selected folder. A new folder exists in the window only; the run creates it with the view. Below the folder two options:
+  - *In the folder*: the views go into the folder;
+  - *Mirrored* (*One view each* only) with the pattern of its folders below the folder: */\<folder of each element\>*.
   
   The tooltip of each option gives the full path of the view, the preset's suffix included.
 - **Modify selected view**:
@@ -441,14 +439,12 @@ The dialog opens on the last action, or on *New view* when that does not fit the
 
 **Counts**: *On the generated view* is what *New view* puts on a new view, *On the expanded view* what *Expand view* leaves on the selected view; the one not chosen is grey, so a group keeps its height. Both use the console's grouped form ([counting rules](selection-nesting.md#counting-rules)) with zeros hidden: a field with value 0 is omitted, and a sub-line whose fields are all 0 is skipped. A sub-line too long for its column wraps between fields and continues under its counts. They refresh on every dialog change; the selected view's content is read once, when the dialog opens. *One view each* has no counts; a note says how many of its views replace an existing one: *3 of the 12 views replace an existing view.* *Layout only* has no counts and hides those of *Expand view*: it writes what is on the view, which *Current selection* on the Selection tab already counts.
 
-| Chosen action | Name | Custom | Mirrored | View name and folder |
-|---|---|---|---|---|
-| **New view** | on | chosen | grey | Name from Name, pre-filled with the first selected object, in the Custom folder. With one view selected, its own folder and *Under _Generated* as that folder is, not saved in the preset. A view with that name in the folder is replaced. |
-| **One view each**, Custom | grey | chosen | on | One view per element in the Custom folder, named after the element plus the preset's suffix (e.g. `" (GGM)"`). |
-| **One view each**, Mirrored | grey | grey | chosen | The same name, in the folder that mirrors the element's own folder, the layer included. |
-| **Expand view / Layout only** | grey | grey | grey | The selected view itself. |
-
-*Under _Generated* (on for *New view* and *One view each*) puts the Custom or Mirrored folder under `/Views/_Generated`.
+| Chosen action | Name | Folder | In the folder | Mirrored | View name and folder |
+|---|---|---|---|---|---|
+| **New view** | on | on | grey | grey | Name from Name, pre-filled with the first selected object, in the folder. With one view selected, its own folder, not saved in the preset. A view with that name in the folder is replaced. |
+| **One view each**, in the folder | grey | on | chosen | on | One view per element in the folder, named after the element plus the preset's suffix (e.g. `" (GGM)"`). |
+| **One view each**, Mirrored | grey | on | on | chosen | The same name, below the folder in the folder that mirrors the element's own folder, the layer included. |
+| **Expand view / Layout only** | grey | grey | grey | grey | The selected view itself. |
 
 ### Interaction rules
 

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "GEMMA/Referentiecomponenten/Bedrijfsfunctiemodel met referentiecomponenten",
   "algorithm": "Tiles",
   "params": {
@@ -82,10 +82,9 @@
   },
   "view": {
     "name": "Ondersteuning",
-    "folder": "/Referentiecomponenten/Bedrijfsfuncties en referentiecomponenten",
+    "folder": "/_Generated/Referentiecomponenten/Bedrijfsfuncties en referentiecomponenten",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": true
+    "mirrored": false
   },
   "appearance": {
     "palette": "GEMMA",

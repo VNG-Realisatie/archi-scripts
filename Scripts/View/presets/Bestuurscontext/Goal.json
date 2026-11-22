@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Bestuurscontext/Goal",
   "algorithm": "Layered",
   "params": {
@@ -53,10 +53,9 @@
   },
   "view": {
     "name": "Bekostiging en besteding zijn rechtmatig en kwaliteitsbewust zorgvuldig",
-    "folder": "/Doel",
+    "folder": "/_Generated/Doel",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": true
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

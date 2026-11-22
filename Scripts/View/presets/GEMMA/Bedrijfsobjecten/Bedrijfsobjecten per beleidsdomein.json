@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Bedrijfsobjecten/Bedrijfsobjecten per beleidsdomein",
   "algorithm": "Tiles",
   "params": {
@@ -59,10 +59,9 @@
   },
   "view": {
     "name": "Beleidsdomeinen ingedeeld in Iv3",
-    "folder": "/Bedrijfsobjecten/Bedrijfsobjecten per domein",
+    "folder": "/_Generated/Bedrijfsobjecten/Bedrijfsobjecten per domein",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": true
+    "mirrored": false
   },
   "appearance": {
     "palette": "GEMMA",

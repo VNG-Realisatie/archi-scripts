@@ -49,7 +49,7 @@ const MODULES = [
   "View/lib/view_origin.js", "View/lib/generate_view.js", "View/lib/run_preset.js",
   "View/lib/gui/counts.js", "View/lib/gui/widgets.js", "View/lib/gui/condition_table.js",
   "View/lib/gui/tab_selection.js", "View/lib/gui/tab_appearance.js", "View/lib/gui/tab_layout.js",
-  "View/lib/gui/tab_properties.js", "View/lib/gui/dialog_presets.js", "View/lib/gui/preset_row.js",
+  "View/lib/gui/tab_properties.js", "View/lib/gui/preset_row.js",
   "View/lib/gui/dialog_main.js",
 ];
 /** @type {Record<string, any>} */

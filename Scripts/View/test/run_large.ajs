@@ -21,7 +21,6 @@ try {
   const preset = PresetIO.readPreset("Test/baseline/baseline");
   preset.view.name = "baseline new_view 5 Large";
   preset.view.folder = "/Large";
-  preset.view.underGenerated = false;
   Log.info("\n##### baseline new_view 5 Large");
   GenView.generate_view(preset, $(source), ACTION.NEW_VIEW.id);
 } catch (error) {

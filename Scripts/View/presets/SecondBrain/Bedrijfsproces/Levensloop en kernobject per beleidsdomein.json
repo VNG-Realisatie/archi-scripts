@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Bedrijfsproces/Levensloop en kernobject per beleidsdomein",
   "algorithm": "Layered",
   "params": {
@@ -68,8 +68,7 @@
     "name": "Burgerzaken",
     "folder": "/Levensloopproces en kernobject",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": false
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

@@ -207,13 +207,11 @@ function _regenerateSiblings(key, origin) {
   if (!preset) return [];
   const { start, missing } = ViewOrigin.resolve(origin.selection || []);
   for (const object of missing) Log.warn(`Part of the start is gone from the model: ${object.name}.`, { effect: "the siblings are made from the rest of the start." });
-  // The origin keeps where the views went: Custom its full path under Views, Mirrored whether under _Generated.
-  preset.view.mirrored = origin.folder === undefined;
-  preset.view.underGenerated = origin.underGenerated === true;
-  if (origin.folder !== undefined) preset.view.folder = origin.folder;
-  const mirroredUnder = origin.underGenerated ? ` under /Views${Defs.GENERATED_VIEW_FOLDER}` : "";
+  // The origin keeps where the views went: their folder under Views, and whether they mirror the model tree below it.
+  preset.view.mirrored = origin.mirrored === true;
+  preset.view.folder = origin.folder === undefined ? preset.view.folder : origin.folder;
   _logRegeneration(`siblings of "${origin.element && origin.element.name}"`, origin, origin.selection || [],
-    `New views: ${origin.folder === undefined ? `in the folder of their element${mirroredUnder}` : `in /Views${origin.folder === "/" ? "" : origin.folder}`}`);
+    `New views: ${origin.mirrored ? "in the folder of their element below " : "in "}/Views${preset.view.folder === "/" ? "" : preset.view.folder}`);
 
   /** @type {Map<string, ArchimateView>} */
   const views = new Map();

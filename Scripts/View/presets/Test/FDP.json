@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Test/FDP",
   "algorithm": "FDP",
   "params": {
@@ -58,8 +58,7 @@
     "name": "FDP",
     "folder": "/Test",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": false
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

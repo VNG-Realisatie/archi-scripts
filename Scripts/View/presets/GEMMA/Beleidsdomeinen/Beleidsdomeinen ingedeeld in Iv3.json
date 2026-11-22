@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Beleidsdomeinen/Beleidsdomeinen ingedeeld in Iv3",
   "algorithm": "Tiles",
   "params": {
@@ -60,10 +60,9 @@
   },
   "view": {
     "name": "Beleidsdomeinen ingedeeld in Iv3",
-    "folder": "/Beleidsdomeinen",
+    "folder": "/_Generated/Beleidsdomeinen",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": true
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

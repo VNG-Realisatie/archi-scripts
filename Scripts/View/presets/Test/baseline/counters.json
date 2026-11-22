@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Test/baseline/counters",
   "algorithm": "Layered",
   "params": {
@@ -57,8 +57,7 @@
     "name": "2 Edited",
     "folder": "/Counters",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": false
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

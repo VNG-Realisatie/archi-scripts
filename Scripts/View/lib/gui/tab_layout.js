@@ -19,6 +19,8 @@ const ConditionLists = require(REPO_ROOT + "View/lib/rel_filter");
 const Counts = require(REPO_ROOT + "View/lib/gui/counts");
 /** @type {typeof import("./widgets")} */
 const Widgets = require(REPO_ROOT + "View/lib/gui/widgets");
+/** @type {typeof import("./dialog_tree")} */
+const DialogTree = require(REPO_ROOT + "View/lib/gui/dialog_tree");
 /** @type {typeof import("./tab_appearance")} */
 const TabAppearance = require(REPO_ROOT + "View/lib/gui/tab_appearance");
 /** @type {typeof import("./condition_table")} */
@@ -244,9 +246,19 @@ function buildLayoutTab(tabFolder, ctx) {
   w.cmbSameWidth.addListener(SWT.Selection, () => updateAlgorithmControls(ctx));
   Widgets.addCheck(row, "Columns across containers", null, 2, w, "chkColumnsAcrossContainers");
   row = Widgets.formRow(grpCtr, "Background:", formRows);
-  w.txtBackgroundView = new TextWidget(row, SWT.BORDER);
-  GridDataFactory.fillDefaults().grab(true, false).span(2, 1).hint(300, SWT.DEFAULT).applyTo(w.txtBackgroundView);
+  const field = new CompositeWidget(row, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(2).spacing(4, 0).applyTo(field);
+  GridDataFactory.fillDefaults().grab(true, false).span(2, 1).hint(300, SWT.DEFAULT).applyTo(field);
+  w.txtBackgroundView = new TextWidget(field, SWT.BORDER);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(w.txtBackgroundView);
   w.txtBackgroundView.setMessage("path of a view, e.g. /Views/Backgrounds/Map");
+  DialogTree.treeButton(field, {
+    title:   "Choose background view",
+    items:   () => ctx.backgroundNames(),
+    current: () => String(w.txtBackgroundView.getText()).trim().replace(/^\/Views\//, ""),
+    tooltip: "Choose a view of the model.",
+    onChange: name => { w.txtBackgroundView.setText("/Views/" + name); ctx.backgroundChanged(); },
+  });
   w.txtBackgroundView.addListener(SWT.Modify, () => ctx.markModified());
   // Read the view when the path is complete: Enter or leaving the field, not at every key.
   w.txtBackgroundView.addListener(SWT.DefaultSelection, () => ctx.backgroundChanged());

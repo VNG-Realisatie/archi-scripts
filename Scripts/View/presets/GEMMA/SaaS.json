@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "GEMMA/SaaS",
   "algorithm": "Tiles",
   "params": {
@@ -65,10 +65,9 @@
   },
   "view": {
     "name": "SaaS - Software as a Service",
-    "folder": "/Technische architectuur",
+    "folder": "/_Generated/Technische architectuur",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": true
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

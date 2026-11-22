@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Bedrijfsobjecten/Bedrijfsfuncties en bedrijfsobjecten",
   "algorithm": "Tiles",
   "params": {
@@ -66,10 +66,9 @@
   },
   "view": {
     "name": "Bedrijfsfunctielagen",
-    "folder": "/Bedrijfsobjecten/Bedrijfsfuncties en bedrijfsobjecten",
+    "folder": "/_Generated/Bedrijfsobjecten/Bedrijfsfuncties en bedrijfsobjecten",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": true
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

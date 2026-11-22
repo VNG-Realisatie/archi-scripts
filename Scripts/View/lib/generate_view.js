@@ -62,7 +62,7 @@ const EngineUtils = require(REPO_ROOT + "View/lib/engines/engine-utils");
 const Registry = require(REPO_ROOT + "View/lib/engines/registry");
 
 const {
-  ACTION, ALGORITHMS, GENERATED_VIEW_FOLDER, PROP_ID,
+  ACTION, ALGORITHMS, PROP_ID,
   validatePreset, effectiveParams, connectionsModeLock,
 } = Defs;
 
@@ -168,7 +168,7 @@ function generate_view(rawPreset, uiSelection, actionId, options = {}) {
   if (settings.invalid) {
     throw new Error(`${settings.invalid} engineParams setting(s) of the wrong type (✗ above). Correct the preset; nothing is written.`);
   }
-  Log.debug(`Name: "${preset.view.name}"  Folder: ${preset.view.mirrored ? "Mirrored" : `Custom "${preset.view.folder}"`}${preset.view.underGenerated ? `  under ${GENERATED_VIEW_FOLDER}` : ""}`);
+  Log.debug(`Name: "${preset.view.name}"  Folder: "${preset.view.folder}"${preset.view.mirrored ? "  Mirrored" : ""}`);
   {
     const vsMode = _rawParams.viewSizeMode || "none";
     const vsVal  = vsMode === "maxWidth"    ? `maxWidth=${_rawParams.maxWidth}`
@@ -321,9 +321,9 @@ function _describeTarget(preset, action, uiSelection) {
     return view ? `the selected view "${view.name}" (in place)` : "the selected view (in place)";
   }
   const what = action === ACTION.ONE_EACH.id ? "a view per element" : `new view${preset.view.name ? ` "${preset.view.name}"` : ""}`;
-  if (preset.view.mirrored) return `${what}, in its element's folder${preset.view.underGenerated ? ` under /Views${GENERATED_VIEW_FOLDER}` : ""}`;
   const path = Defs.viewFolderPath(preset.view);
-  return `${what} in /Views${path === "/" ? "" : path}`;
+  const root = `/Views${path === "/" ? "" : path}`;
+  return preset.view.mirrored ? `${what}, in its element's folder below ${root}` : `${what} in ${root}`;
 }
 
 /**
@@ -828,10 +828,10 @@ function _generateOneEach(preset, uiSelection, runtime, options) {
     Log.debug(`\nGenerating view for: ${element.name}`);
     /** @type {ViewTarget} */
     const target = { name: element.name + preset.view.suffix, view: siblings && siblings.views.get(String(element.id)) };
-    if (mirror) target.folder = () => _mirroredFolder(element, preset.view.underGenerated);
+    if (mirror) target.folder = () => _mirroredFolder(element, preset.view);
     if (options.origin) target.origin = options.origin.script ? options.origin : {
       ...options.origin, action: ACTION.ONE_EACH.id, selection: start, element: ViewOrigin.describeObject(element),
-      ...(!mirror ? { folder: Defs.viewFolderPath(preset.view) } : preset.view.underGenerated ? { underGenerated: true } : {}),
+      folder: Defs.viewFolderPath(preset.view), ...(mirror ? { mirrored: true } : {}),
     };
     const view = _generateView(preset, $(element), ACTION.NEW_VIEW.id, target, runtime, target.name || element.name);
     if (view) views.push(view);
@@ -840,17 +840,17 @@ function _generateOneEach(preset, uiSelection, runtime, options) {
 }
 
 /**
- * The folder under Views, or under /Views/_Generated, that mirrors the element's place in the model
- * tree, the layer included, created when missing. Name by name: a folder name may hold a "/".
+ * The folder below the view folder that mirrors the element's place in the model tree, the layer
+ * included, created when missing. Name by name: a folder name may hold a "/".
  * @param {ArchiElement} element
- * @param {boolean}      underGenerated
+ * @param {{ folder: string }} view  preset view settings
  * @returns {Folder}
  */
-function _mirroredFolder(element, underGenerated) {
+function _mirroredFolder(element, view) {
   /** @type {string[]} */
   const names = [];
   for (let f = $(element).parent("folder").first(); f; f = $(f).parent("folder").first()) names.unshift(f.name);
-  let folder = _resolveFolder({ folder: "", underGenerated });
+  let folder = _resolveFolder(view);
   for (const name of names) {
     folder = $(folder).children("folder").filter(f => f.name === name).first() || folder.createFolder(name);
   }
@@ -917,7 +917,7 @@ function _resolveViewName(preset, elements) {
 /**
  * The folder for a new view, created when missing. Throws when the model has no "Views" folder
  * (renamed): the run then aborts before anything is written.
- * @param {{ folder: string, underGenerated: boolean }} view  preset view settings
+ * @param {{ folder: string }} view  preset view settings
  * @returns {Folder}
  */
 function _resolveFolder(view) {

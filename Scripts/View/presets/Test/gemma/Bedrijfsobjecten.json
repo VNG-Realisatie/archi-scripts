@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Test/gemma/Bedrijfsobjecten",
   "algorithm": "Tiles",
   "params": {
@@ -66,10 +66,9 @@
   },
   "view": {
     "name": "Bedrijfsobjecten",
-    "folder": "/Test/gemma",
+    "folder": "/_Generated/Test/gemma",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": true
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",

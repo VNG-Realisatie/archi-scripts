@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "name": "Test/Circo",
   "algorithm": "Circo",
   "params": {
@@ -59,8 +59,7 @@
     "name": "DevOps en rollen (copy)",
     "folder": "/Test",
     "suffix": "",
-    "mirrored": false,
-    "underGenerated": false
+    "mirrored": false
   },
   "appearance": {
     "palette": "Brewer",
