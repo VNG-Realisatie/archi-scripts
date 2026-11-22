@@ -107,7 +107,7 @@ Dit vervangt de vaste knippen van nu. Die cut en het DP-zoeken erover (`arranged
 
 ## Regel 1, nieuw
 
-Eén plek, die het plan voor de getrapte SPEC bepaalt (Vervolg). Tot dan blijft hij in SPEC § 11, en wordt AGENTS hard rule 1 een verwijzing. Het Graphviz-feit ("`size=` is forbidden") gaat naar `docs/reference/engines.md` § Graphviz.
+Op zijn eindplek: `Scripts/View/AGENTS.md` § Hard rules, regel 1 (`plan/view-regels-op-een-plek.md`). Het Graphviz-feit ("`size=` is forbidden") gaat naar `docs/reference/engines.md` § Graphviz.
 
 > 1. **No scaling**: a leaf keeps its size and the engine sizes the containers; no size is multiplied to reach a view size or aspect ratio. (Foundational.) A leaf grows only to fill a place the layout gives it: a width (*Same width*), a column (*Columns across containers*) or a cell (the table of a background view).
 
@@ -157,10 +157,10 @@ Volgorde: AGENTS § Order of change: code eerst, docs pas na goedkeuring van het
 8. **Baseline** (skill `view-baseline`): verwacht verschil alleen bij "Bedrijfsfuncties background Tiles"; de rest blijft gelijk. Elk ander verschil is een fout.
 9. **Gebruiker in Archi:** Sociaal domein opnieuw genereren, plus een RC-view en een BF-view; beoordelen.
 10. **Docs na goedkeuring**, met de code in één commit:
-    - SPEC § 2 Vocabulary (§ Terminologie), § 7 Background (§ Wanneer een tabel), regel 1 (§ Regel 1);
+    - SPEC § 2 Vocabulary (§ Terminologie), § 7 Background (§ Wanneer een tabel);
     - `docs/reference/selection-nesting.md` § Background view: afleidingsregels 1–6 en de voorbeelden; § Sizing refinements: de maatregels uit § Maten, expliciet en genummerd zoals de afleidingsregels (breedte stuurt, begin smal, verbreed stap voor stap, de lijst, van buiten naar binnen, Columns across containers), elk met een voorbeeld uit Sociaal domein;
     - ARCHITECTURE § Background view en de Tiles-sectie: besluiten, met waarom (gridlines uit overlap, breedte stuurt, gelijke verdeling, geen subgrid) en de realisatie;
-    - `Scripts/View/AGENTS.md` hard rule 1 wordt een verwijzing; `docs/reference/engines.md` § Graphviz krijgt het feit over `size=`;
+    - `Scripts/View/AGENTS.md` § Hard rules regel 1 (§ Regel 1); `docs/reference/engines.md` § Graphviz krijgt het feit over `size=`;
     - `node Scripts/View/tools/gen_docs_tables.js --write`.
 
 ## Uitvoering per model
@@ -173,7 +173,7 @@ De sessie begint op Opus 5.5. Binnen een blok gaan de stappen door zonder vragen
 | 2 | Opus 5.5 | 1, 3, 4, 5, 6, 7; commit (code, zonder docs: Order of change) | Algoritmisch: afleiding, vormzoeken, raster; hier zit het risico | Prompt: "Draai `run_baseline.ajs` in Archi (skill `view-baseline`), dan done" |
 | — | jij | 8 (baseline draaien), 9 (Sociaal domein, RC- en BF-view in Archi beoordelen) | Kan alleen in Archi | Na mijn vergelijking van de baseline: "Beoordeel de drie views, dan akkoord" |
 | 3 | Opus 5.5 | Vervolg: plan getrapte SPEC (ontwerp, jouw keuze voor de plek van de regels) | Structuurkeuze over de hele docs-set | Prompt: "Typ `/model sonnet`, dan done" |
-| 4 | Sonnet 5.5 | 10 (docs na akkoord, met de code in één commit); `gen_docs_tables.js --write` | Schrijfwerk naar vaste regels (AGENTS § Writing SPEC) | Klaar |
+| 4 | Sonnet 5.5 | `plan/view-regels-op-een-plek.md` § Uitvoering (eigen commit); dan 10 (docs na akkoord, met de code in één commit); `gen_docs_tables.js --write` | Schrijfwerk naar vaste regels (AGENTS § Writing SPEC) | Klaar |
 
 De eerste prompt na goedkeuring van dit plan: "Typ `/model sonnet`, dan done". Een nieuwe sessie is niet nodig: het plan bevat de context.
 
@@ -183,13 +183,9 @@ De eerste prompt na goedkeuring van dit plan: "Typ `/model sonnet`, dan done". E
 - Columns across containers loopt na het plaatsen en verschuift x. Zonder de groepen per column border lopen cellen weer uit elkaar. Getest in stap 5 en 7.
 - Eén hoge cel maakt zijn hele table row hoog (de Sociaal-domein-rij 1345). Dat is bewust: de kaart gaat voor compactheid.
 
-## Vervolg: getrapte SPEC (apart plan)
+## Vervolg: regels op één plek
 
-- Probleem: SPEC is groot, maar elke wijziging moet de regels kennen, en die staan in § 11 en nog eens in AGENTS (hard rules).
-- Voorstel: de regels staan op één plek die altijd gelezen wordt, en SPEC verwijst ernaar. Twee kandidaten:
-  - `Scripts/View/AGENTS.md` § Hard rules, aangevuld met de rest van SPEC § 11;
-  - een kort `docs/RULES.md` waar AGENTS naar verwijst (een nieuw bestand: alleen op jouw verzoek).
-- Uit te werken vóór stap 10 van dit plan, zodat regel 1 meteen op zijn eindplek komt.
+Uitgewerkt in `plan/view-regels-op-een-plek.md` (blok 3, besluiten 2026-11-22): de regels komen in `Scripts/View/AGENTS.md` § Hard rules.
 
 ## Verificatie
 
@@ -201,7 +197,7 @@ Stap 5–9. Klaar wanneer:
 
 ## Overdracht (2026-11-22)
 
-**Klaar:** blok 1 (`653c717`), blok 2 (`24e4e6c`), daarna: kleur volgt overgenomen fill (`38664b3`), hoogte leaf-cel op getekende breedte (`7f6fb95`), blok vult zijn kolom (`01e1296`). Gebruiker akkoord op BF- en AS-view. Typecheck, tests, fingerprints, rule checks en Archi-baseline groen.
+**Klaar:** blok 1 (`653c717`), blok 2 (`24e4e6c`), blok 3 (`plan/view-regels-op-een-plek.md`), daarna: kleur volgt overgenomen fill (`38664b3`), hoogte leaf-cel op getekende breedte (`7f6fb95`), blok vult zijn kolom (`01e1296`). RC-background (test case 33): code in de werkmap, niet gecommit (`layout_graph.js`, `selection_pipeline.js`, `table.js`, `engines/tiles.js`, `engines/engine-utils.js`, `types/layout.d.ts`, `tools/tiles_test.js`, `docs/test-cases.md`). Gebruiker akkoord op BF-, AS- en RC-view in Archi. Typecheck, Node-tests, `layout_checks`, fingerprints groen; Archi-baseline niet opnieuw gedraaid na test case 33.
 
 **Afwijkingen van dit plan die de docs moeten vastleggen (blok 4):**
 - Afleiding: diagonale cellen (geen overlap in beide richtingen) krijgen een rij- én kolomgrens als er niets tussen ligt.
@@ -213,10 +209,9 @@ Stap 5–9. Klaar wanneer:
 - `layout_checks.js`: een leaf in een tabelcel mag groeien tot zijn cel.
 - BF-view is 60 px smaller dan voorheen (artefact van de oude band-padding weg); hoogtes gelijk.
 - Tooltip `backgroundView` in `defs.js` zegt nog "arrangement".
+- Celspan over tabelrijen: niet meer gelijk verdeeld (CSS Grid). De cellen gaan op volgorde van hun laatste tabelrij; wat een cel tekortkomt gaat in die rij, zodat de tabel zo laag is als zijn cellen toelaten (§ Maten stap 1 en § Besluiten). AS-Sociaal domein: rand Applicatieontwikkeling/Privacy verschoven, maat gelijk (test case 33).
+- Diagram object van de background: ligt in het element waarin het daar ligt; op het raster zet het geen spoorbreedte, maar spant de sporen van zijn cel (anders die van zijn ouder als er niets naast staat) en verbreedt alleen het laatste als ze te smal zijn. Een blok met inhoud houdt zijn breedte als minimum. Expand view en Layout only koppelen de diagram objects van de view aan die van de background op inhoud (type, naam, tekst, maat; een diagram-block ook zijn inhoud) (test case 33).
 
 **Volgende:**
-1. Blok 3 (Opus): plan getrapte SPEC; gebruiker kiest de plek van de regels (`Scripts/View/AGENTS.md` of `docs/RULES.md`).
-2. Blok 4 (Sonnet): stap 10 met de afwijkingen hierboven.
-3. Apart (eigen sessie): RC-background. De background staat in één naamloze diagram group (id-563180fe…) en is daardoor één diagram-block: geen tabellen, selectie naast de background. Gebruiker haalt de group weg; daarna in preset *Alle referentiecomponenten background* beslissen over serving-nesting en *Leaves in place*.
-
-**Gebruiker beslist nog:** commit van `~/ai/shared/AGENTS.md` (werkafspraak), `Scripts/Beheren/printObjectDetails.ajs`, en de twee gewijzigde presets in de werkmap.
+1. Blok 4 (Sonnet): eerst `plan/view-regels-op-een-plek.md` § Uitvoering (eigen commit); dan stap 10 met de afwijkingen hierboven; docs en de code van test case 33 in één commit (AGENTS § Order of change, stap 5). Daarvoor de Archi-baseline (skill `view-baseline`).
+2. Daarna, apart: in preset *Alle referentiecomponenten background* beslissen over serving-nesting en *Leaves in place* (Sturing legt zijn vier kinderen nu vrij, 3 + 1).
