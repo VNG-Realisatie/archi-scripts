@@ -15,6 +15,8 @@ The baseline is what Archi's writer puts on the views of the test model for a fi
 
 ## Steps (agent)
 
+**The agent runs the baseline itself, end to end** (steps 1–6): through Archi's command line on a copy, which works while the user's Archi is open and needs no Archi window. Never ask the user to run `run_baseline.ajs`, `render_views.ajs` or `engine_failure.ajs`, or to open Archi for them; only a judgment of views in Archi's own window is the user's.
+
 1. Make sure the change is in the working tree and the typecheck and Node checks pass.
 2. `OUT=$(mktemp -d)` in the scratch folder; `Scripts/View/tools/archi_cli.sh Scripts/View/test/run_baseline.ajs "" $OUT`.
 3. `node Scripts/View/tools/console_checks.js $OUT/run_baseline.log --check`: count promise, errors, warnings, time (the run's log file, which `archi_cli.sh` copies next to the console).

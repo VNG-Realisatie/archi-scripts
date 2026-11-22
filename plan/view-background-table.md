@@ -170,8 +170,8 @@ De sessie begint op Opus 5.5. Binnen een blok gaan de stappen door zonder vragen
 | Blok | Model | Stappen | Waarom dit model | Einde blok |
 |---|---|---|---|---|
 | 1 | Sonnet 5.5 | 0, 2 (hernoemen), 6; Node-tests groen; commit | Mechanisch, breed en goed te controleren met typecheck en tests | Prompt: "Typ `/model opus`, dan done" |
-| 2 | Opus 5.5 | 1, 3, 4, 5, 6, 7; commit (code, zonder docs: Order of change) | Algoritmisch: afleiding, vormzoeken, raster; hier zit het risico | Prompt: "Draai `run_baseline.ajs` in Archi (skill `view-baseline`), dan done" |
-| — | jij | 8 (baseline draaien), 9 (Sociaal domein, RC- en BF-view in Archi beoordelen) | Kan alleen in Archi | Na mijn vergelijking van de baseline: "Beoordeel de drie views, dan akkoord" |
+| 2 | Opus 5.5 | 1, 3, 4, 5, 6, 7; commit (code, zonder docs: Order of change) | Algoritmisch: afleiding, vormzoeken, raster; hier zit het risico | Ik draai de baseline zelf (skill `view-baseline`)|
+| — | ik, dan jij | 8 (ik draai de baseline zelf via `archi_cli.sh` en vergelijk), 9 (jij beoordeelt Sociaal domein, RC- en BF-view in Archi) | Beoordelen kan alleen in Archi | "Beoordeel de drie views, dan akkoord" |
 | 3 | Opus 5.5 | Vervolg: plan getrapte SPEC (ontwerp, jouw keuze voor de plek van de regels) | Structuurkeuze over de hele docs-set | Prompt: "Typ `/model sonnet`, dan done" |
 | 4 | Sonnet 5.5 | `plan/view-regels-op-een-plek.md` § Uitvoering (eigen commit); dan 10 (docs na akkoord, met de code in één commit); `gen_docs_tables.js --write` | Schrijfwerk naar vaste regels (AGENTS § Writing SPEC) | Klaar |
 
@@ -213,5 +213,5 @@ Stap 5–9. Klaar wanneer:
 - Diagram object van de background: ligt in het element waarin het daar ligt; op het raster zet het geen spoorbreedte, maar spant de sporen van zijn cel (anders die van zijn ouder als er niets naast staat) en verbreedt alleen het laatste als ze te smal zijn. Een blok met inhoud houdt zijn breedte als minimum. Expand view en Layout only koppelen de diagram objects van de view aan die van de background op inhoud (type, naam, tekst, maat; een diagram-block ook zijn inhoud) (test case 33).
 
 **Volgende:**
-1. Blok 4 (Sonnet): eerst `plan/view-regels-op-een-plek.md` § Uitvoering (eigen commit); dan stap 10 met de afwijkingen hierboven; docs en de code van test case 33 in één commit (AGENTS § Order of change, stap 5). Daarvoor de Archi-baseline (skill `view-baseline`).
+1. Blok 4 (Sonnet): eerst `plan/view-regels-op-een-plek.md` § Uitvoering (eigen commit); dan stap 10 met de afwijkingen hierboven; docs en de code van test case 33 in één commit (AGENTS § Order of change, stap 5). Daarvoor draai ik zelf de Archi-baseline (skill `view-baseline`, `archi_cli.sh`).
 2. Daarna, apart: in preset *Alle referentiecomponenten background* beslissen over serving-nesting en *Leaves in place* (Sturing legt zijn vier kinderen nu vrij, 3 + 1).
