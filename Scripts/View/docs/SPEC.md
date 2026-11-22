@@ -220,12 +220,13 @@ Only `NEW_VIEW` overwrites a view's contents, onto a matching name. A Modify act
 
 Mixed selections are valid and normalise into one object set.
 
-**Filtering.** A global filter narrows what is included, in three independent condition lists:
-- elements: by type, optionally with a property value;
-- diagram objects: by type;
-- relations: by source type, relation type and target type, among the relations drawn between the selected elements.
+**Filtering.** A global filter narrows what is included. It has two condition lists:
+- one list for elements and relations, each condition applying to one of the two:
+  - an element condition: by type, optionally with a property value;
+  - a relation condition: by source type, relation type and target type, among the relations drawn between the selected elements;
+- diagram objects: by type.
 
-Filtering is **visibility-only**: hiding an element never alters the nesting structure between surviving elements. An empty list includes everything.
+Element conditions and relation conditions are independent: without an Include condition of a kind, all of that kind is kept, minus Exclude. Filtering is **visibility-only**: hiding an element never alters the nesting structure between surviving elements. An empty list includes everything.
 
 **Related-elements steps build on each other.** After the filtered base comes an ordered list of expansion steps.
 - **Each step expands outward from the previous step's additions only**, not from the whole accumulated set. A sequence reads as "from these, reach those; from *those*, reach the next".

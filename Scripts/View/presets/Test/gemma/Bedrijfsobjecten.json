@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "name": "Test/gemma/Bedrijfsobjecten",
   "algorithm": "Tiles",
   "params": {
@@ -42,13 +42,11 @@
     "connectionLabelSpacing": false
   },
   "filter": {
-    "elementConditions": [
-      {"elementType": "business-function"}
+    "conditions": [
+      {"source": "business-function"},
+      {"applyTo": "relation", "relation": "aggregation-relationship"}
     ],
-    "diagramConditions": [],
-    "relationConditions": [
-      {"relation": "aggregation-relationship"}
-    ]
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": [

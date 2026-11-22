@@ -121,7 +121,7 @@ The console is for the user, the log file for troubleshooting. Levels: INFO (pro
 | Start of the script | `Script:`, `Platform:` (Archi, jArchi, JavaScript engine, platform) |
 | `View generation: <action>` | `Preset:` (modified, direction from the script name), `Selection:` (what is selected in Archi: kinds, where, and for *One view each* the number of views), `Settings:` (algorithm, direction, nesting, view size; preset values not in the dialog), `Target:`, `Log file:` (its name) |
 | Per view: `✓` / `⚠` / `–` / `✗` and *New*, *Updated*, *Overwritten*, *Skipped* or *Failed*, the view and its folder | `Filtered base:` (or `Base:` for a Modify action), `Step adds:`, `On view:` (elements with containers and nested elements, nestings, connections, diagram objects), `Size:` (px and time); then the view's warnings and errors |
-| End | `Result:` (generated, with warnings, skipped, failed), `Duration:`, `Log file:` with the full path on the line after it |
+| End | `Result:` (generated, with warnings, skipped, failed), `Duration:` (from the click on Run in the dialog; a script without dialog: from its start), `Log file:` with the full path on the line after it |
 
 - A warning or error has three parts, each on its own line: what happened, `Effect:` and `Action:`. A warning repeated within a view (a layout run again) is shown once.
 - `⚠` before a view: it has warnings. The dialog's settings and the engine's options are in the log file only.

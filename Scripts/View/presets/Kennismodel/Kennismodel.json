@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "name": "Kennismodel/Kennismodel",
   "algorithm": "Layered",
   "params": {
@@ -40,9 +40,8 @@
     "connectionLabelSpacing": true
   },
   "filter": {
-    "elementConditions": [],
-    "diagramConditions": [],
-    "relationConditions": []
+    "conditions": [],
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": [

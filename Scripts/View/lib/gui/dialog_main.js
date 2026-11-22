@@ -483,7 +483,7 @@ function _showRow(labels, show) {
 function _updateFilteredCount(ctx) {
   PresetRow.markModified(ctx);
   const w = ctx.widgets;
-  if (!w.tblElementConditions) return;  // Selection tab not built yet
+  if (!w.tblFilterConditions) return;  // Selection tab not built yet
 
   const objects = ctx.rawModelObjects;
   if (!objects || !objects.length) {
@@ -517,14 +517,12 @@ function _countInput(ctx, objects) {
   return {
     objects,
     filter: {
-      elementConditions:  w.tblElementConditions  ? w.tblElementConditions.getConditions()  : [],
-      diagramConditions:  w.tblDiagramConditions  ? w.tblDiagramConditions.getConditions()  : [],
-      relationConditions: w.tblRelationConditions ? w.tblRelationConditions.getConditions() : [],
+      conditions:        w.tblFilterConditions  ? w.tblFilterConditions.getConditions()  : [],
+      diagramConditions: w.tblDiagramConditions ? w.tblDiagramConditions.getConditions() : [],
     },
     filterTables: {
-      element:  w.tblElementConditions  ? w.tblElementConditions.displayedConditions()  : [],
-      diagram:  w.tblDiagramConditions  ? w.tblDiagramConditions.displayedConditions()  : [],
-      relation: w.tblRelationConditions ? w.tblRelationConditions.displayedConditions() : [],
+      filter:  w.tblFilterConditions  ? w.tblFilterConditions.displayedConditions()  : [],
+      diagram: w.tblDiagramConditions ? w.tblDiagramConditions.displayedConditions() : [],
     },
     steps: (ctx.relBlocks || []).map(b => ({
       step: { name: b.name, repeat: b.getRepeat(), conditions: b.table.getConditions() }, displayedConditions: b.table.displayedConditions(), cache: b.countCache,
@@ -554,10 +552,9 @@ function _countInput(ctx, objects) {
  */
 function _showCounts(ctx, counts) {
   const w = ctx.widgets;
-  // Global filter counters, per condition in its type combo.
-  if (w.tblElementConditions)  w.tblElementConditions.setCounts(counts.filterConditions.element);
+  // Global filter counters, per condition.
+  if (w.tblFilterConditions)   w.tblFilterConditions.setCounts(counts.filterConditions.filter);
   if (w.tblDiagramConditions)  w.tblDiagramConditions.setCounts(counts.filterConditions.diagram);
-  if (w.tblRelationConditions) w.tblRelationConditions.setCounts(counts.filterConditions.relation);
 
   (ctx.relBlocks || []).forEach((b, i) => {
     const s = counts.steps[i];
@@ -602,6 +599,7 @@ function _runAction(dlg, ctx) {
   const nextOrder = ctx.config.params.cycleSelectionOrder ? RunPreset.cycleSelectionOrder(ctx.config.params, ctx.action) : null;
   _persistSession(ctx, nextOrder ? { selectionOrder: nextOrder } : {});
   ctx._actionId = ctx.action;
+  Log.restartDuration();   // the duration counts from this click, not from the dialog's opening
   Common.startCounter("generate_view");
   Java.super(dlg).okPressed();
 }
@@ -672,7 +670,7 @@ const MIRRORED_PATTERN = "/<folder of each element>";
 function _seedElements(ctx) {
   if (!ctx.seeds) ctx.seeds = SelectionRead.getSeedElements(ctx.uiSelection);
   const w = ctx.widgets;
-  return Pipeline.applyFilter(ctx.seeds, { ...ctx.config.filter, elementConditions: w.tblElementConditions ? w.tblElementConditions.getConditions() : [] });
+  return Pipeline.applyFilter(ctx.seeds, { ...ctx.config.filter, conditions: w.tblFilterConditions ? w.tblFilterConditions.getConditions() : [] });
 }
 
 const NOTHING_TO_PLACE = "Nothing to place: no selected element passes the element filter (Selection tab).";
@@ -1148,9 +1146,8 @@ function _fillWidgets(ctx) {
 
   // Filter condition tables
   const flt = c.filter;
-  if (w.tblElementConditions)  w.tblElementConditions.setConditions(flt.elementConditions);
+  if (w.tblFilterConditions)   w.tblFilterConditions.setConditions(flt.conditions);
   if (w.tblDiagramConditions)  w.tblDiagramConditions.setConditions(flt.diagramConditions);
-  if (w.tblRelationConditions) w.tblRelationConditions.setConditions(flt.relationConditions);
 
   // Related elements — rebuild step blocks from preset.
   // Dispose existing blocks first so reapplying a preset (or session load) is clean.
@@ -1230,9 +1227,8 @@ function _saveUI(ctx) {
 
   // Filter
   c.filter = {
-    elementConditions:  w.tblElementConditions  ? w.tblElementConditions.getConditions()  : [],
-    diagramConditions:  w.tblDiagramConditions  ? w.tblDiagramConditions.getConditions()  : [],
-    relationConditions: w.tblRelationConditions ? w.tblRelationConditions.getConditions() : [],
+    conditions:        w.tblFilterConditions  ? w.tblFilterConditions.getConditions()  : [],
+    diagramConditions: w.tblDiagramConditions ? w.tblDiagramConditions.getConditions() : [],
   };
 
   // Related elements — round-trip the dynamic step-block array.

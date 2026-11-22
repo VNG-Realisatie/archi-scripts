@@ -42,8 +42,8 @@ eq(refused("relation", [{ everyContainer: "yes" }]).startsWith("test[0]: "), tru
 eq(RF.isPassAll("relation", []), true, "empty list passes all");
 eq(RF.isPassAll("relation", norm("relation", [{}])), true, "default condition passes all");
 eq(RF.isPassAll("relation", norm("relation", [{ relation: "serving-relationship" }])), false, "specific condition filters");
-eq(RF.compactPreset({ filter: { relationConditions: norm("relation", [{}]) }, relatedElements: { steps: [{ conditions: norm("step", [{}]) }] } }),
-   { filter: { relationConditions: [] }, relatedElements: { steps: [{ conditions: [{}] }] } },
+eq(RF.compactPreset({ filter: { conditions: norm("filter", [{}]) }, relatedElements: { steps: [{ conditions: norm("step", [{}]) }] } }),
+   { filter: { conditions: [] }, relatedElements: { steps: [{ conditions: [{}] }] } },
    "compact: a pass-all filter becomes [], a pass-all step condition stays (an empty step adds nothing)");
 
 // ── relation matching ─────────────────────────────────────────────────────────
@@ -87,16 +87,31 @@ eq(relP([{ propertyOf: "source", property: "Laag", value: "A" }]), true,  "sourc
 eq(relP([{ propertyOf: "target", property: "Laag", value: "A" }]), false, "target property differs");
 eq(refused("relation", [{ propertyOf: "element" }]).startsWith("test[0]: "), true, "unknown propertyOf is refused");
 
+// ── global filter: element and relation rows ──────────────────────────────────
+{
+  const rows = norm("filter", [{ source: "grouping" }, { applyTo: "relation", relation: "serving-relationship" }]);
+  const rel = (type, s, t) => ({ type, source: { type: s }, target: { type: t } });
+  eq(RF.matchElement(rows, el("business-object")), false, "an element row does not keep another type");
+  eq(RF.matchElement(norm("filter", [{ applyTo: "relation", relation: "serving-relationship" }]), el("business-object")), true, "relation rows alone keep every element");
+  eq(RF.matchFilterRelation(rows, rel("serving-relationship", "grouping", "grouping")), true, "relation row keeps its relation type");
+  eq(RF.matchFilterRelation(rows, rel("aggregation-relationship", "grouping", "grouping")), false, "relation row drops another relation type");
+  eq(RF.matchFilterRelation(norm("filter", [{ source: "grouping" }]), rel("aggregation-relationship", "x", "y")), true, "element rows alone keep every relation");
+  eq(RF.isPassAll("filter", norm("filter", [{}, { applyTo: "relation" }])), true, "a default row per kind filters nothing");
+  eq(RF.isPassAll("filter", rows), false, "specific rows filter");
+  eq(refused("filter", [{ relation: "serving-relationship" }]).startsWith("test[0]: "), true, "an element row with a relation type is refused");
+  eq(refused("filter", [{ applyTo: "relation", property: "Status" }]).startsWith("test[0]: "), true, "a relation row with a property is refused");
+}
+
 // ── element filter ────────────────────────────────────────────────────────────
-const elConditions = norm("element", [{ elementType: "business-object" }, { elementType: "grouping", property: "Status", value: "Active" }]);
+const elConditions = norm("filter", [{ source: "business-object" }, { source: "grouping", property: "Status", value: "Active" }]);
 eq(RF.matchElement(elConditions, el("business-object")), true, "element type include");
 eq(RF.matchElement(elConditions, el("grouping", { Status: "Active" })), true, "element property match");
 eq(RF.matchElement(elConditions, el("grouping", { Status: "Closed" })), false, "element property miss");
 eq(RF.matchElement(elConditions, el("business-service")), false, "element type miss");
 eq(RF.matchElement([], el("anything")), true, "empty element list keeps everything");
-eq(RF.matchElement(norm("element", [{ on: false }]), el("business-object")), false, "element Include conditions all off keep nothing");
-eq(RF.matchElement(norm("element", [{}, { on: false, elementType: "grouping" }]), el("business-object")), true, "element condition off: others still apply");
-eq(RF.matchElement(norm("element", [{}, { on: false, mode: "exclude", elementType: "grouping" }]), el("grouping")), true, "element Exclude condition off removes nothing");
+eq(RF.matchElement(norm("filter", [{ on: false }]), el("business-object")), false, "element Include conditions all off keep nothing");
+eq(RF.matchElement(norm("filter", [{}, { on: false, source: "grouping" }]), el("business-object")), true, "element condition off: others still apply");
+eq(RF.matchElement(norm("filter", [{}, { on: false, mode: "exclude", source: "grouping" }]), el("grouping")), true, "element Exclude condition off removes nothing");
 
 // ── diagram filter ────────────────────────────────────────────────────────────
 eq(RF.matchDiagram(norm("diagram", [{ diagramType: "archimate-diagram-model" }]), "archimate-diagram-model"), true, "diagram include");

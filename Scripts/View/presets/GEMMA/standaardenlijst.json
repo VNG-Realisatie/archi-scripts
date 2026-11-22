@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "name": "GEMMA/standaardenlijst",
   "algorithm": "Layered",
   "params": {
@@ -37,15 +37,13 @@
     ]
   },
   "filter": {
-    "elementConditions": [
-      {"elementType": "application-component"},
-      {"elementType": "application-service"},
-      {"elementType": "constraint"}
-    ],
-    "relationConditions": [
-      {"relation": "realization-relationship"},
-      {"relation": "serving-relationship"},
-      {"relation": "specialization-relationship"}
+    "conditions": [
+      {"source": "application-component"},
+      {"source": "application-service"},
+      {"source": "constraint"},
+      {"applyTo": "relation", "relation": "realization-relationship"},
+      {"applyTo": "relation", "relation": "serving-relationship"},
+      {"applyTo": "relation", "relation": "specialization-relationship"}
     ],
     "diagramConditions": []
   },

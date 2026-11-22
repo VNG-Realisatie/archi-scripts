@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "name": "Test/gemma/Bedrijfsfuncties background",
   "algorithm": "Tiles",
   "params": {
@@ -47,9 +47,8 @@
     "backgroundLeavesInPlace": false
   },
   "filter": {
-    "elementConditions": [],
-    "diagramConditions": [],
-    "relationConditions": []
+    "conditions": [],
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": [

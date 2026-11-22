@@ -6,9 +6,11 @@
  * conditions are the exception: the later condition wins when two styles hit the same object).
  *
  * Condition kinds (field → meaning; "" = All):
- *   element   { on, mode, elementType, property, value }                  global element filter
+ *   filter    { on, mode, applyTo, source, relation, target,               global filter: element rows and relation rows
+ *               property, value }                                          (element row: source = the element type, with
+ *                                                                          property and value; relation row: the three types)
  *   diagram   { on, mode, diagramType }                                   global diagram filter
- *   relation  { on, mode, source, relation, target,                       global relation filter, nesting, reverse
+ *   relation  { on, mode, source, relation, target,                       nesting, reverse
  *               propertyOf, property, value }
  *   step      { on, mode, previous, direction, relation, added,           expand-selection step
  *               propertyOf, property, value }
@@ -37,16 +39,17 @@ const DIRECTIONS  = Object.freeze(["either", "outgoing", "incoming"]);
 const STEP_PROP_OF  = Object.freeze(["added", "relation", "previous"]);
 const STYLE_APPLY_TO = Object.freeze(["element", "relation", "source", "target"]);
 const STYLE_PROP_OF = Object.freeze(["element", "relation", "source", "target"]);
+const FILTER_APPLY_TO = Object.freeze(["element", "relation"]);
 const REL_PROP_OF   = Object.freeze(["relation", "source", "target"]);
 const SAME_TYPE     = "same";   // nestingStyle child: the same type as the parent
 
 // kind → { defaults, types: field → valid-set name, enums: field → allowed values }
 /** @type {Readonly<{ [K in ConditionKind]: ConditionKindSpec<ConditionByKind[K]> }>} */
 const KINDS = Object.freeze({
-  element: {
-    defaults: { on: true, mode: "include", elementType: "", property: "", value: "" },
-    types:    { elementType: "elements" },
-    enums:    { mode: MODES },
+  filter: {
+    defaults: { on: true, mode: "include", applyTo: "element", source: "", relation: "", target: "", property: "", value: "" },
+    types:    { source: "elements", relation: "relations", target: "elements" },
+    enums:    { mode: MODES, applyTo: FILTER_APPLY_TO },
   },
   diagram: {
     defaults: { on: true, mode: "include", diagramType: "" },
@@ -98,7 +101,7 @@ function defaultCondition(kind) {
  * @param {K}             kind
  * @param {unknown}       raw
  * @param {ValidTypeSets} valid
- * @param {string}        where  e.g. "filter.relationConditions[2]", for the warning
+ * @param {string}        where  e.g. "filter.conditions[2]", for the warning
  * @returns {ConditionByKind[K]}
  * @throws when the condition is unusable
  */
@@ -133,6 +136,11 @@ function normalizeCondition(kind, raw, valid, where) {
     } else {
       out[key] = val === undefined || val === null ? "" : String(val);   // property, value
     }
+  }
+  if (kind === "filter") {
+    // A cell that does not apply to the row is refused, not ignored.
+    const unused = out.applyTo === "element" ? ["relation", "target"] : ["property", "value"];
+    for (const key of unused) if (out[key] !== "") return bad(`"${key}" does not apply to a ${out.applyTo} condition`);
   }
   // Cast: every key was checked against the kind's defaults above.
   return /** @type {ConditionByKind[K]} */ (out);
@@ -174,7 +182,8 @@ function serializeCondition(kind, condition) {
 }
 
 /**
- * True when a filter list is just the default condition (or empty): it filters nothing.
+ * True when a filter list is just the default condition (or empty): it filters nothing. The global filter
+ * (kind "filter") may hold several default rows, one per applyTo.
  * @param {ConditionKind}                            kind
  * @param {Record<string, unknown>[] | null | undefined} conditions
  */
@@ -182,7 +191,18 @@ function isPassAll(kind, conditions) {
   if (!conditions || conditions.length === 0) return true;
   /** @type {Record<string, unknown>} */
   const d = KINDS[kind].defaults;
-  return conditions.length === 1 && Object.keys(d).every(k => conditions[0][k] === d[k]);
+  const isDefault = (/** @type {Record<string, unknown>} */ r) => Object.keys(d).every(k => (kind === "filter" && k === "applyTo") || r[k] === d[k]);
+  return kind === "filter" ? conditions.every(isDefault) : conditions.length === 1 && isDefault(conditions[0]);
+}
+
+/**
+ * The rows of the global filter that apply to elements or to relations.
+ * @param {FilterCondition[] | null | undefined} conditions
+ * @param {FilterCondition["applyTo"]} applyTo
+ * @returns {FilterCondition[]}
+ */
+function filterRows(conditions, applyTo) {
+  return (conditions || []).filter(r => r.applyTo === applyTo);
 }
 
 // ── Matching ──────────────────────────────────────────────────────────────────
@@ -231,12 +251,22 @@ function evalConditions(conditions, test, emptyMeansAll) {
 }
 
 /**
- * Global element filter: does this element pass? Empty list keeps everything.
- * @param {ElementCondition[]} conditions
+ * Global filter, element rows: does this element pass? No element row keeps everything.
+ * @param {FilterCondition[]} conditions  the whole filter list
  * @param {ArchiElement}  el
  */
 function matchElement(conditions, el) {
-  return evalConditions(conditions, r => _typeOk(r.elementType, el.type) && _propOk(r, el), true);
+  return evalConditions(filterRows(conditions, "element"), r => _typeOk(r.source, el.type) && _propOk(r, el), true);
+}
+
+/**
+ * Global filter, relation rows: does this relation pass? No relation row keeps everything.
+ * @param {FilterCondition[]} conditions  the whole filter list
+ * @param {ArchiRelation} rel
+ */
+function matchFilterRelation(conditions, rel) {
+  return evalConditions(filterRows(conditions, "relation"), r =>
+    _typeOk(r.relation, rel.type) && _typeOk(r.source, rel.source && rel.source.type) && _typeOk(r.target, rel.target && rel.target.type), true);
 }
 
 /**
@@ -415,13 +445,12 @@ function nestingStyleConditionMatches(r, parentType, childType, rels) {
 const PRESET_CONDITION_LISTS = Object.freeze([
   [["params", "nestingConditions"],                 "relation", false],
   [["params", "reverseConditions"],                 "relation", false],
-  [["filter", "elementConditions"],                 "element",  true],
+  [["filter", "conditions"],                        "filter",   true],
   [["filter", "diagramConditions"],                 "diagram",  true],
-  [["filter", "relationConditions"],                "relation", true],
   [["appearance", "styleByProperty", "conditions"], "style",    false],
   [["appearance", "nestingLevel", "conditions"],    "nestingStyle", false],
 ]);
-const INLINE_KEYS = new Set(["nestingConditions", "reverseConditions", "elementConditions", "diagramConditions", "relationConditions", "conditions"]);
+const INLINE_KEYS = new Set(["nestingConditions", "reverseConditions", "diagramConditions", "conditions"]);
 
 /**
  * @param {ConditionKind} kind
@@ -491,6 +520,7 @@ function stringifyPreset(preset) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     MODES, DIRECTIONS, STEP_PROP_OF, STYLE_APPLY_TO, STYLE_PROP_OF, REL_PROP_OF, KINDS,
+    FILTER_APPLY_TO, filterRows, matchFilterRelation,
     defaultCondition, normalizeCondition, normalizeConditions, serializeCondition, isPassAll,
     evalConditions, matchElement, matchDiagram, matchRelation, matchEveryContainer, relationPropObject, matchStep, matchStepRelation,
     styleConditionMatchesRelation, detectConditionConflicts, SAME_TYPE, nestingStyleConditionMatches,

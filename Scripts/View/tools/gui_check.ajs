@@ -252,7 +252,7 @@ function clickTab(name) {
 // ── Suites: [ms to wait before the step, step] ───────────────────────────────
 // A native tooltip lies over the controls below it and takes a click: move away before clicking there.
 
-const ELEMENT = () => table("Selection", "Element type");
+const ELEMENT = () => table("Selection", "Element / source type");
 const STEP    = () => table("Selection", "Previous step elements");
 const NESTING = () => table("Layout", "Nested");
 const STYLE   = () => table("Appearance", "Apply to");
@@ -306,12 +306,12 @@ const SUITES = {
   tables: [
     [2500, () => { log("tables:\n  " + tables().map(x => `${x.tab}: ${x.headers.join("|")} (${x.t.getItemCount()} rows)`).join("\n  ")); clickTab("Selection"); }],
     [1000, () => shotShell("selection_tab")],
-    [100,  () => hoverHeader(ELEMENT(), "Element type")],
+    [100,  () => hoverHeader(ELEMENT(), "Element / source type")],
     [2000, () => shotTable("element_header_tooltip", ELEMENT())],
     [100,  away],
     [800,  () => hoverCell(ELEMENT(), 0, "Mode")],
     [2000, () => shotTable("element_cell_tooltip", ELEMENT())],
-    [100,  () => clickCell(ELEMENT(), 0, "Element type")],
+    [100,  () => clickCell(ELEMENT(), 0, "Element / source type")],
     [1000, () => shotTable("element_type_list", ELEMENT())],
     [100,  () => { key(K.DOWN); key(K.DOWN); key(K.ENTER); }],
     [2500, () => shotShell("element_type_chosen")],

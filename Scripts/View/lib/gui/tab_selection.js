@@ -19,7 +19,7 @@ const Counts = require(REPO_ROOT + "View/lib/gui/counts");
 /** @type {typeof import("./widgets")} */
 const Widgets = require(REPO_ROOT + "View/lib/gui/widgets");
 /** @type {typeof import("./condition_table")} */
-const { conditionTable, ELEMENT_CONDITION_COLUMNS, DIAGRAM_CONDITION_COLUMNS, FILTER_RELATION_CONDITION_COLUMNS, STEP_CONDITION_COLUMNS } = require(REPO_ROOT + "View/lib/gui/condition_table");
+const { conditionTable, FILTER_CONDITION_COLUMNS, DIAGRAM_CONDITION_COLUMNS, STEP_CONDITION_COLUMNS } = require(REPO_ROOT + "View/lib/gui/condition_table");
 
 const { ELEMENT_TYPES, DIAGRAM_TYPES } = Defs;
 
@@ -94,12 +94,14 @@ function buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
     Widgets.resizeScrolled(ctx.selectionScrolled, ctx.selectionPage);
   };
 
-  Widgets.noteLabel(grpInfo, "Filter selection by element type (no Include condition = keep all, minus Exclude):");
-  w.tblElementConditions = conditionTable(grpInfo, {
-    kind: "element", columns: ELEMENT_CONDITION_COLUMNS, filterList: true, propCondition: true,
+  Widgets.noteLabel(grpInfo, "Filter selection by element and relation (no Include condition of a kind = keep all of it, minus Exclude):");
+  w.tblFilterConditions = conditionTable(grpInfo, {
+    kind: "filter", columns: FILTER_CONDITION_COLUMNS, filterList: true, propCondition: true,
+    addTooltip: "Add a condition. Conditions of one kind combine: a match with any Include condition is kept, " +
+                "unless an Exclude condition also matches. Element and relation conditions are independent.",
     onChange: onFilterChange, onLayout: onSelLayout,
-    propItems:  r => Counts.propNames(rawElements(ctx, r.elementType)),
-    valueItems: r => Counts.propValues(rawElements(ctx, r.elementType), r.property),
+    propItems:  r => Counts.propNames(rawElements(ctx, r.source)),
+    valueItems: r => Counts.propValues(rawElements(ctx, r.source), r.property),
   });
 
   // Diagram objects only come from selected views: without them the diagram filter is hidden
@@ -115,10 +117,6 @@ function buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
   diagBox.setVisible(hasDiagramObjects);
   diagBox.getLayoutData().exclude = !hasDiagramObjects;
 
-  Widgets.noteLabel(grpInfo, "Filter selection by relations (no Include condition = keep all, minus Exclude):");
-  w.tblRelationConditions = conditionTable(grpInfo, {
-    kind: "relation", columns: FILTER_RELATION_CONDITION_COLUMNS, filterList: true, onChange: onFilterChange, onLayout: onSelLayout,
-  });
 
   // ── Expand selection ─────────────────────────────────────────────────────────
   // One block per step; each holds a condition table. "+ Add step" sits below the steps.
@@ -415,6 +413,8 @@ function _addNameEditor(ctx, b) {
     b.name = name;
     _setBlockTitle(b, ctx.relBlocks.indexOf(b));
     refreshBlockHeader(b);
+    // The title label keeps its old width until the header is laid out again.
+    try { b.header.layout(true, true); } catch (e) {}   // silent: the step may be removed
     ctx.markModified();
   };
 

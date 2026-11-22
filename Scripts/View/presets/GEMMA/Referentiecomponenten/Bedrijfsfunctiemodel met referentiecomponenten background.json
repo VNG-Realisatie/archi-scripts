@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "name": "GEMMA/Referentiecomponenten/Bedrijfsfunctiemodel met referentiecomponenten background",
   "algorithm": "Tiles",
   "params": {
@@ -44,12 +44,12 @@
       "id": "id-123355daaee4455fbdbffefe921aa087",
       "path": "/Views/Beheer/Background views/Background bedrijfsfunctiemodel uitvoering"
     },
-    "backgroundLeavesInPlace": false
+    "backgroundLeavesInPlace": false,
+    "backgroundKeepAppearance": false
   },
   "filter": {
-    "elementConditions": [],
-    "diagramConditions": [],
-    "relationConditions": []
+    "conditions": [],
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": [
@@ -183,5 +183,5 @@
       }
     ]
   },
-  "description": "Toont ook applicatieservices, deze zijn weggelaten in GEMMA views bedrijfsfuncties met referentiecomponenten\n"
+  "description": "Selecteer een domein en generereerd de GEMMA bedrijfsfunctiemodellen"
 }

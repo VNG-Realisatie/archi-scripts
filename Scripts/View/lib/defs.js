@@ -755,7 +755,7 @@ const SPLINE_SAMPLE_POINTS = 8;
 // ── Preset schema defaults ────────────────────────────────────────────────────
 
 const DEFAULT_PRESET = Object.freeze({
-  schemaVersion: 7,   // 2 = condition lists (rel_filter.js); 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions; 5 = nesting style conditions + palette; 6 = font size and bold per nesting style condition; 7 = sameWidth replaces alignWidthSameType, backgroundLeavesInPlace replaces backgroundEveryBox; older presets are migrated offline
+  schemaVersion: 8,   // 2 = condition lists (rel_filter.js); 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions; 5 = nesting style conditions + palette; 6 = font size and bold per nesting style condition; 7 = sameWidth replaces alignWidthSameType, backgroundLeavesInPlace replaces backgroundEveryBox; 8 = filter.conditions (element and relation rows, applyTo) replaces filter.elementConditions and filter.relationConditions; older presets are migrated offline
   name:      "",
   algorithm: "Layered",
   params: {
@@ -799,9 +799,8 @@ const DEFAULT_PRESET = Object.freeze({
   },
   // Filter lists (empty = keep everything); condition shapes in rel_filter.js.
   filter: {
-    elementConditions:  [],   // kind "element"
+    conditions:         [],   // kind "filter": element rows and relation rows
     diagramConditions:  [],   // kind "diagram"
-    relationConditions: [],   // kind "relation"
   },
   relatedElements: {
     // each: { name ("" = Step N), repeat, conditions: [kind "step"] }; the default adds one ring: every neighbour
@@ -1098,9 +1097,8 @@ function validatePreset(raw) {
 
   // filter
   if (raw.filter && typeof raw.filter === "object") {
-    preset.filter.elementConditions  = conditions("element",  raw.filter.elementConditions,  "filter.elementConditions");
+    preset.filter.conditions         = conditions("filter",   raw.filter.conditions,         "filter.conditions");
     preset.filter.diagramConditions  = conditions("diagram",  raw.filter.diagramConditions,  "filter.diagramConditions");
-    preset.filter.relationConditions = conditions("relation", raw.filter.relationConditions, "filter.relationConditions");
   }
 
   // relatedElements — reads `steps` only. No fallback to legacy `layers` (rule #12).

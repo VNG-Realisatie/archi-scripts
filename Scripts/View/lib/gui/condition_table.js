@@ -130,6 +130,14 @@ function conditionTable(parent, opts) {
   const textH = gcText.getFontMetrics().getHeight();
   /** @type {Map<string, number>} header text widths */
   const headerW = new Map(cols.map(c => [c.key, gcText.textExtent(c.header || "").x]));
+  // A choice column that shows a count is as wide as its longest item with a 3-digit count, "(123)".
+  /** @type {Map<string, number>} */
+  const itemW = new Map();
+  for (const c of cols) {
+    if (c.kind !== "choice" || !c.count) continue;
+    const widest = Math.max(...c.items.map(it => gcText.textExtent(`${it.label} (123)`).x));
+    itemW.set(c.key, widest + 2 * CELL_PAD + ARROW_PAD + gcText.textExtent(ARROW).x + 4);
+  }
   gcText.dispose();
   const rowH = Math.max(Widgets.CHECK_SIZE, textH) + 2 * ROW_PAD;
 
@@ -506,7 +514,7 @@ function conditionTable(parent, opts) {
 
   // A column is at least as wide as its header (a table clips a header to its column).
   /** @param {ConditionTableColumn<ConditionByKind[K]>} col */
-  const colWidth = col => Math.max(col.width || WIDTH_BY_KIND[col.kind], (headerW.get(col.key) || 0) + 2 * HEADER_PAD) + COLUMN_GAP;
+  const colWidth = col => Math.max(col.width || WIDTH_BY_KIND[col.kind], (headerW.get(col.key) || 0) + 2 * HEADER_PAD, itemW.get(col.key) || 0) + COLUMN_GAP;
 
   // The table's columns follow the visible columns; disposing them keeps the rows.
   function rebuildColumns() {
@@ -688,11 +696,26 @@ const _COUNT_TIP = "(n): relations / elements this step adds with only this cond
 // Global filter: the type cell shows the condition's count, "Business Actor (12)".
 const _FILTER_COUNT_TIP = "\n(n): how many this condition keeps on its own; for an Exclude condition, how many it removes " +
                           "from the other conditions' result.";
-/** @type {readonly ConditionTableColumn<ElementCondition>[]} */
-const ELEMENT_CONDITION_COLUMNS = Object.freeze([
+const FILTER_APPLY_TO_ITEMS = Object.freeze([{ value: "element", label: "Element" }, { value: "relation", label: "Relation" }]);
+const _isElementRow  = (/** @type {FilterCondition} */ r) => r.applyTo === "element";
+const _isRelationRow = (/** @type {FilterCondition} */ r) => r.applyTo === "relation";
+// An element row has no relation or target type, a relation row no property: the cells that do not apply are emptied.
+/** @type {readonly ConditionTableColumn<FilterCondition>[]} */
+const FILTER_CONDITION_COLUMNS = Object.freeze([
   _onCol, _modeCol,
-  Object.assign(_typeCol("elementType", "Element type", "Type to match. All = any type." + _FILTER_COUNT_TIP, 200), { count: "count" }),
-  ..._propCols("match elements"),
+  { key: "applyTo", header: "Apply to", kind: "choice", items: FILTER_APPLY_TO_ITEMS, width: 100,
+    tooltip: "Element: the condition keeps elements of a type, optionally with a property value.\n" +
+             "Relation: it keeps relations between the filtered elements by source, relation and target type.",
+    onChange: (/** @type {FilterCondition} */ r) => {
+      if (r.applyTo === "element") { r.relation = ""; r.target = ""; } else { r.property = ""; r.value = ""; }
+    } },
+  Object.assign(_typeCol("source", "Element / source type", "Element: the type to match. Relation: the type at the start of the relation. All = any type."), { width: 190 }),
+  Object.assign(_relCol("relation", "Relation type", "Relationship type. All = any type."), { enabled: _isRelationRow }),
+  Object.assign(_typeCol("target", "Target type", "Element type at the end of the relation. All = any type."), { enabled: _isRelationRow }),
+  ..._propCols("match elements").map(c => Object.assign({}, c, { enabled: (/** @type {FilterCondition} */ r) => _isElementRow(r) && (c.key !== "value" || !!r.property) })),
+  { key: "count", header: "Count", kind: "count", width: 50,
+    tooltip: "(n): elements or relations this condition keeps on its own; for an Exclude condition, how many it removes " +
+             "from the other conditions' result." },
 ]);
 /** @type {readonly ConditionTableColumn<DiagramCondition>[]} */
 const DIAGRAM_CONDITION_COLUMNS = Object.freeze([
@@ -729,12 +752,6 @@ const NESTING_CONDITION_COLUMNS = Object.freeze([..._COUNTED_FEATURE_COLUMNS,
 const REVERSE_CONDITION_COLUMNS = Object.freeze([..._COUNTED_FEATURE_COLUMNS,
   { key: "_spacer", header: "", kind: "count", width: 48 },
   { key: "_spacer2", header: "", kind: "count", width: 60 }]);
-/** @type {readonly ConditionTableColumn<RelationCondition>[]} */
-const FILTER_RELATION_CONDITION_COLUMNS = Object.freeze([_onCol, RELATION_CONDITION_COLUMNS[0], RELATION_CONDITION_COLUMNS[1],
-  Object.assign({}, RELATION_CONDITION_COLUMNS[2], { count: "count", width: 166,
-    tooltip: "Relationship type; All = any type.\n" +
-             "(n): relations between the filtered elements it keeps on its own; Exclude: how many it removes." }),
-  RELATION_CONDITION_COLUMNS[3]]);
 /** @type {readonly ConditionTableColumn<StepCondition>[]} */
 const STEP_CONDITION_COLUMNS = Object.freeze([
   _onCol, _modeCol,
@@ -824,6 +841,6 @@ function nestingStyleConditionColumns(colors, switches) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     conditionTable, nestingStyleConditionColumns,
-    ELEMENT_CONDITION_COLUMNS, DIAGRAM_CONDITION_COLUMNS, NESTING_CONDITION_COLUMNS, REVERSE_CONDITION_COLUMNS, FILTER_RELATION_CONDITION_COLUMNS, STEP_CONDITION_COLUMNS, styleConditionColumns,
+    FILTER_CONDITION_COLUMNS, DIAGRAM_CONDITION_COLUMNS, NESTING_CONDITION_COLUMNS, REVERSE_CONDITION_COLUMNS, STEP_CONDITION_COLUMNS, styleConditionColumns,
   };
 }

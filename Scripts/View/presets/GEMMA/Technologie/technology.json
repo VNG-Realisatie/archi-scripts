@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "name": "Technologie/technology",
   "algorithm": "Layered",
   "params": {
@@ -35,24 +35,23 @@
     "connectionLabelSpacing": false
   },
   "filter": {
-    "elementConditions": [
-      {"elementType": "grouping"},
-      {"elementType": "artifact"},
-      {"elementType": "communication-network"},
-      {"elementType": "device"},
-      {"elementType": "node"},
-      {"elementType": "path"},
-      {"elementType": "system-software"},
-      {"elementType": "technology-collaboration"},
-      {"elementType": "technology-event"},
-      {"elementType": "technology-function"},
-      {"elementType": "technology-interaction"},
-      {"elementType": "technology-interface"},
-      {"elementType": "technology-process"},
-      {"elementType": "technology-service"}
+    "conditions": [
+      {"source": "grouping"},
+      {"source": "artifact"},
+      {"source": "communication-network"},
+      {"source": "device"},
+      {"source": "node"},
+      {"source": "path"},
+      {"source": "system-software"},
+      {"source": "technology-collaboration"},
+      {"source": "technology-event"},
+      {"source": "technology-function"},
+      {"source": "technology-interaction"},
+      {"source": "technology-interface"},
+      {"source": "technology-process"},
+      {"source": "technology-service"}
     ],
-    "diagramConditions": [],
-    "relationConditions": []
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": []

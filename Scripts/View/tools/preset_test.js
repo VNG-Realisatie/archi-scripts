@@ -46,7 +46,7 @@ for (const file of files(PRESETS)) {
 // Defaults fill gaps; unknown keys are reported and do not survive.
 {
   const preset = Defs.validatePreset({ algorithm: "Tiles", params: { padding: 33 } });
-  eq([preset.params.padding, preset.params.elementWidth, preset.filter.elementConditions], [33, Defs.DEFAULT_PRESET.params.elementWidth, []], "missing keys take the default");
+  eq([preset.params.padding, preset.params.elementWidth, preset.filter.conditions], [33, Defs.DEFAULT_PRESET.params.elementWidth, []], "missing keys take the default");
   eq(Defs.unknownPresetKeys({ algorithm: "Tiles", params: { layerSpacng: 5 }, bogus: 1, relatedElements: { steps: [{ nam: "x" }] } }),
      ["params.layerSpacng", "bogus", "relatedElements.steps[0].nam"], "an unknown key is named by its path");
   const survived = JSON.parse(ConditionLists.stringifyPreset(Defs.validatePreset({ algorithm: "Tiles", bogus: 1, params: { layerSpacng: 5 } })));

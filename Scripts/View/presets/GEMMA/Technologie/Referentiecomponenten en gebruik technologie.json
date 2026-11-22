@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "name": "gemma/Referentiecomponenten en gebruik technische architectuur",
   "algorithm": "Layered",
   "params": {
@@ -28,10 +28,9 @@
     "connectionLabelSpacing": false
   },
   "filter": {
-    "elementConditions": [
-      {"elementType": "application-component"}
+    "conditions": [
+      {"source": "application-component"}
     ],
-    "relationConditions": [],
     "diagramConditions": []
   },
   "relatedElements": {

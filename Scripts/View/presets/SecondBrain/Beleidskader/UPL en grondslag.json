@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "name": "Beleidskader/UPL en grondslag",
   "algorithm": "Layered",
   "params": {
@@ -38,9 +38,8 @@
     "connectionLabelSpacing": true
   },
   "filter": {
-    "elementConditions": [],
-    "diagramConditions": [],
-    "relationConditions": []
+    "conditions": [],
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": [

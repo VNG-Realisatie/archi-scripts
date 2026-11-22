@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "name": "GEMMA/informatiearchitectuur",
   "algorithm": "Layered",
   "params": {
@@ -36,15 +36,13 @@
     ]
   },
   "filter": {
-    "elementConditions": [
-      {"elementType": "application-component"},
-      {"elementType": "application-service"},
-      {"elementType": "business-function"}
-    ],
-    "relationConditions": [
-      {"relation": "aggregation-relationship"},
-      {"relation": "realization-relationship"},
-      {"relation": "serving-relationship"}
+    "conditions": [
+      {"source": "application-component"},
+      {"source": "application-service"},
+      {"source": "business-function"},
+      {"applyTo": "relation", "relation": "aggregation-relationship"},
+      {"applyTo": "relation", "relation": "realization-relationship"},
+      {"applyTo": "relation", "relation": "serving-relationship"}
     ],
     "diagramConditions": []
   },

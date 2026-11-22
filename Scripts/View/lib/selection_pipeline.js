@@ -472,15 +472,15 @@ function logCountBlock(title, rows) {
 /** @param {Preset["filter"] | undefined} filter */
 function _logFilter(filter) {
   if (!filter) { Log.debug("Filter: none"); return; }
-  Log.debug("Filter element conditions:");
-  _logConditions(filter.elementConditions, r => `${r.elementType || "all"}${r.property ? `  ${r.property}=${r.value}` : ""}`, "  ");
-  Log.debug("Filter relation conditions:");
-  _logConditions(filter.relationConditions, _describeRelationCondition, "  ");
+  Log.debug("Filter conditions:");
+  _logConditions(filter.conditions, r => r.applyTo === "element"
+    ? `element  ${r.source || "all"}${r.property ? `  ${r.property}=${r.value}` : ""}`
+    : `relation  ${_describeRelationCondition(r)}`, "  ");
   Log.debug("Filter diagram conditions:");
   _logConditions(filter.diagramConditions, r => r.diagramType || "all", "  ");
 }
 
-/** @param {RelationCondition} r */
+/** @param {{ source: string, relation: string, target: string }} r */
 function _describeRelationCondition(r) {
   return `${r.source || "all"}  ${r.relation || "all"}  ${r.target || "all"}`;
 }
@@ -513,8 +513,8 @@ function _logConditions(conditions, describe, indent) {
  */
 function applyFilter(elements, filter) {
   if (!filter) return elements;
-  const { elementConditions = [] } = filter;
-  return elements.filter(el => ConditionLists.matchElement(elementConditions, el));
+  const { conditions = [] } = filter;
+  return elements.filter(el => ConditionLists.matchElement(conditions, el));
 }
 
 /**
@@ -608,10 +608,9 @@ function diagramPasses(conditions, type) {
  * @returns {((rel: ArchiRelation) => boolean) | null}
  */
 function globalRelationMatch(filter) {
-  const conditions = filter && filter.relationConditions;
-  if (ConditionLists.isPassAll("relation", conditions)) return null;
-  // Cast: isPassAll is true for an absent list.
-  return rel => ConditionLists.matchRelation(/** @type {RelationCondition[]} */ (conditions), rel.type, rel.source && rel.source.type, rel.target && rel.target.type, true, rel);
+  const conditions = (filter && filter.conditions) || [];
+  if (ConditionLists.isPassAll("filter", ConditionLists.filterRows(conditions, "relation"))) return null;
+  return rel => ConditionLists.matchFilterRelation(conditions, rel);
 }
 
 /**

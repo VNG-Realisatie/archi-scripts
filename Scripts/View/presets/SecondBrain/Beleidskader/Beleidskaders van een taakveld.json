@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "name": "Beleidskader/Beleidskaders van een taakveld",
   "algorithm": "Layered",
   "params": {
@@ -37,9 +37,8 @@
     "connectionLabelSpacing": false
   },
   "filter": {
-    "elementConditions": [],
-    "diagramConditions": [],
-    "relationConditions": []
+    "conditions": [],
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": [

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "name": "kolom",
   "algorithm": "Layered",
   "params": {
@@ -21,8 +21,7 @@
     "connectionLabelSpacing": false
   },
   "filter": {
-    "elementConditions": [],
-    "relationConditions": [],
+    "conditions": [],
     "diagramConditions": []
   },
   "relatedElements": {

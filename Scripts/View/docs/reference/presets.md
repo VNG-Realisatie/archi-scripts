@@ -18,9 +18,8 @@ Preset {
     backgroundView : { id, path : string }            // the background view: found by id, else by path (folders and name); "" both = none
   }
   filter {                           // every list: [] = keep all
-    elementConditions  : ElementCondition[]    // seed elements
+    conditions         : FilterCondition[]     // element rows (seed elements) and relation rows (relations between the filtered elements)
     diagramConditions  : DiagramCondition[]    // diagram objects of selected views
-    relationConditions : RelationCondition[]   // relations between the filtered elements
   }
   relatedElements { steps : Step[] } // ordered chain, one per step block
   view {                             // Create actions only
@@ -121,9 +120,9 @@ One condition model for every list. A list keeps what matches **any active Inclu
 
 | Condition kind | Fields | Used by | Empty list |
 |---|---|---|---|
-| element  | on, mode, elementType, property, value | `filter.elementConditions` | keep all |
+| filter   | on, mode, applyTo (`element`/`relation`), source, relation, target, property, value. An element row uses source (the element type), property and value; a relation row uses source, relation and target. A cell that does not apply is refused | `filter.conditions` | keep all, per applyTo |
 | diagram  | on, mode, diagramType | `filter.diagramConditions` | keep all |
-| relation | on, mode, source, relation, target, propertyOf (`relation`/`source`/`target`), property, value, everyContainer (nesting conditions only) | `filter.relationConditions`, `params.nestingConditions`, `params.reverseConditions` | filter: keep all · nesting / reverse: none |
+| relation | on, mode, source, relation, target, propertyOf (`relation`/`source`/`target`), property, value, everyContainer (nesting conditions only) | `params.nestingConditions`, `params.reverseConditions` | nesting / reverse: none |
 | step     | on, mode, previous, direction (`either`/`outgoing`/`incoming`), relation, added, propertyOf (`added`/`relation`/`previous`), property, value | `steps[].conditions` | follow all, as a pass-all condition `{}`; a step without any active Include match adds nothing |
 | style    | on, applyTo (`element`/`relation`/`source`/`target`), source, relation, target, propertyOf (`element`/`relation`/`source`/`target`), property, colorRange (a range name of the palette) | `appearance.styleByProperty.conditions` | no styling |
 | nestingStyle | on, parent, direction (`either`/`outgoing`/`incoming`, seen from the parent), relation, child (a type, `""` = All or `"same"` = the parent's type; default `"same"`), color (a color name of the palette, a hex, or `""` = Default), fontSize (pt of the container where the condition starts; `0` = continues from its parent), bold (that container bold) | `appearance.nestingLevel.conditions` | no styling |

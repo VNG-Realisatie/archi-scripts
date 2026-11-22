@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "name": "GEMMA/GGM/GGM bedrijfsobject specialisaties",
   "algorithm": "Dot",
   "params": {
@@ -38,15 +38,13 @@
     "connectionLabelSpacing": false
   },
   "filter": {
-    "elementConditions": [
-      {"elementType": "grouping"},
-      {"elementType": "business-object"}
+    "conditions": [
+      {"source": "grouping"},
+      {"source": "business-object"},
+      {"applyTo": "relation", "relation": "aggregation-relationship"},
+      {"applyTo": "relation", "relation": "specialization-relationship"}
     ],
-    "diagramConditions": [],
-    "relationConditions": [
-      {"relation": "aggregation-relationship"},
-      {"relation": "specialization-relationship"}
-    ]
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": [

@@ -5,13 +5,20 @@
 
 // ── Condition lists (Scripts/View/lib/rel_filter.js) ──────────────────────────────────────────────────
 
-type ConditionKind = "element" | "diagram" | "relation" | "step" | "style" | "nestingStyle";
+type ConditionKind = "filter" | "diagram" | "relation" | "step" | "style" | "nestingStyle";
 type ConditionMode = "include" | "exclude";
 
-type ElementCondition = {
+/**
+ * Global filter condition. applyTo "element": `source` is the element type and property / value match the element;
+ * applyTo "relation": source / relation / target types, no property.
+ */
+type FilterCondition = {
   on: boolean;
   mode: ConditionMode;
-  elementType: string;
+  applyTo: "element" | "relation";
+  source: string;
+  relation: string;
+  target: string;
   property: string;
   value: string;
 };
@@ -73,7 +80,7 @@ type NestingStyleCondition = {
 };
 
 interface ConditionByKind {
-  element: ElementCondition;
+  filter: FilterCondition;
   diagram: DiagramCondition;
   relation: RelationCondition;
   step: StepCondition;
@@ -306,9 +313,8 @@ type Preset = {
   algorithm: string;
   params: PresetParams;
   filter: {
-    elementConditions: ElementCondition[];
+    conditions: FilterCondition[];
     diagramConditions: DiagramCondition[];
-    relationConditions: RelationCondition[];
   };
   relatedElements: { steps: Step[] };
   view: { name: string; folder: string; suffix: string; mirrored: boolean; underGenerated: boolean };
@@ -678,7 +684,7 @@ interface DialogCountInput {
   /** The filter tables' conditions (getConditions). */
   filter: Preset["filter"];
   /** The filter tables' rows as shown (displayedConditions): one per-condition count each. */
-  filterTables: { element: ElementCondition[]; diagram: DiagramCondition[]; relation: RelationCondition[] };
+  filterTables: { filter: FilterCondition[]; diagram: DiagramCondition[] };
   steps: DialogStep[];
   /** The nesting and reverse conditions (getConditions). */
   params: EffectiveParams;
@@ -732,7 +738,7 @@ interface LayoutConditionCounts {
 /** Everything the dialog's counters show (dialogCounts). */
 interface DialogCounts {
   /** Per-condition counts of the filter tables. */
-  filterConditions: { element: ConditionTableCounts[]; diagram: ConditionTableCounts[]; relation: ConditionTableCounts[] };
+  filterConditions: { filter: ConditionTableCounts[]; diagram: ConditionTableCounts[] };
   steps: DialogStepCounts[];
   /** What the view will hold. */
   predicted: { elements: ArchiElement[]; relations: ArchiRelation[] };
@@ -919,9 +925,8 @@ type DialogWidgets = {
   // Selection tab
   lblSelectedCount: Swt.Label;
   lblContainingCount: Swt.Label;
-  tblElementConditions: ConditionTable<"element">;
+  tblFilterConditions: ConditionTable<"filter">;
   tblDiagramConditions: ConditionTable<"diagram">;
-  tblRelationConditions: ConditionTable<"relation">;
   blocksContainer: Swt.Composite;
   // Layout tab
   algRadios: Map<string, Swt.Button>;

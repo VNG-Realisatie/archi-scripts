@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "name": "Beleidskader/Bedrijfsprocessen en kernobjecten",
   "algorithm": "Layered",
   "params": {
@@ -37,8 +37,7 @@
     ]
   },
   "filter": {
-    "elementConditions": [],
-    "relationConditions": [],
+    "conditions": [],
     "diagramConditions": []
   },
   "relatedElements": {

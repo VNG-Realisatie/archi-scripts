@@ -55,7 +55,7 @@ function dialogCounts(input) {
     // Cast: a diagram type in the selection is a diagram object.
     if (t in DIAGRAM_TYPES) { if (Pipeline.diagramPasses(filter.diagramConditions, t)) keptDiagramObjects.push(/** @type {DiagramObject} */ (o)); }
     // Casts: neither a relation nor a diagram object, so an element.
-    else if (ConditionLists.matchElement(filter.elementConditions, /** @type {ArchiElement} */ (o))) filteredElements.push(/** @type {ArchiElement} */ (o));
+    else if (ConditionLists.matchElement(filter.conditions, /** @type {ArchiElement} */ (o))) filteredElements.push(/** @type {ArchiElement} */ (o));
   }
   // As the pipeline: the background view's diagram objects are always on the view, with their diagram-blocks.
   const background = input.background && (input.params.nestingConditions || []).length ? input.background : null;
@@ -91,7 +91,7 @@ function dialogCounts(input) {
   // A step's input, cumulative and seen follow from the selection and relationsOf (fixed while the dialog
   // is open), the element and relation filter and the steps before it: those settings key its count cache.
   // A setting the chain comes to depend on joins this key.
-  let chainKey = JSON.stringify([filter.elementConditions, filter.relationConditions]);
+  let chainKey = JSON.stringify(filter.conditions);
   /** @type {ArchiElement[][]} */
   const hops = [];
   for (const s of input.steps) {
@@ -145,8 +145,8 @@ function dialogCounts(input) {
 }
 
 /**
- * The per-condition counts of the three filter tables (each condition in its type combo): after the
- * filter, before any step.
+ * The per-condition counts of the two filter tables: after the filter, before any step. An element row
+ * counts elements, a relation row counts relations; the rows of the other kind do not take part.
  * @param {DialogCountInput} input
  * @param {ArchiElement[]}   filteredElements
  * @returns {DialogCounts["filterConditions"]}
@@ -156,12 +156,14 @@ function _filterTableCounts(input, filteredElements) {
   // Cast: filtered to elements.
   const rawElements = /** @type {ArchiElement[]} */ (objects.filter(o => { const t = o.type || ""; return !t.endsWith("-relationship") && !(t in DIAGRAM_TYPES); }));
   const rawDiagrams = objects.filter(o => (o.type || "") in DIAGRAM_TYPES);
+  const rows = filterTables.filter;
+  const elementCounts  = filterConditionCounts(ConditionLists.filterRows(rows, "element"), rawElements, (list, o) => ConditionLists.matchElement(list, o));
+  const relationCounts = filterConditionCounts(ConditionLists.filterRows(rows, "relation"),
+    Pipeline.findRelationsBetween(relationsOf, filteredElements, null, new Set()), (list, r) => ConditionLists.matchFilterRelation(list, r));
+  const next = { element: 0, relation: 0 };
   return {
-    element:  filterConditionCounts(filterTables.element, rawElements, (list, o) => ConditionLists.matchElement(list, o)),
-    diagram:  filterConditionCounts(filterTables.diagram, rawDiagrams, (list, o) => Pipeline.diagramPasses(list, o.type || "")),
-    relation: filterConditionCounts(filterTables.relation,
-      Pipeline.findRelationsBetween(relationsOf, filteredElements, null, new Set()),
-      (list, r) => ConditionLists.matchRelation(list, r.type, r.source && r.source.type, r.target && r.target.type, true)),
+    filter:  rows.map(r => (r.applyTo === "element" ? elementCounts : relationCounts)[next[r.applyTo]++]),
+    diagram: filterConditionCounts(filterTables.diagram, rawDiagrams, (list, o) => Pipeline.diagramPasses(list, o.type || "")),
   };
 }
 
@@ -209,7 +211,7 @@ function stepConditionCounts(relationsOf, s, input, cumulative, seen, total, cha
  * Per-condition counts of a global filter table: how many objects the condition keeps on its own; an
  * Exclude condition: how many it removes from the other conditions' result. A condition that is off is counted
  * as if it were on: what it would keep or remove.
- * @template {ElementCondition | DiagramCondition | RelationCondition} R
+ * @template {FilterCondition | DiagramCondition} R
  * @template T
  * @param {R[]} conditions  the table's rows as shown
  * @param {T[]} objects

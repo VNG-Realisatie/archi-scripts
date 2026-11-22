@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "name": "GEMMA/Referentiecomponenten/Bedrijfsfunctiemodel met referentiecomponenten",
   "algorithm": "Tiles",
   "params": {
@@ -42,9 +42,8 @@
     "connectionLabelSpacing": false
   },
   "filter": {
-    "elementConditions": [],
-    "diagramConditions": [],
-    "relationConditions": []
+    "conditions": [],
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": [

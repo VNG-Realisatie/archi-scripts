@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "name": "Applicatie laag",
   "algorithm": "Layered",
   "params": {
@@ -39,19 +39,18 @@
     "connectionLabelSpacing": false
   },
   "filter": {
-    "elementConditions": [
-      {"elementType": "application-collaboration"},
-      {"elementType": "application-component"},
-      {"elementType": "application-event"},
-      {"elementType": "application-function"},
-      {"elementType": "application-interaction"},
-      {"elementType": "application-interface"},
-      {"elementType": "application-process"},
-      {"elementType": "application-service"},
-      {"elementType": "grouping"}
+    "conditions": [
+      {"source": "application-collaboration"},
+      {"source": "application-component"},
+      {"source": "application-event"},
+      {"source": "application-function"},
+      {"source": "application-interaction"},
+      {"source": "application-interface"},
+      {"source": "application-process"},
+      {"source": "application-service"},
+      {"source": "grouping"}
     ],
-    "diagramConditions": [],
-    "relationConditions": []
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": []

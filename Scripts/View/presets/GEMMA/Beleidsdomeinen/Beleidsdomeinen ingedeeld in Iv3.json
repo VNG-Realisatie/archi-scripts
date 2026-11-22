@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "name": "Beleidsdomeinen/Beleidsdomeinen ingedeeld in Iv3",
   "algorithm": "Tiles",
   "params": {
@@ -40,14 +40,12 @@
     "connectionLabelSpacing": true
   },
   "filter": {
-    "elementConditions": [
-      {"elementType": "business-object"},
-      {"elementType": "grouping"}
+    "conditions": [
+      {"source": "business-object"},
+      {"source": "grouping"},
+      {"applyTo": "relation", "relation": "aggregation-relationship"}
     ],
-    "diagramConditions": [],
-    "relationConditions": [
-      {"relation": "aggregation-relationship"}
-    ]
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": [

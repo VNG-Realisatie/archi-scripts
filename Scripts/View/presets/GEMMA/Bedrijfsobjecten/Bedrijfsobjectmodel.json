@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "name": "Bedrijfsobjecten/Bedrijfsobjectmodel",
   "algorithm": "Layered",
   "params": {
@@ -40,11 +40,10 @@
     "connectionLabelSpacing": true
   },
   "filter": {
-    "elementConditions": [
-      {"elementType": "grouping"}
+    "conditions": [
+      {"source": "grouping"}
     ],
-    "diagramConditions": [],
-    "relationConditions": []
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": [

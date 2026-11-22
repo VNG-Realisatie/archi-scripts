@@ -40,6 +40,9 @@ function shown(kind, conditions, filterList) {
   const out = conditions.map(r => Object.assign(ConditionLists.defaultCondition(kind), r));
   return filterList && !out.length ? [ConditionLists.defaultCondition(kind)] : out;
 }
+/** The global filter table with no conditions here shows an element and a relation default row, so both are counted. */
+const shownFilter = conditions => conditions.length ? shown("filter", conditions, true)
+  : [ConditionLists.defaultCondition("filter"), { ...ConditionLists.defaultCondition("filter"), applyTo: "relation" }];
 
 /** The count input of the dialog with the preset's conditions in its tables. */
 function countInput(selection, expandSnapshot) {
@@ -47,8 +50,7 @@ function countInput(selection, expandSnapshot) {
   return {
     objects: selection.objects,
     filter: f,
-    filterTables: { element: shown("element", f.elementConditions, true), diagram: shown("diagram", f.diagramConditions, true),
-                    relation: shown("relation", f.relationConditions, true) },
+    filterTables: { filter: shownFilter(f.conditions), diagram: shown("diagram", f.diagramConditions, true) },
     steps: preset.relatedElements.steps.map(step => ({ step, displayedConditions: shown("step", step.conditions, true), cache: new Map() })),
     params: { nestingConditions: params.nestingConditions, reverseConditions: params.reverseConditions },
     algorithm: preset.algorithm,
@@ -75,7 +77,7 @@ function counts(viewName, expandSnapshot) {
 
 // The step adds nothing: view 1 has no relations to anything outside it.
 eq(counts("1 Nesting"), {
-  filterConditions: { element: [{ count: 12 }], diagram: [{ count: 4 }], relation: [{ count: 13 }] },
+  filterConditions: { filter: [{ count: 12 }, { count: 13 }], diagram: [{ count: 4 }] },
   steps: [{ elements: 0, relations: 0, runs: 0, capped: false, conditionCounts: [{ elements: 0, relations: 0 }] }],
   predicted: { elements: 12, relations: 13 },
   view: { elements: 12, containers: 5, nestedElements: 4, standalones: 3, extraOccurrences: 1, relations: 13, nestings: 6, connections: 7, diagramObjects: 3, diagramConnections: 1 },
@@ -89,7 +91,7 @@ eq(counts("1 Nesting"), {
 
 // The step adds Reached component and its relation, which are on no view.
 eq(counts("2 Edited"), {
-  filterConditions: { element: [{ count: 14 }], diagram: [{ count: 4 }], relation: [{ count: 14 }] },
+  filterConditions: { filter: [{ count: 14 }, { count: 14 }], diagram: [{ count: 4 }] },
   steps: [{ elements: 1, relations: 1, runs: 1, capped: true, conditionCounts: [{ elements: 1, relations: 1 }] }],
   predicted: { elements: 15, relations: 15 },
   view: { elements: 15, containers: 5, nestedElements: 4, standalones: 6, extraOccurrences: 1, relations: 15, nestings: 6, connections: 9, diagramObjects: 3, diagramConnections: 1 },
@@ -114,7 +116,7 @@ eq(counts("2 Edited", expandSnapshot).expandView,
   const selection = modelTreeSelection("2 Edited");
   const before = countInput(selection, null);
   Counts.dialogCounts(before);
-  const filter = { ...preset.filter, elementConditions: [{ ...ConditionLists.defaultCondition("element"), elementType: "location" }] };
+  const filter = { ...preset.filter, conditions: [{ ...ConditionLists.defaultCondition("filter"), source: "location" }] };
   const after = { ...countInput(selection, null), filter, steps: before.steps };
   eq(Counts.dialogCounts(after).steps.map(s => s.conditionCounts), [[{ elements: 0, relations: 0 }]], "2 Edited, step count cache after a filter change");
 }

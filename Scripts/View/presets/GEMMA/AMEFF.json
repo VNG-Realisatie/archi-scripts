@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "name": "GEMMA/AMEFF",
   "algorithm": "Layered",
   "params": {
@@ -39,15 +39,14 @@
     ]
   },
   "filter": {
-    "elementConditions": [],
-    "relationConditions": [
-      {"relation": "aggregation-relationship"},
-      {"relation": "assignment-relationship"},
-      {"relation": "association-relationship"},
-      {"relation": "composition-relationship"},
-      {"relation": "realization-relationship"},
-      {"relation": "serving-relationship"},
-      {"relation": "specialization-relationship"}
+    "conditions": [
+      {"applyTo": "relation", "relation": "aggregation-relationship"},
+      {"applyTo": "relation", "relation": "assignment-relationship"},
+      {"applyTo": "relation", "relation": "association-relationship"},
+      {"applyTo": "relation", "relation": "composition-relationship"},
+      {"applyTo": "relation", "relation": "realization-relationship"},
+      {"applyTo": "relation", "relation": "serving-relationship"},
+      {"applyTo": "relation", "relation": "specialization-relationship"}
     ],
     "diagramConditions": []
   },

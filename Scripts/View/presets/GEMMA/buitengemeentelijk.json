@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "name": "GEMMA/buitengemeentelijk",
   "algorithm": "Layered",
   "params": {
@@ -38,16 +38,14 @@
     ]
   },
   "filter": {
-    "elementConditions": [
-      {"elementType": "application-component"},
-      {"elementType": "application-service"},
-      {"elementType": "business-collaboration"},
-      {"elementType": "constraint"},
-      {"elementType": "grouping"}
-    ],
-    "relationConditions": [
-      {"relation": "aggregation-relationship"},
-      {"relation": "realization-relationship"}
+    "conditions": [
+      {"source": "application-component"},
+      {"source": "application-service"},
+      {"source": "business-collaboration"},
+      {"source": "constraint"},
+      {"source": "grouping"},
+      {"applyTo": "relation", "relation": "aggregation-relationship"},
+      {"applyTo": "relation", "relation": "realization-relationship"}
     ],
     "diagramConditions": []
   },

@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /**
- * Node.js migration to schemaVersion 7 (Same width as a choice, Leaves in place): rewrites every preset under
+ * Node.js migration to schemaVersion 8 (one filter list for elements and relations): rewrites every preset under
  * presets/ (recursively, _session.json included) in place.
- * Idempotent — only a preset at schemaVersion 6 is rewritten.
+ * Idempotent — only a preset at schemaVersion 7 is rewritten.
  *
- * Run: node Scripts/View/tools/migrate_presets_same_width.js [--dry-run]
+ * Run: node Scripts/View/tools/migrate_presets_filter_conditions.js [--dry-run]
  *
  * Changes:
- *   params.alignWidthSameType true / false → params.sameWidth "Per level" / "Off", in its place
- *   params.backgroundEveryBox → params.backgroundLeavesInPlace, same value, in its place
- *   schemaVersion: 7
+ *   filter.elementConditions  → filter.conditions, each condition with elementType renamed to source (applyTo "element")
+ *   filter.relationConditions → appended to filter.conditions, each condition with applyTo "relation"
+ *   schemaVersion: 8
  */
 const fs   = require("fs");
 const path = require("path");
@@ -21,7 +21,7 @@ const ConditionLists = require("../lib/rel_filter");
 
 const PRESETS_DIR = path.join(__dirname, "..", "presets");
 const DRY_RUN     = process.argv.includes("--dry-run");
-const FROM        = 6;
+const FROM        = 7;
 
 function walk(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => {
@@ -31,13 +31,17 @@ function walk(dir) {
   });
 }
 
-// A key is replaced where it stood, so a preset's diff shows only this change.
+// The element conditions' key is replaced where it stood, so a preset's diff shows only this change.
 function migrate(preset) {
-  if (preset.params) {
-    preset.params = Object.fromEntries(Object.entries(preset.params).map(([k, v]) =>
-      k === "alignWidthSameType" ? ["sameWidth", v === true ? Defs.SAME_WIDTH.LEVEL : Defs.SAME_WIDTH.OFF]
-      : k === "backgroundEveryBox" ? ["backgroundLeavesInPlace", v]
-      : [k, v]));
+  const f = preset.filter;
+  if (f) {
+    const elements  = (f.elementConditions || []).map(({ elementType, ...rest }) => elementType === undefined ? rest : { ...rest, source: elementType });
+    const relations = (f.relationConditions || []).map(r => ({ ...r, applyTo: "relation" }));
+    preset.filter = Object.fromEntries(Object.entries(f).flatMap(([k, v]) =>
+      k === "elementConditions" ? [["conditions", [...elements, ...relations]]]
+      : k === "relationConditions" ? []
+      : [[k, v]]));
+    if (!("conditions" in preset.filter) && relations.length) preset.filter.conditions = relations;
   }
   preset.schemaVersion = Defs.DEFAULT_PRESET.schemaVersion;
   return preset;

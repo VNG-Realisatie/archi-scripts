@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "name": "GEMMA/TAenIA",
   "algorithm": "Layered",
   "params": {
@@ -43,20 +43,18 @@
     "connectionLabelSpacing": false
   },
   "filter": {
-    "elementConditions": [
-      {"elementType": "application-component"},
-      {"elementType": "system-software"},
-      {"elementType": "technology-service"}
+    "conditions": [
+      {"source": "application-component"},
+      {"source": "system-software"},
+      {"source": "technology-service"},
+      {"applyTo": "relation", "relation": "aggregation-relationship"},
+      {"applyTo": "relation", "relation": "association-relationship"},
+      {"applyTo": "relation", "relation": "composition-relationship"},
+      {"applyTo": "relation", "relation": "realization-relationship"},
+      {"applyTo": "relation", "relation": "serving-relationship"},
+      {"applyTo": "relation", "relation": "specialization-relationship"}
     ],
-    "diagramConditions": [],
-    "relationConditions": [
-      {"relation": "aggregation-relationship"},
-      {"relation": "association-relationship"},
-      {"relation": "composition-relationship"},
-      {"relation": "realization-relationship"},
-      {"relation": "serving-relationship"},
-      {"relation": "specialization-relationship"}
-    ]
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": [

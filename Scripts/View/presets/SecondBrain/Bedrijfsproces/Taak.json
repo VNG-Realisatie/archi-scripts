@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "name": "Bedrijfsproces/Taak",
   "algorithm": "Layered",
   "params": {
@@ -33,8 +33,7 @@
     "reverseConditions": []
   },
   "filter": {
-    "elementConditions": [],
-    "relationConditions": [],
+    "conditions": [],
     "diagramConditions": []
   },
   "relatedElements": {

@@ -106,14 +106,12 @@ Decides *which* objects feed the layout: the counts at the top, then the global 
 │ │  Selected:    3 elements, 2 relations, 1 view, 1 folder;                          │ │
 │ │               First object: Business Actor: Customer                              │ │
 │ │  Containing:  12 elements, 8 relations                                            │ │
-│ │  Filter selection by element type (no Include condition = keep …):                │ │
-│ │   On │ Mode    │ Element type                                ✕                    │ │
-│ │   ☑  │ Include │ All                                         ✕                    │ │
+│ │  Filter selection by element and relation (no Include condition of a kind = …):   │ │
+│ │   On │ Mode │ Apply to │ Element / source type │ Relation type │ Target type │ Count │ │
+│ │   ☑  │ Include │ Element │ All                │ (grey)        │ (grey)      │       │ │
 │ │   [+ Add condition]  ☐ Match property                                             │ │
 │ │  Filter selection by diagram type (no Include condition = keep …):                │ │
 │ │   On │ Mode │ Diagram type     [+ Add condition]                                  │ │
-│ │  Filter selection by relations (no Include condition = keep …):                   │ │
-│ │   On│Mode│Source type│Relation type│Target type   [+ Add condition]               │ │
 │ └───────────────────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Expand selection ────────────────────────────────────────────────────────────────┐ │
 │ │ ┌───────────────────────────────────────────────────────────────────────────────┐ │ │
@@ -153,10 +151,9 @@ Decides *which* objects feed the layout: the counts at the top, then the global 
 - Its count stays visible, greyed, and shows what the condition *would* keep, add or remove when switched on.
 - Switching a condition on or off updates every count: the active conditions, the off conditions, the step totals and *On the generated view*.
 
-**Global filter.** Three independent condition tables ([condition lists](presets.md#condition-lists)). Each shows the default row `Include | All` when nothing is filtered.
-- **Element type**: On · Mode · Element type, plus Property · Value behind *Match property*. *Match property* is on and locked as soon as a condition uses a property.
+**Global filter.** Two condition tables ([condition lists](presets.md#condition-lists)). Each shows the default row `Include | All` when nothing is filtered.
+- **Elements and relations**: On · Mode · Apply to · Element / source type · Relation type · Target type, plus Property · Value behind *Match property*, and a Count. *Apply to* Element: the type is the element's type and the property matches the element; Relation type and Target type are greyed. *Apply to* Relation: source, relation and target type; the property cells are greyed. Switching *Apply to* empties the cells that no longer apply. The element and relation conditions are independent (no Include condition of a kind keeps all of it). The Count is the elements or relations the condition keeps on its own; an Exclude condition: how many it removes. *Match property* is on and locked as soon as a condition uses a property.
 - **Diagram type**: On · Mode · Diagram type, for the diagram objects of selected views; a view reference matches *reference*. The table is shown only when the selection holds diagram objects; its conditions are kept either way.
-- **Relations**: On · Mode · Source type · Relation type · Target type: which relations between the filtered elements are drawn.
 
 **Steps** (GUI title *Expand selection*). A one-line explanation, the ordered steps, and `[+ Add step]` under the last one. Each step is a frame:
 - **Header**, on the left: the collapse triangle (▾/▸), **Repeat** and the bold title: the step's name, or `Step N` without one. A click on the title or the summary collapses too. Then the `Adds:` summary. On the right: move (↑ ↓) and, set apart, remove (✕). Their different place and shape keep collapsing and moving apart.
