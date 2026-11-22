@@ -93,13 +93,13 @@ function _report(object, occurrence) {
   const lines = [];
   lines.push(`## ${object.name || "[geen naam]"} (${object.type})`, "");
   lines.push(..._table(["Kenmerk", "Waarde"], _generalRows(object)), "");
-  lines.push(..._referenceSection(object, occurrence));
   lines.push("### Documentatie", "", object.documentation ? object.documentation : EMPTY, "");
   lines.push(..._propertiesSection(object));
   if (!_isView(object)) {
     lines.push(...(occurrence ? _occurrenceSection(occurrence) : _viewsSection(object)));
     lines.push(..._relationsSection(object));
   }
+  lines.push(..._referenceSection(object, occurrence));
   return lines;
 }
 
