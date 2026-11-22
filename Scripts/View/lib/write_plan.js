@@ -1,7 +1,7 @@
 /**
  * Write plan for the View subsystem: what the writer does to the target view, computed from the
  * layout result and the VisualSet; view_writer.js applies it. One plan for every action, no
- * per-action branch (Scripts/View/AGENTS.md hard rule 7).
+ * per-action branch (View rule 9).
  *
  * Per result node (SPEC § 5): a counterpart on the target view → keep it (appearance preserved,
  * container re-derived from the nesting), else → create it; a diagram object read from another view

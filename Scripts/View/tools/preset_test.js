@@ -1,5 +1,5 @@
 /**
- * Node tests for presets (SPEC rule 13, § 12 Invalid preset, § 13 Preset round-trip): every preset file in
+ * Node tests for presets (View rule 13, § 12 Invalid preset, § 13 Preset round-trip): every preset file in
  * presets/ loads without unknown keys and survives write → read; an unknown key is reported, a missing key
  * defaulted, a value the algorithm does not offer replaced, another schemaVersion refused; and the adapters in
  * lib/engines/ touch no view, selection or preset (rules 5–6). Run from the repo root:
@@ -83,7 +83,7 @@ for (const file of files(PRESETS)) {
   eq(message.startsWith("relatedElements.steps[0].conditions[0]: "), true, "a step condition with an unknown value is refused, naming where");
 }
 
-// Adapters never touch a view, a selection or a preset (SPEC rules 5–6; Scripts/View/AGENTS.md rules 3, 9).
+// Adapters never touch a view, a selection or a preset (View rules 5–6, 18–20).
 {
   const FORBIDDEN = [
     [/\$\(/, "the jArchi $()"], [/\bmodel\.(?!exports)/, "the jArchi model"], [/\bwindow\./, "the jArchi window"],

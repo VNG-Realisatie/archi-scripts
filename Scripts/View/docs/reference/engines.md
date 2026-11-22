@@ -38,6 +38,8 @@ LayoutResult {
 }
 ```
 
+- Result leaf `width` and `height` equal the `LayoutGraph` input, except where a sizing refinement widens them. An engine attribute that scales its output (Graphviz `size=`) is forbidden. Archi draws an element at its exact pixel size; a scaled size is non-standard and makes a diagram unreadable.
+- A node is a container if and only if `parentMap` names it as a parent: no flag, type check or pre-declared property.
 - The writer draws each connection against its model relation. When the graph reversed a relation, the writer orders the bendpoints by the model relation's source and target.
 - Element labels sit inside their node at the standard position. A container's contents start below its `labelHeight` (without a label: below the padding). An engine draws a container no narrower than its `minWidth`, also on the column grid of *Columns across containers*. Dagre is the exception: it sizes a container from its children and keeps no room for its label.
 - With *Reserve label space*, the layout reserves room for each connection label between element layers, and the label is drawn there. Across the flow the reserved box is only what the text needs beyond the connection spacing to keep 5 px between two labels, and between a label and an element.

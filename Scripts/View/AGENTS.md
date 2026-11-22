@@ -1,26 +1,52 @@
 # Scripts/View — agent instructions
 
-View generation and layout (ELK, Dagre, Graphviz). Adds to the repo `AGENTS.md`; on a conflict this file wins for `Scripts/View/`. Documentation (not rules): `docs/SPEC.md` (what), `docs/reference/` (functional detail per subject), `docs/ARCHITECTURE.md` (decisions and how, per subject), `README.md` (user guide).
+View generation and layout (ELK, Dagre, Graphviz). Adds to the repo `AGENTS.md`; on a conflict this file wins for `Scripts/View/`. The rules are § Hard rules below. Documentation (not rules): `docs/SPEC.md` (what), `docs/reference/` (functional detail per subject), `docs/ARCHITECTURE.md` (decisions and how, per subject), `README.md` (user guide).
 
 ## Hard rules
 
-No exceptions. Violating them corrupts diagrams or breaks the pipeline. Each is the operational form of a SPEC § 11 rule; on a difference in content SPEC wins.
+System-wide, grouped by theme; code reviews enforce them. They go before `docs/SPEC.md` (what) and the rest of the docs. The only exceptions are the ones a rule names itself. Violating them corrupts diagrams or breaks the pipeline.
 
-1. **No post-layout scaling.** `LayoutResult` leaf `width`/`height` equal the `LayoutGraph` input, except the widths the sizing refinements set (Same width, Columns across containers, a band of a background view); containers are sized by the engine. Never multiply sizes after layout; engine attributes that scale output (e.g. Graphviz `size=`) are forbidden. Archi draws elements at their exact pixel size; scaled sizes are non-standard and make diagrams unreadable. (SPEC rule 1)
-2. **Position spread is the only post-layout adjustment.** Moving node *centers* outward (sizes frozen) to meet a `maxWidth`/`maxHeight` is allowed; compressing positions is forbidden. (SPEC rule 2)
-3. **Adapters never read or write a view.** They operate only on `LayoutGraph` / `LayoutResult`; no Archi API calls, no selection, no preset. (SPEC rules 5–6)
-4. **No view mutation in the pipeline.** It reads elements and relations; a view's content changes only through the writer at the final step. (SPEC § 3, rule 9)
-5. **Container-ness is derived, never declared.** A node is a container iff `parentMap` names it as a parent — no flag, type check or pre-declared property. (SPEC rule 7)
-6. **ArchiMate relations are never modified.** Edge reversal is a traversal concern only: the pipeline swaps source/target in the layout input so the engine traverses the edge differently; the model relation's source/target never changes, and the writer creates the connection against the model relation without being told. Archi draws a connection from the model relation's own direction, so no `reversed` / `flipped` / draw-direction flag on visuals or layout edges: when bendpoints come back in the other order, compare the model relation's ends with the result edge's. Do not copy model facts onto visual or intermediate shapes. (SPEC rule 8)
-7. **One write path, no per-action branches.** All four actions (NEW_VIEW, ONE_EACH, EXPAND_VIEW and LAYOUT_ONLY) share one write plan and one apply. (SPEC rule 9)
-8. **Determinism.** Same inputs → same view; never rely on hash-iteration order. (SPEC rule 12)
-9. **Option semantics.** A label or value names the result, never an engine technique; an option has one meaning and a visible effect in every algorithm that offers it, else it is disabled; an adapter sets only the engine's own options, with no placement, ordering or crossing reduction of its own. (SPEC § 9, rules 18–20)
+**Layout integrity.**
+1. **No post-layout scaling**: result leaf sizes equal input sizes; the engine sizes containers; nothing is multiplied after layout. (Foundational.) Only the sizing refinements widen a leaf: *Same width*, *Columns across containers* (a leaf fills its column), and a band of a background view ([sizing refinements](docs/reference/selection-nesting.md#sizing-refinements)). Engine facts: [layout graph and result](docs/reference/engines.md#layout-graph-and-result); why: [ARCHITECTURE § Sizing](docs/ARCHITECTURE.md#sizing).
+2. **Position spread only**: an outward centre-spread, with sizes frozen, is the only post-layout adjustment; compression is forbidden.
+3. **Parent-relative coordinates**: a nested visual's bounds are relative to its parent. The orchestrator converts them from the engine's absolute output.
+4. **Parent-first writing**: every node is written after its parent, so parent-relative conversion and draw order hold under any engine output order.
+
+**Engine isolation.**
+5. **Adapters never touch a view**: they operate only on LayoutGraph / LayoutResult.
+6. **Layout-graph-only boundary**: adapters never see selections, presets or views.
+7. **Container-ness is derived**: a node is a container if and only if something is its child; never a flag or a type check ([layout graph](docs/reference/engines.md#layout-graph-and-result)).
+8. **Relations are never modified**: edge reversal is a traversal concern only; the writer draws each connection from the model relation's own direction ([ARCHITECTURE § Writer](docs/ARCHITECTURE.md#writer)).
+
+**Writer discipline.**
+9. **One action-agnostic writer**: if a visual exists, it is repositioned; otherwise it is created. The same holds for relations. No per-action branch.
+10. **No silent data loss**: overwrite only when an action explicitly says so. A Modify action deletes no visuals except managed occurrences the settings no longer ask for (with the lines drawn to them), lines of relations drawn as nesting, and self-loops the algorithm does not draw.
+11. **Appearance preservation**: repositioning a visual never changes its appearance properties; expand and re-layout rely on this.
+
+**Determinism & validation.**
+12. **Determinism**: same inputs → same view, always; no reliance on hash-iteration order. Every order "by name" uses one comparison: accents and case are ignored, and the exact text breaks a tie, so the order is the same on every machine.
+13. **Total validation**: every preset entering the orchestrator is validated. Unknown keys are handled, missing keys defaulted, and option values checked against the algorithm.
+14. **Capability masking**: values for options inactive on the chosen algorithm are ignored at run time. A non-empty inactive value that reaches run time is a defect and is logged.
+15. **UI-only state is partitioned**: a preset holds only what affects generation. UI-only state (active tab, chosen action, window size and position, collapsed steps, …) is kept beside it in the session, unseen by the API.
+
+**Vocabulary & naming.**
+16. **One canonical vocabulary**: one name per concept across UI, logs and code; [SPEC § 2](docs/SPEC.md#2-vocabulary) is authoritative.
+17. **Rename integrally**: a renamed key, label or string is updated everywhere in one change. No dual-readers or compatibility shims for in-repo data.
+
+**Option semantics.**
+18. **Stay within the algorithm**: an adapter sets only options the engine itself has. It may derive their values from the layout graph, but never places elements itself or adds its own ordering or crossing reduction, so the algorithms keep their own character. Accepted exceptions, where the engine lacks the option and the result is otherwise unusable: Tree's layer distance and curved routing, Radial's second run with a fixed radius, Circo's second run when the graph has unconnected parts, and Neato's and SFDP's second run for an aspect ratio, which they ignore on a graph with unconnected parts.
+19. **One meaning per option**: an option means the same in every algorithm that uses it. Layer distance is the space between the elements of successive layers or rings, border to border; element distance is the minimum space between elements.
+20. **Every active option has a visible effect** over its whole range, except where the elements themselves set a hard minimum. Options that depend on each other are kept consistent in the dialog, visibly; never corrected silently at run time.
+
+**Development.**
+21. **Schema migration**: every preset carries a `schemaVersion`. An older shape is migrated by an explicit, documented one-shot migration; an unmigrated preset is refused with a message, never silently reinterpreted. Unknown keys are reported, never dropped silently. New configuration keys are added to the defaults in the same change that introduces them.
+22. **Logging**: the console is for the user: per run the action, preset, selection, settings and target; per view a status line (new, updated, overwritten, skipped, failed) with what came from the selection, what the steps added, what is on the view and its size; at the end the result and the duration. Each warning and error says what happened, its effect and what to do (repo `AGENTS.md` § Conventions). Everything else goes to a log file per run, with column-stable count blocks so prediction and result can be compared ([console and log file](docs/reference/engines.md#console-and-log-file)).
 
 Preset files (`presets/**/*.json`) are plain JSON, no `module.exports`.
 
 ## Docs
 
-**What goes where**: the Division table in `docs/ARCHITECTURE.md` (canonical) — one owner per fact, values in `lib/defs.js`, doc tables generated from it, no restated code. On a conflict SPEC wins. Markers: `<!-- @mark: … -->` = act on it, then remove; `<!-- @keep: … -->` = signed off, do not rewrite.
+**What goes where**: the Division table in `docs/ARCHITECTURE.md` (canonical). Each fact has one owner and the others link to it, never restate it (the working agreement in `~/ai/shared/AGENTS.md`); values live in `lib/defs.js`, doc tables are generated from it, no restated code. On a conflict about behaviour the rules above win, then SPEC. Markers: `<!-- @mark: … -->` = act on it, then remove; `<!-- @keep: … -->` = signed off, do not rewrite.
 
 **Order of change — approval first.**
 1. Agree on the behaviour or solution with the user.

@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /**
  * Rule checks (Node, no Archi): every preset × algorithm × view × action of the test model, as write_plans.js
- * runs them, tested against the SPEC rules instead of an earlier run. Says what is wrong, not only that
+ * runs them, tested against the View rules instead of an earlier run. Says what is wrong, not only that
  * something changed.
  *
  * Elements (the layout result):
- *   size       a leaf keeps the size of the layout graph (SPEC rule 1); Same width and Columns across containers only widen,
+ *   size       a leaf keeps the size of the layout graph (View rule 1); Same width and Columns across containers only widen,
  *              a leaf in a table of a background view fills its cell
  *   overlap    no two siblings overlap
  *   outside    a child lies inside its container
  *   padding    and at least Padding from its sides
- *   same       the same input twice gives the same result (SPEC rule 12; not FDP, Known gap 16)
+ *   same       the same input twice gives the same result (View rule 12; not FDP, Known gap 16)
  *   view size  a Max width / Max height the result exceeds is logged as not reached
  * Lines (as the writer will draw them: its bendpoints from the element centres, Archi's chopbox ends):
  *   end room   the first and last segment are at least CONNECTION_END_ROOM long, or run on in the

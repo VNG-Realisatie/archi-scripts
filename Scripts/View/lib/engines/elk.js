@@ -779,7 +779,7 @@ function _elkNode(id, box, isContainer, swapMinimum, eo) {
     return { id, children: [], edges: [], layoutOptions: Object.assign({}, eo.container, minimum, padding) };
   }
   // Uniform port spacing: portAlignment and nodeSize are read from the leaf itself.
-  // [MINIMUM_SIZE] without PORTS: the leaf keeps its size (SPEC rule 1), and ports that do not fit at
+  // [MINIMUM_SIZE] without PORTS: the leaf keeps its size (View rule 1), and ports that do not fit at
   // the port spacing are moved closer on the side. With PORTS, ELK grew an element with a self-loop
   // in a vertical layout from 60 to 75 px high to fit the loop's ports on its short side.
   const ports = eo.ports ? {

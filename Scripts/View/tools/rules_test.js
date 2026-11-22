@@ -1,5 +1,5 @@
 /**
- * Node tests for rules of SPEC § 11 that no other test holds, on the test model: 2 position spread only (nothing after
+ * Node tests for View rules that no other test holds, on the test model: 2 position spread only (nothing after
  * the engine moves or resizes an element: the result is the adapter's own, and the write plan places every element where
  * the result does), 7 container-ness is derived
  * (no node carries a flag; a node is a container exactly when the parent map names it), 8 relations are never modified

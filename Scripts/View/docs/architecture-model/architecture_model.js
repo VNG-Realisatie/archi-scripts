@@ -84,7 +84,7 @@ const ELEMENT_GROUPS = [
     ["boPreset", "Preset", "A named set of settings the architect picks, saves and shares."],
   ] },
   { folder: "/Business/Documentation", type: "business-object", elements: [
-    ["boSpec", "SPEC", "What the View subsystem does: functional, implementation-free; vocabulary, data model, actions, rules. Wins on a conflict.", { path: "Scripts/View/docs/SPEC.md" }],
+    ["boSpec", "SPEC", "What the View subsystem does: functional, implementation-free; vocabulary, data model, actions. Goes after the View rules on a conflict.", { path: "Scripts/View/docs/SPEC.md" }],
     ["boArchitecture", "ARCHITECTURE", "Decisions and how, per subject: structure, run flow, persistent state, development and testing, risks, known gaps.", { path: "Scripts/View/docs/ARCHITECTURE.md" }],
     ["boRefGui", "gui.md", "Dialog reference: tabs, controls, look and feel; generated tables of styles, algorithms and params.", { path: "Scripts/View/docs/reference/gui.md" }],
     ["boRefPresets", "presets.md", "Preset JSON schema; generated engine-param table.", { path: "Scripts/View/docs/reference/presets.md" }],
@@ -101,7 +101,7 @@ const ELEMENT_GROUPS = [
     ["entryScripts", "Entry scripts", "Layer 1, headless: the .ajs files in Scripts/View that the architect runs on a selection without the dialog. Each is a few lines that call run_preset.js with a fixed action and overrides, or with the session. For example: _default_new_view.ajs (New view with the preset Default), _default_expand_view.ajs (Expand view), _default_layout_flat_right.ajs (Layout only, Left → Right, no nesting) and _session_layout_cycle_selection_order.ajs (the session, the next selection order each run). _gui.ajs is not one of them: it opens the dialog.", { path: "Scripts/View/_*.ajs", runtime: "Archi", typechecked: "no" }],
     ["layerDialog", "Dialog", "Layer 1: the Generate View dialog (SWT/JFace), opened only by _gui.ajs, and its counts; the only part that edits presets.", { path: "Scripts/View/_gui.ajs, Scripts/View/lib/gui/" }],
     ["layerApi", "View-generation API", "Layer 2: generate_view and the pipeline modules: read → plan (pure) → apply → styling. The only place where a view changes.", { path: "Scripts/View/lib/" }],
-    ["layerEngines", "Engine adapters", "Layer 3: one adapter per engine, LayoutGraph → LayoutResult. No Archi API, no selection, no preset (Scripts/View/AGENTS.md rule 3).", { path: "Scripts/View/lib/engines/" }],
+    ["layerEngines", "Engine adapters", "Layer 3: one adapter per engine, LayoutGraph → LayoutResult. No Archi API, no selection, no preset (View rules 5–6).", { path: "Scripts/View/lib/engines/" }],
     ["layerShared", "Shared modules", "Used by layers 1 and 2: the SSOT (defs.js), the condition model, preset and settings files, and the headless runs of the entry scripts (run_preset.js).", { path: "Scripts/View/lib/" }],
     ["layerTestArchi", "Archi test scripts", "jArchi scripts that build the test model and write, time and render the baseline, run through Archi's command line or in Archi.", { path: "Scripts/View/test/" }],
     ["layerTools", "Node tools", "Node checks, harness, generators and migrations; run locally and (partly) in CI. Not type-checked.", { path: "Scripts/View/tools/" }],
@@ -279,7 +279,7 @@ const ELEMENT_GROUPS = [
     ["dDialogCounts", "Dialog counts", "Per-condition counts, step additions, the predicted totals and the saved-preset compare the dialog shows."],
   ] },
   { folder: "/Application/Data/Archi model", type: "data-object", elements: [
-    ["dModel", "Model concepts", "The elements and relations of the user's model; a run reads them and never modifies a relation (Scripts/View/AGENTS.md rule 6)."],
+    ["dModel", "Model concepts", "The elements and relations of the user's model; a run reads them and never modifies a relation (View rule 8)."],
     ["dView", "View", "The target view: created or emptied by New view and One view each, changed by Expand view and Layout only; carries the view properties and the Managed occurrence records."],
   ] },
   { folder: "/Application/Data/Settings", type: "data-object", elements: [
@@ -363,7 +363,7 @@ const ELEMENT_GROUPS = [
   ] },
   { folder: "/Technology & Physical/AI development environment/Agent rules", type: "artifact", elements: [
     ["afAgents", "AGENTS.md", "Repo rules and routing for every AI tool: hierarchy, hard rules, conventions.", { path: "AGENTS.md" }],
-    ["afViewAgents", "View AGENTS.md", "Rules of Scripts/View: hard rules, tooltips, docs and order of change, testing.", { path: "Scripts/View/AGENTS.md" }],
+    ["afViewAgents", "View AGENTS.md", "The View rules (hard rules) of Scripts/View, tooltips, docs and order of change, testing.", { path: "Scripts/View/AGENTS.md" }],
     ["afRepoGuide", "repo-guide", "Repo layout, loading modules, shared modules, vendored libraries, testing; AGENTS.md routes to it.", { path: "repo-guide.md" }],
   ] },
 ];

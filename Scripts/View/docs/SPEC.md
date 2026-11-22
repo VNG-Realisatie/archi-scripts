@@ -1,6 +1,6 @@
 # View Generation — Rebuild Specification
 
-A self-contained specification for rebuilding the View subsystem from scratch. It is **implementation-free**: it states *what* the system must do and the contracts it must honour, never how a platform realises them. The functional detail per subject is in [`reference/`](#reference); the design decisions and the *how* are in [ARCHITECTURE.md](ARCHITECTURE.md). On a conflict this document wins.
+A self-contained specification for rebuilding the View subsystem from scratch. It is **implementation-free**: it states *what* the system must do and the contracts it must honour, never how a platform realises them. The functional detail per subject is in [`reference/`](#reference); the design decisions and the *how* are in [ARCHITECTURE.md](ARCHITECTURE.md). The rules are in [`Scripts/View/AGENTS.md`](../AGENTS.md#hard-rules) § Hard rules; on a conflict they win, then this document.
 
 ---
 
@@ -180,7 +180,7 @@ A model-tree selection can drive only the Create group, because nothing identifi
 - *Layout only* changes the selected view in place: its id, properties and documentation stay, and so does every reference to it from other views. It keeps the appearance of the visuals and all user content, and adds nothing.
 - *New view* writes into a fresh view; when the target folder already holds a view with that name, it empties that view and writes into it, which keeps that view's id and properties. With one view selected the dialog pre-fills its folder and name, so the result replaces it in place; another folder or name makes a copy, and a script follows its preset. Filter and steps apply, every relation between the elements is drawn, and elements get default appearance plus the preset's styling; diagram objects keep their own.
 
-**The single writer rule.** It is action-agnostic, with no per-action branch: *for each result object, if a counterpart exists in the VisualSet, **reposition** it (appearance preserved, parenthood re-derived from the current nesting); otherwise **create** it with default appearance.* Relations follow the same rule: an existing relation gets its bendpoints rewritten, a new one is created.
+**The single writer** (rule 9): *for each result object, if a counterpart exists in the VisualSet, **reposition** it (appearance preserved, parenthood re-derived from the current nesting); otherwise **create** it with default appearance.* Relations follow the same rule: an existing relation gets its bendpoints rewritten, a new one is created.
 
 **Where a new view goes.** The preset chooses the folder, under Views:
 - *Custom*: one folder, typed by the user; *New view* always writes here.
@@ -348,7 +348,7 @@ Element labels are intrinsic to nodes; the result carries no separate label coor
 
 **View-size constraints.** The adapter receives only the active constraint; the others are zeroed. The behaviour per engine: [per-engine view-size](reference/engines.md#per-engine-view-size).
 
-**No post-layout scaling** (rules 1–2, no exceptions): no adapter multiplies the result by any factor or scales the set after `layout()` returns. Width alignment is a *pre*-layout adjustment, so it is not an exception.
+**No post-layout scaling** (rules 1–2): width alignment is a *pre*-layout adjustment, so it is not an exception.
 
 **Adapter obligations.** Honour every option active for the chosen algorithm and ignore the rest; translate values to native form, setting only options the engine itself has (rule 18); apply size constraints without scaling; return absolute coordinates; never read or write a view (rule 5).
 
@@ -396,39 +396,7 @@ Detail: [Appearance tab](reference/gui.md#appearance-tab).
 
 ## 11. Rules & invariants
 
-System-wide, grouped by theme. Code reviews enforce them.
-
-**Layout integrity.**
-1. **No post-layout scaling**: result leaf sizes equal input sizes; the engine sizes containers; nothing is multiplied after layout. (Foundational.) Only the sizing refinements widen a leaf: *Same width*, *Columns across containers* (a leaf fills its column), and a band of a background view ([sizing refinements](reference/selection-nesting.md#sizing-refinements)).
-2. **Position spread only**: an outward centre-spread, with sizes frozen, is the only post-layout adjustment; compression is forbidden.
-3. **Parent-relative coordinates**: a nested visual's bounds are relative to its parent. The orchestrator converts them from the engine's absolute output.
-4. **Parent-first writing**: every node is written after its parent, so parent-relative conversion and draw order hold under any engine output order.
-
-**Engine isolation.**
-5. **Adapters never touch a view**: they operate only on LayoutGraph / LayoutResult.
-6. **Layout-graph-only boundary**: adapters never see selections, presets or views.
-7. **Container-ness is derived**: a node is a container if and only if something is its child; never a flag or a type check.
-8. **Relations are never modified**: edge reversal is a traversal concern only.
-
-**Writer discipline.**
-9. **One action-agnostic writer**: if a visual exists, it is repositioned; otherwise it is created. The same holds for relations. No per-action branch.
-10. **No silent data loss**: overwrite only when an action explicitly says so. A Modify action deletes no visuals except managed occurrences the settings no longer ask for (with the lines drawn to them), lines of relations drawn as nesting, and self-loops the algorithm does not draw.
-11. **Appearance preservation**: repositioning a visual never changes its appearance properties; expand and re-layout rely on this.
-
-**Determinism & validation.**
-12. **Determinism**: same inputs → same view, always; no reliance on hash-iteration order. Every order "by name" uses one comparison: accents and case are ignored, and the exact text breaks a tie, so the order is the same on every machine.
-13. **Total validation**: every preset entering the orchestrator is validated. Unknown keys are handled, missing keys defaulted, and option values checked against the algorithm.
-14. **Capability masking**: values for options inactive on the chosen algorithm are ignored at run time. A non-empty inactive value that reaches run time is a defect and is logged.
-15. **UI-only state is partitioned**: a preset holds only what affects generation. UI-only state (active tab, chosen action, window size and position, collapsed steps, …) is kept beside it in the session, unseen by the API.
-
-**Vocabulary & naming.**
-16. **One canonical vocabulary**: one name per concept across UI, logs and code; [§ 2](#2-vocabulary) is authoritative.
-17. **Rename integrally**: a renamed key, label or string is updated everywhere in one change. No dual-readers or compatibility shims for in-repo data.
-
-**Option semantics.**
-18. **Stay within the algorithm**: an adapter sets only options the engine itself has. It may derive their values from the layout graph, but never places elements itself or adds its own ordering or crossing reduction, so the algorithms keep their own character. Accepted exceptions, where the engine lacks the option and the result is otherwise unusable: Tree's layer distance and curved routing, Radial's second run with a fixed radius, Circo's second run when the graph has unconnected parts, and Neato's and SFDP's second run for an aspect ratio, which they ignore on a graph with unconnected parts.
-19. **One meaning per option**: an option means the same in every algorithm that uses it. Layer distance is the space between the elements of successive layers or rings, border to border; element distance is the minimum space between elements.
-20. **Every active option has a visible effect** over its whole range, except where the elements themselves set a hard minimum. Options that depend on each other are kept consistent in the dialog, visibly; never corrected silently at run time.
+The rules of the system (layout integrity, engine isolation, writer discipline, determinism, vocabulary, option semantics, development) are the numbered **View rules** in [`AGENTS.md`](../AGENTS.md#hard-rules) § Hard rules. They go before this specification. This document cites them as *rule N*.
 
 ---
 
@@ -448,7 +416,7 @@ System-wide, grouped by theme. Code reviews enforce them.
 
 ## 13. Verification & acceptance
 
-A rebuild is accepted when rules 1, 3, 11 and 12 hold in tests, and:
+A rebuild is accepted when rules 1, 3, 11 and 12 ([§ 11](#11-rules--invariants)) hold in tests, and:
 
 - **Count promise**: the dialog's predicted totals equal the result on the view, object for object (`filtered base + Σ step adds = total`, for elements and for relations).
 - **Preset round-trip**: writing then reading a preset yields the same configuration; unknown keys do not survive; defaults fill gaps.
@@ -458,9 +426,7 @@ A rebuild is accepted when rules 1, 3, 11 and 12 hold in tests, and:
 
 ## 14. Development rules
 
-- **Schema migration.** Every preset carries a `schemaVersion`. An older shape is migrated by an explicit, documented one-shot migration; an unmigrated preset is refused with a message, never silently reinterpreted. Unknown keys are reported, never dropped silently. New configuration keys are added to the defaults in the same change that introduces them.
-- **Logging.** The console is for the user: per run the action, preset, selection, settings and target; per view a status line (new, updated, overwritten, skipped, failed) with what came from the selection, what the steps added, what is on the view and its size; at the end the result and the duration. Each warning and error says what happened, its effect and what to do. Everything else goes to a log file per run: the orchestration steps (selection → object set → layout graph → layout → target → write) with their column-stable count blocks, so prediction and result can be compared, engine detail and timings ([console and log file](reference/engines.md#console-and-log-file)).
-- **Rule hierarchy**: [`AGENTS.md`](../../../AGENTS.md) § Hierarchy; the View rules are in [`Scripts/View/AGENTS.md`](../AGENTS.md). This spec is the authority on what the View system does.
+Schema migration and logging are View rules 21 and 22 ([§ 11](#11-rules--invariants)). The rule hierarchy: [`AGENTS.md`](../../../AGENTS.md) § Hierarchy.
 
 ---
 
