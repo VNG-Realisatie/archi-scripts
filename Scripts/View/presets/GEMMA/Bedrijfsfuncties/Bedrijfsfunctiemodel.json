@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "name": "Bedrijfsfuncties/Bedrijfsfunctiemodel",
   "algorithm": "Tiles",
   "params": {
@@ -74,13 +74,10 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"parent": "business-function", "child": "business-function", "fontSize": 14, "bold": true}
+        {"parent": "business-function", "child": "business-function", "darkenStart": 0, "fontSize": 14, "fontStyle": "bold"}
       ],
       "fontEnabled": true,
-      "fontDecreasePerLevel": 2,
-      "colorEnabled": false,
-      "darkenStart": 0,
-      "lightenPerLevel": 15
+      "colorEnabled": false
     },
     "highlightRepeated": {
       "enabled": false,

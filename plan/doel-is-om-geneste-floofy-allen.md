@@ -222,6 +222,6 @@ User: confirm the GEMMA view in Archi.
 
 ## Handoff
 
-- Done: blocks 0, 1 and 2 (compound cell with a window; Property cell on the Selection and Layout tables; *Match property* removed; `gui_check.ajs` suite `compound`, run in Xvfb).
-- Next: block 3 (Opus): schema 10 and the appearance engine.
-- User: start a new session on Opus with the prompt line below.
+- Done: blocks 0–4. Schema 10 and the appearance engine (background look as base layer, *Background* and *Same as parent* per appearance attribute, per-condition numbers, font style, property match, `backgroundView.on`, migration); the dialog (Color and font by nesting level with compound Property, Color and Font cells, counts and ⚠, Background On, fallback shown while no background view is in use). Font style also has *Same as parent* and font size *Same as parent* (was *Continues*).
+- Next: block 5 (Sonnet): GEMMA check and close.
+- User: start a new session on Sonnet with the prompt line below.

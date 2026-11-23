@@ -26,6 +26,10 @@ const Nesting   = require(REPO_ROOT + "View/lib/nesting");
 const ConditionLists = require(REPO_ROOT + "View/lib/rel_filter");
 /** @type {typeof import("../background")} */
 const Background = require(REPO_ROOT + "View/lib/background");
+/** @type {typeof import("../appearance")} */
+const Appearance = require(REPO_ROOT + "View/lib/appearance");
+/** @type {typeof import("../table")} */
+const Table      = require(REPO_ROOT + "View/lib/table");
 
 const { ACTION, DIAGRAM_TYPES, compareNames } = Defs;
 
@@ -141,7 +145,94 @@ function dialogCounts(input) {
       }, ACTION.EXPAND_VIEW.id).view
     : null;
 
-  return { filterConditions, steps, predicted: { elements: cumulative, relations: finalRels }, view, layoutConditions, expandView };
+  return { filterConditions, steps, predicted: { elements: cumulative, relations: finalRels }, view, layoutConditions, expandView,
+           nestingView: { elements: onView, nesting, background } };
+}
+
+// ── Nesting style counts ──────────────────────────────────────────────────────
+
+/**
+ * The nesting style table's counts and ⚠ on the predicted view, through the nesting chains the
+ * appearance pass follows: per condition the parents of the nesting steps it styles ("parents") and
+ * the elements it styles directly, root containers included ("children"); ⚠ where Background meets
+ * an element without a background look (a background view in use), or Same as parent a root container. A condition that is off
+ * gets no counts.
+ * @param {NestingStyleCondition[]} conditions  the rows as shown
+ * @param {{ colorEnabled: boolean, fontEnabled: boolean }} settings  the Color and Font switches
+ * @param {NestingView}   view
+ * @param {RelationIndex} relationsOf
+ * @returns {NestingStyleCounts}
+ */
+function nestingStyleCounts(conditions, settings, view, relationsOf) {
+  const nodes = _nestingNodes(view, relationsOf);
+  const { styles, parentlessRoots, withoutLook } = Appearance.followNestingChains(nodes, conditions);
+  const byId = new Map(nodes.map(n => [n.id, n]));
+  /** @type {Map<number, { parents: Set<string>, children: number }>} */
+  const per = new Map();
+  styles.forEach((st, id) => {
+    let c = per.get(st.nr);
+    if (!c) { c = { parents: new Set(), children: 0 }; per.set(st.nr, c); }
+    c.children++;
+    const parentId = /** @type {import("../appearance").NestingNode} */ (byId.get(id)).parentId;   // Cast: styles holds node ids
+    if (parentId) c.parents.add(parentId);
+  });
+  const counts = conditions.map((r, i) => {
+    if (r.on === false) return {};
+    const c = per.get(i + 1);
+    return { parents: c ? c.parents.size : 0, children: c ? c.children : 0 };
+  });
+  /** @type {Map<number, string>} */
+  const warnings = new Map();
+  const add = (/** @type {number} */ nr, /** @type {string} */ text) => warnings.set(nr - 1, warnings.has(nr - 1) ? `${warnings.get(nr - 1)}\n${text}` : text);
+  if (settings.colorEnabled) {
+    /** @type {Map<number, number>} */
+    const roots = new Map();
+    for (const id of parentlessRoots) { const nr = /** @type {{ nr: number }} */ (styles.get(id)).nr; roots.set(nr, (roots.get(nr) || 0) + 1); }   // Cast: a parentless root is styled
+    roots.forEach((n, nr) => add(nr, `Same as parent on ${n} root container${n === 1 ? "" : "s"}: there is no parent to take the fill color from. ` +
+      "They keep their background look, else Type default."));
+  }
+  // Without a background view in use the dialog shows Background's fallback itself: no ⚠ for it.
+  if (view.background) {
+    Appearance.withoutLookCounts(withoutLook, settings).forEach((n, nr) => add(nr, `${n} element${n === 1 ? "" : "s"} styled by this condition ${n === 1 ? "is" : "are"} not on the background view. ` +
+      "They use default values instead (Type default, 9 pt, normal). The count reflects the predicted view and the configured property match."));
+  }
+  return { counts, warnings };
+}
+
+/**
+ * The occurrences of the predicted view as the nesting chains read them (Appearance.NestingNode).
+ * @param {NestingView}   view
+ * @param {RelationIndex} relationsOf
+ * @returns {import("../appearance").NestingNode[]}
+ */
+function _nestingNodes(view, relationsOf) {
+  const { nesting, background } = view;
+  const byId = new Map(view.elements.map(el => [el.id, el]));
+  /** @type {Map<string, ArchiElement>} */
+  const elementOf = new Map();
+  for (const [elementId, occs] of Object.entries(nesting.occurrenceMap)) {
+    const el = byId.get(elementId);
+    if (el) for (const occ of occs) elementOf.set(occ, el);
+  }
+  const containers = new Set(Object.values(nesting.parentMap));
+  const onBackground = background ? Table.elementsOf(background.tables) : new Set();
+  const looks = background ? Pipeline.backgroundLooks(background) : new Map();
+  /** @type {(id: string) => number} */
+  const depthOf = id => { let d = 0; for (let p = nesting.parentMap[id]; p; p = nesting.parentMap[p]) d++; return d; };
+  /** @type {import("../appearance").NestingNode[]} */
+  const nodes = [];
+  for (const [occ, el] of elementOf) {
+    const parentId = nesting.parentMap[occ] || null;
+    const parentEl = parentId ? elementOf.get(parentId) : undefined;
+    const look = Appearance.backgroundLook(looks, el.id, parentEl ? parentEl.id : null);
+    nodes.push({
+      id: occ, parentId: parentEl ? parentId : null, type: el.type, element: el,
+      rels: parentEl ? Appearance.relsBetween(parentEl, el, relationsOf) : [],
+      depth: depthOf(occ), isContainer: containers.has(occ), onBackground: onBackground.has(el.id),
+      ...(look ? { look: Appearance.lookValues(look) } : {}),
+    });
+  }
+  return nodes;
 }
 
 /**
@@ -415,6 +506,7 @@ function formatCountsBody(counts, firstObject) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    nestingStyleCounts,
     dialogCounts, stepConditionCounts, filterConditionCounts, featureConditionCounts, layoutConditionCounts,
     countSelection, formatCountsBody, propNames, propValues, typeToDisplay, styleConditionSentence, differsFromSaved,
   };

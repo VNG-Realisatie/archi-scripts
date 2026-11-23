@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "name": "Test/gemma/Bedrijfsobjecten",
   "algorithm": "Tiles",
   "params": {
@@ -81,13 +81,10 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"fontSize": 12, "bold": true, "child": "same"}
+        {"darkenStart": 0, "lightenPerLevel": 25, "fontSize": 12, "fontStyle": "bold", "child": "same"}
       ],
       "fontEnabled": true,
-      "fontDecreasePerLevel": 2,
-      "colorEnabled": true,
-      "darkenStart": 0,
-      "lightenPerLevel": 25
+      "colorEnabled": true
     },
     "highlightRepeated": {
       "enabled": false,

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "name": "Test/FDP",
   "algorithm": "FDP",
   "params": {
@@ -71,13 +71,10 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"fontSize": 14, "child": "same"}
+        {"darkenStart": 0, "fontSize": 14, "child": "same"}
       ],
       "fontEnabled": false,
-      "fontDecreasePerLevel": 2,
-      "colorEnabled": false,
-      "lightenPerLevel": 15,
-      "darkenStart": 0
+      "colorEnabled": false
     },
     "highlightRepeated": {
       "enabled": false,

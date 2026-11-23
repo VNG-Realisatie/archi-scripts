@@ -121,5 +121,55 @@ eq(counts("2 Edited", expandSnapshot).expandView,
   eq(Counts.dialogCounts(after).steps.map(s => s.conditionCounts), [[{ elements: 0, relations: 0 }]], "2 Edited, step count cache after a filter change");
 }
 
+// ── Nesting style table: parents and children per condition, as the appearance pass styles the written view ──────
+{
+  global.Java = global.Java || { type: n => n.endsWith("Files") ? { readString: p => fs.readFileSync(String(p), "utf8"), exists: p => fs.existsSync(String(p)) } : { get: p => p } };
+  const Appearance = require("../lib/appearance");
+  const gemma = Defs.validatePreset(JSON.parse(fs.readFileSync(path.join(VIEW, "presets/Test/gemma/Bedrijfsfuncties background.json"), "utf8")));
+  const gp = Defs.effectiveParams(gemma);
+  const sel = modelTreeSelection("6 GEMMA");
+  const input = { ...countInput(sel, null), filter: gemma.filter,
+    steps: gemma.relatedElements.steps.map(step => ({ step, displayedConditions: shown("step", step.conditions, true), cache: new Map() })),
+    params: { nestingConditions: gp.nestingConditions, reverseConditions: gp.reverseConditions }, algorithm: gemma.algorithm,
+    layoutConditions: null, background: H.readBackground(model, gp.backgroundView) };
+  const quiet = console.log; console.log = () => {};
+  const c = Counts.dialogCounts(input);
+  console.log = quiet;
+  const nl = gemma.appearance.nestingLevel;
+  const settings = { colorEnabled: true, fontEnabled: true };
+  const got = Counts.nestingStyleCounts(nl.conditions, settings, c.nestingView, sel.relationsOf);
+
+  // The same chains on the New view the pipeline plans.
+  console.log = () => {};
+  const planned = H.planView(model, H.findView(model, "Views/Test/6 GEMMA"), gemma, Defs.ACTION.NEW_VIEW.id, true);
+  console.log = quiet;
+  const nodes = planned.writePlan.nodes.filter(n => "element" in n);
+  const byNode = new Map(nodes.map(n => [n.node, n]));
+  const depth = n => (n.parent ? 1 + depth(byNode.get(n.parent)) : 0);
+  const parents = new Set(nodes.map(n => n.parent));
+  const chainNodes = nodes.map(n => {
+    const parentEl = n.parent ? byNode.get(n.parent).element : null;
+    return { id: n.node, parentId: n.parent || null, type: n.element.type, element: n.element,
+             rels: parentEl ? Appearance.relsBetween(parentEl, n.element, sel.relationsOf) : [], depth: depth(n), isContainer: parents.has(n.node) };
+  });
+  const { styles } = Appearance.followNestingChains(chainNodes, nl.conditions);
+  const expected = nl.conditions.map((r, i) => {
+    const mine = [...styles].filter(([, st]) => st.nr === i + 1).map(([id]) => id);
+    return { parents: new Set(mine.map(id => byNode.get(id).parent).filter(Boolean)).size, children: mine.length };
+  });
+  eq(got.counts, expected, "nesting style: parents and children per condition match the chains on the planned view");
+  eq(got.counts.every(x => x.children > 0), true, "nesting style: every condition of the GEMMA preset styles something");
+
+  const bgConditions = nl.conditions.map((r, i) => (i === 2 ? { ...r, color: "background" } : r));
+  const bg = Counts.nestingStyleCounts(bgConditions, settings, c.nestingView, sel.relationsOf);
+  eq([...bg.warnings.keys()], [2], "nesting style: ⚠ on Background for elements not on the background view (the services)");
+  const noBg = Counts.nestingStyleCounts(bgConditions, settings, { ...c.nestingView, background: null }, sel.relationsOf);
+  eq(noBg.warnings.size, 0, "nesting style: no ⚠ on Background without a background view in use (the dialog shows the fallback)");
+  const off = Counts.nestingStyleCounts(bgConditions, { colorEnabled: false, fontEnabled: true }, c.nestingView, sel.relationsOf);
+  eq(off.warnings.size, 0, "nesting style: no ⚠ for a fill color while Color is off");
+  const same = Counts.nestingStyleCounts(nl.conditions.map((r, i) => (i === 0 ? { ...r, color: "same" } : r)), settings, c.nestingView, sel.relationsOf);
+  eq(/root container/.test(same.warnings.get(0) || ""), true, "nesting style: ⚠ on Same as parent for a root container");
+}
+
 if (failed) { console.log(`${failed} failed`); process.exit(1); }
 console.log("all counts tests passed");

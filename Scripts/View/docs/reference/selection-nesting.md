@@ -153,19 +153,20 @@ Examples:
 - A container has a table when one of its children on the background view is a container. With **Leaves in place** every container has one. The children of the other containers are only there: the layout places them, sorted and compact.
 - A cell gets its size from the table ([table sizes](#table-sizes)). A diagram object keeps its size and stands top left in its cell.
 - A child the background view does not hold in a table comes last, in a table row below, tiled freely; a child of the table that is not on the view drops out, and a table row or table column left without cells with it.
-- An element of the background view is styled as a container (*Style by nesting level*), also with nothing in it.
+- An element of the background view is styled as a container (*Color and font by nesting level*), also with nothing in it.
 - A diagram object of the background view lies in the element it lies in there; in none, it lies at the view's top level.
 
 **Model and background view differ.** The model leads. A child the background view has under another parent goes where the model puts it; a child of a table that is not on the background view comes last. Both are warned on the console, with what to move on the background view.
 
 **Expand view, Layout only** lay out the view in the table of the background view, for the containers on it; they add and leave out nothing. Their diagram objects are matched to those of the background view by content: type, name, text and size, a diagram-block its contents too; a copy edited on the view matches nothing.
 
-**Keep appearance.** Every action gives each element of the background view the appearance it has there:
-- What it keeps: fill, opacity, gradient, line color, width and style, font name, style and color, text alignment and position, figure, icon and image. The font size comes from *Style by nesting level*, or stays the default; the bold of a nesting style condition does not apply. A label expression is not kept.
+**Background look.** Every action gives each element of the background view the appearance it has there, as the base layer of its styling:
+- What it takes: fill, opacity, gradient, line color, width and style, font name, size, style and color, text alignment and position, figure, icon and image. A label expression and a note's text and border are not taken.
 - Which visual: an element the background view holds more than once (a nesting condition with *every container*) takes, per occurrence, the appearance of its visual in the same container there, else of its first. An element inside a diagram-block keeps that one's own.
-- Order: it comes after *Style by nesting level* and before *Highlight repeated* and *Style by property*, which still color it. Every run, *Layout only* too, takes it again from the background view as it is then.
-- The chain: a kept fill is the color of that element in *Style by nesting level*, unshaded. A child of the same type follows it one level lighter, whatever its condition color; any other child starts at a nesting color change.
-- Labels are measured in the font name and style it keeps, with its figure and text layout.
+- Order: it comes first; *Color and font by nesting level*, *Style by property* and *Highlight repeated* come over it. A condition overrides per appearance attribute; the value *Background* keeps the look's. Every run, *Layout only* too, takes it again from the background view as it is then; a Modify action does not reset it.
+- **Background** in a condition: each element its own value from its look, at every nesting level; *Lighter per level* and *Smaller per level* do not apply. An element not on the background view gets the fallback (*Type default*, 9 pt, normal) and the console says so per condition and view.
+- Labels are measured in the font name, style and size it has there, with its figure and text layout, unless a condition sets another.
+- **On / off.** With the background view off (*On* on the Layout tab) the run uses nothing of it: no elements, table, diagram objects or look. The preset keeps its choices, *Background* values included; they act as the fallback and the console says once which conditions this affects.
 
 ## Sizing refinements
 

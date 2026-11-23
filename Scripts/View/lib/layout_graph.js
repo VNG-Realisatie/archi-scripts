@@ -312,7 +312,7 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
  * @param {MaskedPreset}      preset
  * @param {import("./label_size").LabelInput} labels
  * @param {{ elements: Set<string>, looks: Map<string, BackgroundLook[]> }} background  elements of the background
- *   view, styled as containers; looks: Keep appearance, element id → its visuals there
+ *   view, styled as containers; looks: element id → its visuals there (the background look)
  * @returns {NodeLabels}
  */
 function _labelLayouts(nodes, elements, nesting, visualElements, preset, labels, background) {

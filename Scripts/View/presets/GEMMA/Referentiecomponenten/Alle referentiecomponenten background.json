@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "name": "GEMMA/Referentiecomponenten/Alle referentiecomponenten background",
   "algorithm": "Tiles",
   "params": {
@@ -42,10 +42,10 @@
     "connectionLabelSpacing": false,
     "backgroundView": {
       "id": "id-56a7581f8584418886517ed48d955ff4",
-      "path": "/Views/Beheer/Background views/Background alle referentiecomponenten"
+      "path": "/Views/Beheer/Background views/Background alle referentiecomponenten",
+      "on": true
     },
-    "backgroundLeavesInPlace": false,
-    "backgroundKeepAppearance": true
+    "backgroundLeavesInPlace": false
   },
   "filter": {
     "conditions": [],
@@ -111,14 +111,11 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "color": "Grouping", "fontSize": 16, "bold": true, "child": "same"},
-        {"direction": "outgoing", "relation": "aggregation-relationship", "child": "application-service", "color": "Applicatie gedrag", "fontSize": 10, "bold": true}
+        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "color": "background", "lightenPerLevel": 40, "fontSize": 16, "fontStyle": "background", "child": "same"},
+        {"direction": "outgoing", "relation": "aggregation-relationship", "child": "application-service", "color": "background", "lightenPerLevel": 40, "fontSize": 10, "fontStyle": "background"}
       ],
       "fontEnabled": true,
-      "fontDecreasePerLevel": 2,
-      "colorEnabled": true,
-      "darkenStart": 1,
-      "lightenPerLevel": 40
+      "colorEnabled": true
     },
     "highlightRepeated": {
       "enabled": false,

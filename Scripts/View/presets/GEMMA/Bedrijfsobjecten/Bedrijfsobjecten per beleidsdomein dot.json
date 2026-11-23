@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "name": "Bedrijfsobjecten/Bedrijfsobjecten per beleidsdomein dot",
   "algorithm": "Dot",
   "params": {
@@ -72,13 +72,10 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"direction": "outgoing", "relation": "aggregation-relationship", "fontSize": 16, "bold": true, "child": "same"}
+        {"direction": "outgoing", "relation": "aggregation-relationship", "darkenStart": 0, "lightenPerLevel": 25, "fontSize": 16, "fontStyle": "bold", "child": "same"}
       ],
       "fontEnabled": true,
-      "fontDecreasePerLevel": 2,
-      "colorEnabled": true,
-      "darkenStart": 0,
-      "lightenPerLevel": 25
+      "colorEnabled": true
     },
     "highlightRepeated": {
       "enabled": true,

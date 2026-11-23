@@ -16,10 +16,12 @@
  *               propertyOf, property, value }
  *   style     { on, applyTo, source, relation, target, propertyOf,        Appearance › Style by property
  *               property, colorRange }
- *   nestingStyle { on, parent, direction, relation, child, color,         Appearance › Style by nesting level
- *               fontSize, bold }
- *               (child "same" = the parent's type; color: a color name of the palette, "" = Default;
- *               fontSize, bold: the container where the condition starts; fontSize 0 = continue from the parent)
+ *   nestingStyle { on, parent, direction, relation, child,               Appearance › Color and font by nesting level
+ *               propertyOf, property, value, color, darkenStart,
+ *               lightenPerLevel, fontSize, fontStyle, fontDecreasePerLevel }
+ *               (child "same" = the parent's type; color: a color name of the palette or a hex, "" = Type default,
+ *               "same" = Same as parent, "background" = Background; fontStyle also "same" = the parent's style; fontSize, fontStyle: the start element;
+ *               fontSize 0 = continues from the parent; "background" = the value of the background look)
  *
  * Empty list: filter lists (global, step) keep everything (emptyMeansAll); feature lists (nesting,
  * reverse, style) select nothing. A condition that is off adds nothing and removes nothing, but an
@@ -41,7 +43,13 @@ const STYLE_APPLY_TO = Object.freeze(["element", "relation", "source", "target"]
 const STYLE_PROP_OF = Object.freeze(["element", "relation", "source", "target"]);
 const FILTER_APPLY_TO = Object.freeze(["element", "relation"]);
 const REL_PROP_OF   = Object.freeze(["relation", "source", "target"]);
-const SAME_TYPE     = "same";   // nestingStyle child: the same type as the parent
+const NEST_PROP_OF  = Object.freeze(["child", "parent", "relation"]);
+const FONT_STYLES   = Object.freeze(["normal", "bold", "italic", "bolditalic"]);
+const SAME_TYPE     = "same";         // nestingStyle child: the parent's type; color: Same as parent (the parent's fill color)
+const BACKGROUND    = "background";   // nestingStyle color, fontSize, fontStyle: the value of the background look
+// nestingStyle numbers: [min, max] of a whole number (the dialog's spinners).
+const NEST_NUMBERS  = Object.freeze({ darkenStart: [0, 3], lightenPerLevel: [5, 90], fontDecreasePerLevel: [1, 6] });
+const FONT_SIZES    = Object.freeze([8, 24]);   // fontSize besides 0 (continues) and Background
 
 // kind → { defaults, types: field → valid-set name, enums: field → allowed values }
 /** @type {Readonly<{ [K in ConditionKind]: ConditionKindSpec<ConditionByKind[K]> }>} */
@@ -75,9 +83,11 @@ const KINDS = Object.freeze({
     enums:    { applyTo: STYLE_APPLY_TO, propertyOf: STYLE_PROP_OF },
   },
   nestingStyle: {
-    defaults: { on: true, parent: "", direction: "either", relation: "", child: SAME_TYPE, color: "", fontSize: 0, bold: false },
+    defaults: { on: true, parent: "", direction: "either", relation: "", child: SAME_TYPE,
+                propertyOf: "child", property: "", value: "",
+                color: "", darkenStart: 1, lightenPerLevel: 15, fontSize: 0, fontStyle: "normal", fontDecreasePerLevel: 2 },
     types:    { parent: "elements", relation: "relations", child: "elements" },
-    enums:    { direction: DIRECTIONS },
+    enums:    { direction: DIRECTIONS, propertyOf: NEST_PROP_OF, fontStyle: [...FONT_STYLES, BACKGROUND, SAME_TYPE] },
     specials: { child: [SAME_TYPE] },
   },
 });
@@ -115,7 +125,7 @@ function normalizeCondition(kind, raw, valid, where) {
   const out = Object.assign({}, K.defaults);
   for (const [key, val] of Object.entries(raw)) {
     if (!(key in K.defaults)) return bad(`unknown key "${key}"`);
-    if (key === "on" || key === "everyContainer" || key === "bold") {
+    if (key === "on" || key === "everyContainer") {
       if (typeof val !== "boolean") return bad(`"${key}" must be true or false`);
       out[key] = val;
     } else if (key in K.types) {
@@ -124,8 +134,18 @@ function normalizeCondition(kind, raw, valid, where) {
       if (s !== "" && !special && !valid[K.types[key]].has(s)) return bad(`unknown ${key} "${s}"`);
       out[key] = s;
     } else if (key === "fontSize") {
-      if (!Number.isInteger(val) || /** @type {number} */ (val) < 0) return bad(`"fontSize" must be a whole number of points (0 = continue from the parent)`);
+      const n = /** @type {number} */ (val);
+      if (val !== BACKGROUND && val !== 0 && !(Number.isInteger(n) && n >= FONT_SIZES[0] && n <= FONT_SIZES[1]))
+        return bad(`"fontSize" must be 0 (continues from the parent), ${FONT_SIZES[0]} to ${FONT_SIZES[1]} points or "${BACKGROUND}"`);
       out.fontSize = val;
+    } else if (key in NEST_NUMBERS) {
+      const [min, max] = NEST_NUMBERS[/** @type {keyof typeof NEST_NUMBERS} */ (key)];
+      if (!Number.isInteger(val) || /** @type {number} */ (val) < min || /** @type {number} */ (val) > max) return bad(`"${key}" must be a whole number from ${min} to ${max}`);
+      out[key] = val;
+    } else if (key === "color") {
+      // A color of the preset's palette or a hex: checked at the run (appearance), where the palette is read.
+      if (typeof val !== "string") return bad(`"color" must be a palette color name, a hex, "", "${SAME_TYPE}" or "${BACKGROUND}"`);
+      out.color = val;
     } else if (K.enums[key]) {
       if (!K.enums[key].includes(val)) return bad(`${key} must be one of ${K.enums[key].join(", ")}`);
       out[key] = val;
@@ -422,20 +442,37 @@ function detectConditionConflicts(styled) {
 // ── Nesting style conditions ──────────────────────────────────────────────────
 
 /**
- * One nesting style condition against a nesting step parent → child. `rels` are the model relations
- * between the two elements, each with `outgoing` = the parent is its source. Relation All with
- * direction Either needs no relation (a nesting drawn by hand); otherwise a relation must match.
+ * One nesting style condition against a nesting step parent → child. `child.rels` are the model
+ * relations between the two elements, each with `outgoing` = the parent is its source. Relation All
+ * with direction Either and no property match on the relation needs no relation (a nesting drawn by
+ * hand); otherwise a relation must match. The property match reads the child, the parent or the
+ * matching relation.
  * @param {NestingStyleCondition} r
- * @param {string} parentType
- * @param {string} childType
- * @param {{ type: string, outgoing: boolean }[]} rels
+ * @param {NestingEnd} parent
+ * @param {NestingEnd & { rels: NestingRel[] }} child
  */
-function nestingStyleConditionMatches(r, parentType, childType, rels) {
-  if (!_typeOk(r.parent, parentType)) return false;
-  if (r.child === SAME_TYPE ? childType !== parentType : !_typeOk(r.child, childType)) return false;
-  if (!r.relation && r.direction === "either") return true;
-  return rels.some(x => _typeOk(r.relation, x.type) &&
-    (r.direction === "either" || (r.direction === "outgoing") === x.outgoing));
+function nestingStyleConditionMatches(r, parent, child) {
+  if (!_typeOk(r.parent, parent.type)) return false;
+  if (r.child === SAME_TYPE ? child.type !== parent.type : !_typeOk(r.child, child.type)) return false;
+  if (r.property && r.propertyOf !== "relation" && !_propOk(r, r.propertyOf === "parent" ? parent.element : child.element)) return false;
+  const onRelation = !!r.property && r.propertyOf === "relation";
+  if (!r.relation && r.direction === "either" && !onRelation) return true;
+  return child.rels.some(x => _typeOk(r.relation, x.type) &&
+    (r.direction === "either" || (r.direction === "outgoing") === x.outgoing) &&
+    (!onRelation || _propOk(r, x.relation)));
+}
+
+/**
+ * Whether a nesting style condition styles a root container: a root container of its child type
+ * (Parent type All or that type). A root has no parent and no relation to one, so a property match
+ * on the parent or a relation never selects it.
+ * @param {NestingStyleCondition} r
+ * @param {NestingEnd} root
+ */
+function nestingStyleConditionMatchesRoot(r, root) {
+  if (r.parent && r.parent !== root.type) return false;
+  if (r.child && r.child !== SAME_TYPE && r.child !== root.type) return false;
+  return !r.property || (r.propertyOf === "child" && _propOk(r, root.element));
 }
 
 // ── Preset files ────────────────────────────────────────────────────────────────
@@ -523,7 +560,7 @@ if (typeof module !== "undefined" && module.exports) {
     FILTER_APPLY_TO, filterRows, matchFilterRelation,
     defaultCondition, normalizeCondition, normalizeConditions, serializeCondition, isPassAll,
     evalConditions, matchElement, matchDiagram, matchRelation, matchEveryContainer, relationPropObject, matchStep, matchStepRelation,
-    styleConditionMatchesRelation, detectConditionConflicts, SAME_TYPE, nestingStyleConditionMatches,
+    styleConditionMatchesRelation, detectConditionConflicts, SAME_TYPE, BACKGROUND, FONT_STYLES, NEST_PROP_OF, nestingStyleConditionMatches, nestingStyleConditionMatchesRoot,
     compactPreset, stringifyPreset,
   };
 }

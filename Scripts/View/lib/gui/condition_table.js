@@ -35,6 +35,8 @@ const ConditionLists = require(REPO_ROOT + "View/lib/rel_filter");
 const Defs = require(REPO_ROOT + "View/lib/defs");
 /** @type {typeof import("./widgets")} */
 const Widgets = require(REPO_ROOT + "View/lib/gui/widgets");
+/** @type {typeof import("../appearance")} */
+const Appearance = require(REPO_ROOT + "View/lib/appearance");
 
 const { RELATION_TYPE_IDS, RELATION_TYPE_LABELS, ELEMENT_TYPES, ELEMENT_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, compareNames } = Defs;
 
@@ -49,6 +51,7 @@ const ComboWidget       = Java.type("org.eclipse.swt.widgets.Combo");
 const TextWidget        = Java.type("org.eclipse.swt.widgets.Text");
 const ListWidget        = Java.type("org.eclipse.swt.widgets.List");
 const ToolTipWidget     = Java.type("org.eclipse.swt.widgets.ToolTip");
+const SpinnerWidget     = Java.type("org.eclipse.swt.widgets.Spinner");
 const RowLayout         = Java.type("org.eclipse.swt.layout.RowLayout");
 const SWTGC             = Java.type("org.eclipse.swt.graphics.GC");
 const SWTPoint          = Java.type("org.eclipse.swt.graphics.Point");
@@ -67,6 +70,7 @@ const ANY        = "Any";       // the empty item of a property list in a pop-up
 const EMPTY      = "(empty)";   // the empty item of a value list: the property has no value
 const LIST_FIELD_WIDTH = 200;   // px of a property or value list in a pop-up
 const LIST_FIELD_ROWS  = 10;    // visible items of that list
+const NOTE_WIDTH = 220;  // px a field's note wraps at in a pop-up
 const TIP_DELAY  = 500;  // ms the mouse rests on a cell before its tooltip shows
 const TIP_OFFSET = 20;   // px between the mouse and the tooltip below it
 /** Column width when the column gives none. */
@@ -84,9 +88,11 @@ const WIDTH_BY_KIND = { check: 44, count: 36, warn: 24, prop: 100, value: 100, c
  *             count   read-only count, set with setCounts; "(n)" or col.format(n)
  *             warn    read-only "⚠", set with setWarnings
  *             color   a swatch and name; the palette menu of a ColorChoice (widgets.js): items, missing, fallback, other
- *             compound  col.summary(condition) in the cell; a click opens a small window with col.fields, one
- *                     column per field (choice: a combo; prop, value: a filtered list), OK and Cancel; OK
- *                     applies the fields and recounts, Cancel undoes them
+ *             compound  col.summary(condition) in the cell, after col.swatch(condition) when the column has it,
+ *                     and col.note(condition) in its tooltip; a click opens a small window with col.fields, one column per
+ *                     field (choice: a combo; prop, value: a filtered list; color: the palette menu; spin: a
+ *                     number; check: a checkbox; a field's get / set read and write it, note a line under it),
+ *                     OK and Cancel; OK applies the fields and recounts, Cancel undoes them
  *   width     width (px); cells keep it, nothing stretches with the dialog
  *   enabled   (condition) => boolean; the cell is greyed when false
  *             A condition that is off (on: false) greys its whole row except the "on" cell and ✕.
@@ -283,6 +289,25 @@ function conditionTable(parent, opts) {
 
   // ── Drawing ───────────────────────────────────────────────────────────────────
 
+  /** @type {Map<string, Swt.Font>} the table's font in bold, italic and both, made when first drawn */
+  const styledFonts = new Map();
+  /**
+   * The table's font in a font style; null for normal or an unknown style.
+   * @param {string} style  normal, bold, italic or bolditalic
+   */
+  const styledFont = style => {
+    const bits = (style.includes("bold") ? SWT.BOLD : 0) | (style.includes("italic") ? SWT.ITALIC : 0);
+    if (!bits) return null;
+    let f = styledFonts.get(style);
+    if (!f) {
+      const FontDescriptor = Java.type("org.eclipse.jface.resource.FontDescriptor");
+      f = FontDescriptor.createFrom(table.getFont()).setStyle(bits).createFont(table.getDisplay());
+      styledFonts.set(style, f);
+    }
+    return f;
+  };
+  table.addListener(SWT.Dispose, () => styledFonts.forEach(f => f.dispose()));
+
   table.addListener(SWT.MeasureItem, e => { e.height = rowH; });
   // The table draws nothing of its own: no selection, hover or focus highlight, no text.
   table.addListener(SWT.EraseItem, e => { e.detail &= ~(SWT.SELECTED | SWT.HOT | SWT.FOCUSED | SWT.FOREGROUND); });
@@ -316,7 +341,8 @@ function conditionTable(parent, opts) {
     const condition = conditions[i];
     const col = ci < vcols.length ? vcols[ci] : null;
     const on = cellOn(col, condition);
-    gc.setForeground(d.getSystemColor(on ? SWT.COLOR_WIDGET_FOREGROUND : SWT.COLOR_WIDGET_NORMAL_SHADOW));
+    const fg = () => d.getSystemColor(on ? SWT.COLOR_WIDGET_FOREGROUND : SWT.COLOR_WIDGET_NORMAL_SHADOW);
+    gc.setForeground(fg());
     const ty = r.y + Math.floor((r.height - textH) / 2);
     let x = r.x + CELL_PAD, w = r.width - 2 * CELL_PAD;
     if (!col) {
@@ -325,10 +351,11 @@ function conditionTable(parent, opts) {
       Widgets.drawCheck(gc, d, r.x + Math.floor((r.width - Widgets.CHECK_SIZE) / 2), r.y + Math.floor((r.height - Widgets.CHECK_SIZE) / 2),
         checked(col, condition), on);
     } else {
-      if (col.kind === "color") {
-        const sw = col.swatchWidth || Widgets.SWATCH_W;
-        Widgets.drawSwatch(gc, d, x, r.y + Math.floor((r.height - Widgets.SWATCH_H) / 2), sw, colorItem(col, condition).colors, on);
-        gc.setForeground(d.getSystemColor(on ? SWT.COLOR_WIDGET_FOREGROUND : SWT.COLOR_WIDGET_NORMAL_SHADOW));
+      const swatch = col.kind === "color" ? colorItem(col, condition).colors : col.kind === "compound" && col.swatch ? col.swatch(condition) : null;
+      if (swatch) {
+        const sw = (col.kind === "color" && col.swatchWidth) || Widgets.SWATCH_W;
+        Widgets.drawSwatch(gc, d, x, r.y + Math.floor((r.height - Widgets.SWATCH_H) / 2), sw, swatch, on);
+        gc.setForeground(fg());
         x += sw + CELL_PAD; w -= sw + CELL_PAD;
       }
       const opens = col.kind === "choice" || col.kind === "prop" || col.kind === "value" || col.kind === "color" || col.kind === "compound";
@@ -337,7 +364,10 @@ function conditionTable(parent, opts) {
         gc.drawText(ARROW, r.x + r.width - CELL_PAD - aw, ty, SWT.DRAW_TRANSPARENT);
         w -= aw + ARROW_PAD;
       }
+      const styled = col.kind === "compound" && col.textStyle ? styledFont(col.textStyle(condition)) : null;
+      if (styled) gc.setFont(styled);
       gc.drawText(fitText(gc, cellText(col, condition, i), w), x, ty, SWT.DRAW_TRANSPARENT);
+      if (styled) gc.setFont(table.getFont());
     }
     if (table.isFocusControl() && cursor.row === i && cursor.col === ci) drawCursor(gc, r);
   }
@@ -469,7 +499,7 @@ function conditionTable(parent, opts) {
     const before = Object.assign({}, condition);
     const panel = Widgets.openFieldsWindow(table, cellOnScreen(cell.row, cell.col), {
       title: windowTitle(col, cell.row, condition),
-      columns: col.fields.length,
+      columns: col.fields.filter(f => !f.visible || f.visible(condition)).length,
       onOk: () => afterChange(col, condition),
       onCancel: () => { Object.assign(condition, before); table.redraw(); },
       onClose: () => { if (!table.isDisposed()) table.setFocus(); },
@@ -478,27 +508,44 @@ function conditionTable(parent, opts) {
     const updates = [];
     // A choice changes the condition and the other fields; the dialog recounts once, on OK: counting
     // a large selection takes seconds, too long per click in a list.
-    const commit = (/** @type {ConditionTableColumn<ConditionByKind[K]>} */ field) => {
+    const commit = (/** @type {ConditionTableField<ConditionByKind[K]>} */ field) => {
       if (field.onChange) field.onChange(condition);
       if (col.onChange) col.onChange(condition);
       updates.forEach(u => u());
+      const win = panel.body.getShell();   // a note that appeared or went: the window fits its fields again
+      const size = win.computeSize(SWT.DEFAULT, SWT.DEFAULT);
+      const area = win.getMonitor().getClientArea(), at = win.getBounds();
+      win.setBounds(Math.max(area.x, Math.min(at.x, area.x + area.width - size.x)), at.y, size.x, size.y);   // stays on its monitor
+      win.layout(true, true);
     };
     /** @type {Swt.Control | null} */
     let first = null;
-    for (const field of col.fields) {
+    for (const field of col.fields.filter(f => !f.visible || f.visible(condition))) {
       const box = new CompositeWidget(panel.body, SWT.NONE);
       GridLayoutFactory.fillDefaults().numColumns(1).spacing(0, 4).applyTo(box);
       GridDataFactory.fillDefaults().align(SWT.FILL, SWT.FILL).applyTo(box);
       const lbl = new LabelWidget(box, SWT.NONE);
       lbl.setText(field.header || "");
       if (field.tooltip) lbl.setToolTipText(field.tooltip);
-      const f = field.kind === "choice" ? _choiceField(box, field, condition, commit) : _listField(box, field, condition, cell.row, commit);
+      const f = field.kind === "choice" ? _choiceField(box, field, condition, commit)
+              : field.kind === "color" ? _colorField(box, field, condition, commit)
+              : field.kind === "spin" ? _spinField(box, field, condition, commit)
+              : field.kind === "check" ? _checkField(box, field, condition, commit)
+              : _listField(box, field, condition, cell.row, commit);
       f.controls.forEach(c => { if (field.tooltip) c.setToolTipText(field.tooltip); });
+      const note = field.note ? Widgets.noteLabel(box, "") : null;
+      if (note) GridDataFactory.fillDefaults().hint(NOTE_WIDTH, SWT.DEFAULT).applyTo(note);
       const update = () => {
         f.update();
         const on = !field.enabled || field.enabled(condition);
         lbl.setEnabled(on);
         f.controls.forEach(c => { c.setEnabled(on); if (!on && c instanceof ListWidget) c.deselectAll(); });
+        if (note && field.note) {
+          const text = field.note(condition);
+          note.setText(text);
+          note.setVisible(!!text);
+          note.getLayoutData().exclude = !text;   // an empty note takes no room
+        }
       };
       updates.push(update);
       update();
@@ -508,11 +555,75 @@ function conditionTable(parent, opts) {
   }
 
   /**
+   * The value of a field of a compound cell: its get, else the condition's field by key.
+   * @param {ConditionTableField<ConditionByKind[K]>} field
+   * @param {ConditionByKind[K] & Record<string, any>} condition
+   */
+  const fieldValue = (field, condition) => (field.get ? field.get(condition) : condition[field.key]);
+  /**
+   * @param {ConditionTableField<ConditionByKind[K]>} field
+   * @param {ConditionByKind[K] & Record<string, any>} condition
+   * @param {unknown} value
+   */
+  const setField = (field, condition, value) => { if (field.set) field.set(condition, value); else condition[field.key] = value; };
+
+  /**
+   * A color field of a compound cell: the palette menu of its ColorChoice.
+   * @param {Swt.Composite} box
+   * @param {ConditionTableColorColumn<ConditionByKind[K]>} field
+   * @param {ConditionByKind[K] & Record<string, any>} condition
+   * @param {(field: ConditionTableField<ConditionByKind[K]>) => void} commit
+   */
+  function _colorField(box, field, condition, commit) {
+    const picker = Widgets.colorPicker(box, Object.assign({}, field, {
+      value: String(fieldValue(field, condition) || ""), width: field.width,
+      onChange: (/** @type {string} */ v) => { if (v !== fieldValue(field, condition)) { setField(field, condition, v); commit(field); } },
+    }));
+    return { controls: [picker.button], update: () => picker.set(String(fieldValue(field, condition) || "")) };
+  }
+
+  /**
+   * A number field of a compound cell: a spinner with its unit behind it.
+   * @param {Swt.Composite} box
+   * @param {ConditionTableSpinColumn<ConditionByKind[K]>} field
+   * @param {ConditionByKind[K] & Record<string, any>} condition
+   * @param {(field: ConditionTableField<ConditionByKind[K]>) => void} commit
+   */
+  function _spinField(box, field, condition, commit) {
+    const cellBox = new CompositeWidget(box, SWT.NONE);
+    GridLayoutFactory.fillDefaults().numColumns(2).spacing(4, 0).applyTo(cellBox);
+    const spinner = new SpinnerWidget(cellBox, SWT.BORDER);
+    spinner.setValues(Number(fieldValue(field, condition)), field.min, field.max, 0, field.step || 1, field.step || 1);
+    GridDataFactory.swtDefaults().hint(Widgets.SPINNER_WIDTH, SWT.DEFAULT).applyTo(spinner);
+    const unit = new LabelWidget(cellBox, SWT.NONE);
+    unit.setText(field.unit || "");
+    spinner.addListener(SWT.Modify, () => {
+      const v = spinner.getSelection();
+      if (v !== fieldValue(field, condition)) { setField(field, condition, v); commit(field); }
+    });
+    return { controls: [spinner, unit], update: () => { if (spinner.getSelection() !== fieldValue(field, condition)) spinner.setSelection(Number(fieldValue(field, condition))); } };
+  }
+
+  /**
+   * A switch of a compound cell: a checkbox with its text.
+   * @param {Swt.Composite} box
+   * @param {ConditionTablePlainColumn<ConditionByKind[K]>} field
+   * @param {ConditionByKind[K] & Record<string, any>} condition
+   * @param {(field: ConditionTableField<ConditionByKind[K]>) => void} commit
+   */
+  function _checkField(box, field, condition, commit) {
+    const btn = new ButtonWidget(box, SWT.CHECK);
+    btn.setText(field.text || "");
+    btn.addListener(SWT.Selection, () => { setField(field, condition, btn.getSelection()); commit(field); });
+    return { controls: [btn], update: () => btn.setSelection(!!fieldValue(field, condition)) };
+  }
+
+  /**
    * A choice field of a compound cell: a read-only combo.
    * @param {Swt.Composite} box
    * @param {ConditionTableChoiceColumn<ConditionByKind[K]>} field
    * @param {ConditionByKind[K] & Record<string, any>} condition
-   * @param {(field: ConditionTableColumn<ConditionByKind[K]>) => void} commit
+   * @param {(field: ConditionTableField<ConditionByKind[K]>) => void} commit
    */
   function _choiceField(box, field, condition, commit) {
     const combo = new ComboWidget(box, SWT.READ_ONLY | SWT.DROP_DOWN);
@@ -520,9 +631,9 @@ function conditionTable(parent, opts) {
     GridDataFactory.swtDefaults().applyTo(combo);
     combo.addListener(SWT.Selection, () => {
       const it = field.items[combo.getSelectionIndex()];
-      if (it) { condition[field.key] = it.value; commit(field); }
+      if (it) { setField(field, condition, it.value); commit(field); }
     });
-    const update = () => combo.select(field.items.findIndex(it => it.value === condition[field.key]));
+    const update = () => combo.select(field.items.findIndex(it => it.value === fieldValue(field, condition)));
     return { controls: [combo], update };
   }
 
@@ -532,7 +643,7 @@ function conditionTable(parent, opts) {
    * @param {ConditionTablePlainColumn<ConditionByKind[K]>} field
    * @param {ConditionByKind[K] & Record<string, any>} condition
    * @param {number} row
-   * @param {(field: ConditionTableColumn<ConditionByKind[K]>) => void} commit
+   * @param {(field: ConditionTableField<ConditionByKind[K]>) => void} commit
    */
   function _listField(box, field, condition, row, commit) {
     const txt = new TextWidget(box, SWT.SEARCH | SWT.ICON_CANCEL | SWT.BORDER);
@@ -611,7 +722,10 @@ function conditionTable(parent, opts) {
     if (!condition) return "";
     if (!col) return DEL_TIP;
     if (col.kind === "warn") return warnings.get(cell.row) || "";
-    if (col.kind === "compound") { const s = col.summary(condition); return s && s !== "—" ? `${s}\n${col.tooltip || ""}` : col.tooltip || ""; }   // the whole summary, also when the cell cuts it off
+    if (col.kind === "compound") {   // the whole summary, also when the cell cuts it off, and what it stands for
+      const s = col.summary(condition);
+      return [s && s !== ANY ? s : "", col.note ? col.note(condition) : "", col.tooltip || ""].filter(Boolean).join("\n");
+    }
     if (cell.col === 0 && opts.rowTooltip) return opts.rowTooltip(condition);
     return col.tooltip || "";
   };
@@ -800,7 +914,7 @@ const _typeCol = (key, header, tooltip, width) => ({ key, header, tooltip, kind:
 const _relCol  = (key, header, tooltip) => ({ key, header, tooltip, kind: "choice", items: RELATION_ITEMS, width: 136 });
 /**
  * The property match of a condition as one compound cell: Property of (when the kind has it), Property
- * and Value. The cell shows "Status = Actief", with Property of its short label "Source: Status = Actief"; "—" without one.
+ * and Value. The cell shows "Status = Actief", with Property of its short label "Source: Status = Actief"; "Any" without one, as the window's list names it.
  * @param {string} tooltip
  * @param {ConditionTableChoiceColumn} [propOf]  the Property of field
  * @returns {ConditionTableCompoundColumn<any>}
@@ -813,7 +927,7 @@ const _propCol = (tooltip, propOf) => ({
     { key: "value", header: "Value", kind: "value", enabled: r => !!r.property, tooltip: "The value the property must have." },
   ],
   summary: r => {
-    if (!r.property) return "—";
+    if (!r.property) return ANY;
     const it = propOf ? propOf.items.find(i => i.value === r.propertyOf) : undefined;
     return `${it ? (it.short || it.label) + ": " : ""}${r.property} = ${r.value === "" ? EMPTY : r.value}`;
   },
@@ -933,40 +1047,150 @@ function styleConditionColumns(ranges) {
   return Object.freeze(columns);
 }
 
-/** @type {readonly ConditionTableItem[]} */
-const FONT_SIZE_ITEMS = Object.freeze([{ value: 0, label: "" }, ...Array.from({ length: 17 }, (_, i) => ({ value: i + 8, label: String(i + 8) }))]);
+const BACKGROUND_ITEM = Object.freeze({ value: ConditionLists.BACKGROUND, label: "Background" });
 const SAME_AS_PARENT = Object.freeze({ value: ConditionLists.SAME_TYPE, label: "Same as parent" });
 const CHILD_ITEMS = Object.freeze([SAME_AS_PARENT, ...ELEMENT_ITEMS]);
-/** The nesting style color's items before the palette's: the child type's default fill, and the parent's color. */
-const COLOR_LEADING = Object.freeze([{ value: "", label: "Type default" }, SAME_AS_PARENT]);
+/** The fill color's items before the palette's: the background look, the child type's default fill, and the parent's fill color. */
+const COLOR_LEADING = Object.freeze([BACKGROUND_ITEM, { value: "", label: "Type default" }, SAME_AS_PARENT]);
+/** @type {readonly ConditionTableItem[]} */
+const FONT_SIZE_ITEMS = Object.freeze([BACKGROUND_ITEM, { value: 0, label: "Same as parent" }, ...Array.from({ length: 17 }, (_, i) => ({ value: i + 8, label: String(i + 8) }))]);
+/** @type {readonly ConditionTableItem[]} */
+const FONT_STYLE_ITEMS = Object.freeze([BACKGROUND_ITEM, SAME_AS_PARENT, { value: "normal", label: "Normal" }, { value: "bold", label: "Bold" },
+  { value: "italic", label: "Italic" }, { value: "bolditalic", label: "Bold italic" }]);
+const NEST_PROP_OF_ITEMS = Object.freeze([
+  { value: "child", label: "Child element", short: "Child" }, { value: "parent", label: "Parent element", short: "Parent" },
+  { value: "relation", label: "Relation", short: "Relation" },
+]);
+// The descriptions of the choice values, under the field in the window (worded alike: Background is the same for every field).
+const NOTE_BACKGROUND = "Use the value from the element's background look.";
+
 
 /**
- * Columns of the nesting style table; the color cell lists the colors of the chosen palette.
- * The color and font cells are greyed while their switch (Color, Font) is off.
+ * A nesting style condition as the dialog shows it: without a background view in use, a Background value
+ * shows its fallback (Type default, 9 pt, normal), which the preset does not take until another value is chosen.
+ * @param {() => boolean} background  a background view is chosen and on
+ */
+function _shown(background) {
+  const BG = ConditionLists.BACKGROUND;
+  const standIn = (/** @type {unknown} */ v) => v === BG && !background();
+  return {
+    standIn,
+    color:     (/** @type {NestingStyleCondition} */ r) => (standIn(r.color) ? "" : r.color),
+    fontSize:  (/** @type {NestingStyleCondition} */ r) => (standIn(r.fontSize) ? Appearance.DEFAULT_FONT_SIZE : r.fontSize),
+    fontStyle: (/** @type {NestingStyleCondition} */ r) => (standIn(r.fontStyle) ? Appearance.DEFAULT_FONT_STYLE : r.fontStyle),
+  };
+}
+const NOTE_STAND_IN = "Background, but the background view is off (Layout tab): this default is used. The preset keeps Background.";
+
+/**
+ * The Color cell of a nesting style condition: the fill color, Start darker and Lighter per level.
  * @param {() => readonly { name: string, hex: string }[]} colors
- * @param {{ color: () => boolean, font: () => boolean }} switches
+ * @param {{ color: () => boolean, background: () => boolean }} switches
+ * @returns {ConditionTableCompoundColumn<NestingStyleCondition>}
+ */
+function _nestColorCol(colors, switches) {
+  const BG = ConditionLists.BACKGROUND;
+  const shown = _shown(switches.background);
+  const withBackground = Widgets.paletteColorChoice(colors, COLOR_LEADING);
+  const withoutBackground = Widgets.paletteColorChoice(colors, COLOR_LEADING.filter(it => it !== BACKGROUND_ITEM));
+  /** @type {ColorChoice} the items without Background while no background view is in use */
+  const choice = Object.assign({}, withBackground, { items: () => (switches.background() ? withBackground : withoutBackground).items() });
+  const darker  = (/** @type {NestingStyleCondition} */ r) => (r.darkenStart > 0 ? ` −${r.darkenStart}` : "");
+  const lighter = (/** @type {NestingStyleCondition} */ r) => ` +${r.lightenPerLevel}%`;
+  const label   = (/** @type {NestingStyleCondition} */ r) => Widgets.colorItemFor(choice, shown.color(r)).item.label;
+  return {
+    key: "color", header: "Color", kind: "compound", width: 170, enabled: () => switches.color(),
+    tooltip: "Fill color applied to the child. Click to configure.",
+    note: r => (shown.standIn(r.color) ? NOTE_STAND_IN : ""),
+    fields: [
+      Object.assign({ key: "color", header: "Fill color", kind: /** @type {"color"} */ ("color"), width: 190,
+        tooltip: "Fill color applied to the child.", get: shown.color,
+        note: (/** @type {NestingStyleCondition} */ r) => shown.standIn(r.color) ? NOTE_STAND_IN
+          : r.color === BG ? NOTE_BACKGROUND
+          : r.color === ConditionLists.SAME_TYPE ? "Use the parent's fill color, one step lighter."
+          : r.color === "" ? "Use the default fill color defined for the element type in Archi." : "" }, choice),
+      { key: "darkenStart", header: "Start darker", kind: "spin", min: 0, max: 3, unit: "levels",
+        enabled: r => shown.color(r) !== BG && r.color !== ConditionLists.SAME_TYPE,
+        tooltip: "Darken the fill color by this many levels where the type or the fill color changes from parent to child." },
+      { key: "lightenPerLevel", header: "Lighter per level", kind: "spin", min: 5, max: 90, step: 5, unit: "%",
+        enabled: r => shown.color(r) !== BG,
+        tooltip: "Move the fill color this percentage closer to white at each deeper level." },
+    ],
+    summary: r => shown.color(r) === BG ? label(r)
+      : r.color === ConditionLists.SAME_TYPE ? label(r) + lighter(r)
+      : label(r) + darker(r) + lighter(r),
+    swatch: r => Widgets.colorItemFor(choice, shown.color(r)).item.colors,
+  };
+}
+
+/**
+ * The Font cell of a nesting style condition: font size, font style (Background, Bold, Italic) and Smaller per level.
+ * @param {{ font: () => boolean, background: () => boolean }} switches
+ * @returns {ConditionTableCompoundColumn<NestingStyleCondition>}
+ */
+function _nestFontCol(switches) {
+  const BG = ConditionLists.BACKGROUND;
+  const shown = _shown(switches.background);
+  const STYLE_WORDS = { normal: "normal", bold: "bold", italic: "italic", bolditalic: "bold italic" };
+  const STYLE_TIP = "Font style applied to the start element. Deeper levels use normal style.";
+  return {
+    key: "fontSize", header: "Font", kind: "compound", width: 210, enabled: () => switches.font(),
+    tooltip: "Font applied to the child. Click to configure.",
+    note: r => (shown.standIn(r.fontSize) || shown.standIn(r.fontStyle) ? NOTE_STAND_IN : ""),
+    fields: [
+      { key: "fontSize", header: "Font size", kind: "choice", get: shown.fontSize,
+        get items() { return switches.background() ? FONT_SIZE_ITEMS : FONT_SIZE_ITEMS.filter(it => it !== BACKGROUND_ITEM); },
+        tooltip: "Font size applied to the start element.",
+        note: r => shown.standIn(r.fontSize) ? NOTE_STAND_IN : r.fontSize === BG ? NOTE_BACKGROUND
+          : r.fontSize === 0 ? "Use the parent's font size, smaller by Smaller per level." : "" },
+      { key: "fontStyle", header: "Font style", kind: "choice", tooltip: STYLE_TIP,
+        get: shown.fontStyle,
+        get items() { return switches.background() ? FONT_STYLE_ITEMS : FONT_STYLE_ITEMS.filter(it => it !== BACKGROUND_ITEM); },
+        note: r => shown.standIn(r.fontStyle) && !shown.standIn(r.fontSize) ? NOTE_STAND_IN : r.fontStyle === BG ? NOTE_BACKGROUND
+          : r.fontStyle === ConditionLists.SAME_TYPE ? "Use the parent's font style." : "" },
+      { key: "fontDecreasePerLevel", header: "Smaller per level", kind: "spin", min: 1, max: 6, unit: "pt",
+        enabled: r => shown.fontSize(r) !== BG,
+        tooltip: "Reduce the font size by this many points at each deeper level, down to a minimum of 9 pt." },
+    ],
+    summary: r => {
+      const size = shown.fontSize(r), style = shown.fontStyle(r);
+      if (size === BG && style === BG) return "Background";
+      const sizeText = size === BG ? "Background" : size ? String(size) : "Same as parent";
+      const smaller = size === BG ? "" : ` −${r.fontDecreasePerLevel}`;
+      // A chosen style is the cell's own font (textStyle); Background and Same as parent are named.
+      const named = style === BG ? ", Background style" : style === ConditionLists.SAME_TYPE ? ", style Same as parent" : "";
+      if (size === 0 && style === ConditionLists.SAME_TYPE) return "Same as parent" + smaller;
+      return `${sizeText}${smaller}${named}`;
+    },
+    textStyle: r => { const s = shown.fontStyle(r); return s in STYLE_WORDS ? s : "normal"; },
+  };
+}
+
+/**
+ * Columns of the nesting style table (Color and font by nesting level): the nesting step, the property match,
+ * and the Color and Font cells, greyed while their switch (Color, Font) is off.
+ * @param {() => readonly { name: string, hex: string }[]} colors  the colors of the chosen palette
+ * @param {{ color: () => boolean, font: () => boolean, background: () => boolean }} switches  background: a background view is chosen and on
  * @returns {readonly ConditionTableColumn<NestingStyleCondition>[]}
  */
 function nestingStyleConditionColumns(colors, switches) {
   return Object.freeze([
     _onCol,
-    _typeCol("parent", "Parent type", "Type of the container. A root container counts as a child under a container of its own type.", 150),
-    { key: "direction", header: "Direction", kind: "choice", items: DIRECTION_ITEMS, width: 90,
+    Object.assign(_typeCol("parent", "Parent type", "Type of the parent container.\n" +
+      "(n): number of containers on the predicted view whose children this condition styles.", 140), { count: "parents" }),
+    { key: "direction", header: "Direction", kind: "choice", items: DIRECTION_ITEMS, width: 80,
       tooltip: "Outgoing: the relation starts at the parent; Incoming: it ends there; Either: both (default).\n" +
                "Either with relation All also matches a nesting without a relation." },
     _relCol("relation", "Relation type", "The model relation between parent and child. All = any type."),
-    { key: "child", header: "Child type", kind: "choice", items: CHILD_ITEMS, width: 158,   // fits "Same as parent"
-      tooltip: "Type of the nested element the condition selects; Same as parent: the parent's type.\n" +
-               "All = any type." },
-    { key: "color", header: "Color", kind: "color", width: 190, enabled: () => switches.color(),
-      tooltip: "Color of the selected elements: a palette color, Other…, Type default (the fill of the child's type)\n" +
-               "or Same as parent (the parent's color, one level lighter). Lighter per level; when conditions select the same element the most specific wins.",
-      ...Widgets.paletteColorChoice(colors, COLOR_LEADING) },
-    { key: "fontSize", header: "Font size", kind: "choice", items: FONT_SIZE_ITEMS, width: 70, enabled: () => switches.font(),
-      tooltip: "Font size of the container where the condition starts; empty: continues from its parent.\n" +
-               "Each level deeper is smaller by Smaller per level." },
-    { key: "bold", header: "Bold", kind: "check", width: 44, default: false, enabled: () => switches.font(),
-      tooltip: "Bold for the container where the condition starts; deeper containers are not bold." },
+    { key: "child", header: "Child type", kind: "choice", items: CHILD_ITEMS, width: 160, count: "children",
+      tooltip: "Type of the child element this condition styles; Same as parent: the parent's type.\n" +
+               "(n): number of matching elements on the predicted view, one nesting level deep." },
+    Object.assign(_propCol("Match only when the child, parent or relation has the specified property value. Click to configure. Empty: any value.",
+      { key: "propertyOf", header: "Property of", kind: "choice", items: NEST_PROP_OF_ITEMS,
+        tooltip: "Whose property is read: the child, the parent or the relation between them." }), { width: 160 }),
+    _nestColorCol(colors, switches),
+    _nestFontCol(switches),
+    { key: "warn", kind: "warn" },
   ]);
 }
 

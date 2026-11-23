@@ -441,13 +441,13 @@ function getSeedElements(uiSelection) {
 
 /**
  * The background view a preset names: its elements, its diagram objects with their diagram-blocks,
- * and the table of its boxes. null when the preset names none.
+ * and the table of its boxes. null when the preset names none, or the background view is off.
  * @param {BackgroundRef | undefined} ref  absent where the algorithm has no background (effectiveParams)
  * @returns {BackgroundSnapshot | null}
  * @throws when the view is not in the model
  */
 function readBackground(ref) {
-  if (!ref || (!ref.id && !ref.path)) return null;
+  if (!ref || !ref.on || (!ref.id && !ref.path)) return null;
   const view = findBackgroundView(ref);
   if (!view) throw new Error(`Background view "${ref.path || ref.id}" is not in this model. Choose a view on the Layout tab (Background), or empty the field.`);
   const path = viewPath(view);

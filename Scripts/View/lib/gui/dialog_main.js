@@ -109,6 +109,7 @@ function open(uiSelection) {
   const ctx = /** @type {DialogContext} */ ({ config, widgets: w, uiSelection, firstName: "", relBlocks: /** @type {StepBlock[]} */ ([]),
     recount: () => _updateFilteredCount(ctx), markModified: () => PresetRow.markModified(ctx),
     backgroundChanged: () => { _readBackgroundField(ctx); _updateFilteredCount(ctx); },
+    nestingStyleChanged: () => TabAppearance.updateNestingStyleCounts(ctx),
     backgroundNames: () => _backgroundNames(ctx),
     saveUI: () => _saveUI(ctx), syncToUI: () => _syncToUI(ctx), refreshAction: () => _refreshAction(ctx) });  // firstName set below
 
@@ -494,10 +495,12 @@ function _updateFilteredCount(ctx) {
     (ctx.relBlocks || []).forEach(b => _setStepAdds(b, 0, 0));
     ctx.predicted = null;
     TabAppearance.updateStyleWarnings(ctx);
+    TabAppearance.updateNestingStyleCounts(ctx);
     _refreshAction(ctx);
     return;
   }
 
+  ctx.backgroundInUse = _backgroundInUse(ctx);
   try {
     _showCounts(ctx, Counts.dialogCounts(_countInput(ctx, objects)));
   } catch (e) {
@@ -506,6 +509,7 @@ function _updateFilteredCount(ctx) {
     (ctx.relBlocks || []).forEach(b => _setStepAdds(b, 0, 0));
   }
   TabAppearance.updateStyleWarnings(ctx);
+  TabAppearance.updateNestingStyleCounts(ctx);
   _refreshAction(ctx);
 }
 
@@ -545,8 +549,16 @@ function _countInput(ctx, objects) {
     relationsOf: ctx.relationsOf,
     visuals: ctx.visuals,
     expandSnapshot: ctx.expandSnapshot || null,
-    background: Defs.ALGORITHMS[TabLayout.selectedAlgorithm(w)].activeParams.includes("backgroundView") ? ctx.background || null : null,
+    background: _backgroundInUse(ctx) ? ctx.background || null : null,
   };
+}
+
+/**
+ * Whether the view in the Background field takes part: read (named, found and on) and used by the chosen algorithm.
+ * @param {DialogContext} ctx
+ */
+function _backgroundInUse(ctx) {
+  return !!ctx.background && Defs.ALGORITHMS[TabLayout.selectedAlgorithm(ctx.widgets)].activeParams.includes("backgroundView");
 }
 
 /**
@@ -1126,7 +1138,7 @@ function _fillWidgets(ctx) {
   }
 
   // Layout params (validatePreset guarantees every key is present)
-  for (const [key, def] of Object.entries(TabLayout.PARAM_WIDGETS)) _paramToWidget(w[def.w], def, /** @type {Record<string, unknown>} */ (p)[key]);   // Cast: key is a params key
+  for (const [key, def] of Object.entries(TabLayout.PARAM_WIDGETS)) _paramToWidget(w[def.w], def, /** @type {Record<string, unknown>} */ (p)[key], w);   // Cast: key is a params key
   _readBackgroundField(ctx);
   _spinSet(w.spinMaxWidth, p.maxWidth);
   let arIdx = AR_OPTIONS.findIndex(a => a.val === p.aspectRatio);
@@ -1191,10 +1203,7 @@ function _fillWidgets(ctx) {
   // Feature 4 — Style by nesting level
   if (w.tblNestingStyleConditions) w.tblNestingStyleConditions.setConditions(nl.conditions);
   if (w.chkNestFont)        w.chkNestFont.setSelection(!!(nl.fontEnabled));
-  if (w.spinNestFontDecrease) w.spinNestFontDecrease.setSelection(nl.fontDecreasePerLevel !== undefined ? nl.fontDecreasePerLevel : DA.nestingLevel.fontDecreasePerLevel);
   if (w.chkNestColor)       w.chkNestColor.setSelection(!!(nl.colorEnabled));
-  if (w.spinNestDarken)     w.spinNestDarken.setSelection(nl.darkenStart);
-  if (w.spinNestLighten)     w.spinNestLighten.setSelection(nl.lightenPerLevel !== undefined ? nl.lightenPerLevel : DA.nestingLevel.lightenPerLevel);
 
   // Feature 5 — Highlight repeated elements
   if (w.chkHighlightRep)       w.chkHighlightRep.setSelection(!!(hr.enabled));
@@ -1216,7 +1225,7 @@ function _saveUI(ctx) {
   if (w.algRadios) c.algorithm = TabLayout.selectedAlgorithm(w);
   for (const [key, def] of Object.entries(TabLayout.PARAM_WIDGETS)) {
     const ctrl = w[def.w];
-    if (ctrl) /** @type {Record<string, unknown>} */ (c.params)[key] = _paramFromWidget(ctrl, def);   // Cast: key is a params key
+    if (ctrl) /** @type {Record<string, unknown>} */ (c.params)[key] = _paramFromWidget(ctrl, def, w);   // Cast: key is a params key
   }
   if (w.spinMaxWidth)         c.params.maxWidth = w.spinMaxWidth.getSelection();
   const arIdx = w.cmbAspectRatio ? w.cmbAspectRatio.getSelectionIndex() : 0;
@@ -1255,11 +1264,8 @@ function _saveUI(ctx) {
 
   // Feature 4 — Style by nesting level
   if (w.tblNestingStyleConditions) c.appearance.nestingLevel.conditions = w.tblNestingStyleConditions.getConditions();
-  c.appearance.nestingLevel.fontEnabled         = !!(w.chkNestFont  && w.chkNestFont.getSelection());
-  c.appearance.nestingLevel.fontDecreasePerLevel = w.spinNestFontDecrease ? w.spinNestFontDecrease.getSelection() : 2;
-  c.appearance.nestingLevel.colorEnabled        = !!(w.chkNestColor && w.chkNestColor.getSelection());
-  c.appearance.nestingLevel.darkenStart         = w.spinNestDarken ? w.spinNestDarken.getSelection() : DEFAULT_PRESET.appearance.nestingLevel.darkenStart;
-  c.appearance.nestingLevel.lightenPerLevel      = w.spinNestLighten ? w.spinNestLighten.getSelection() : 15;
+  c.appearance.nestingLevel.fontEnabled  = !!(w.chkNestFont  && w.chkNestFont.getSelection());
+  c.appearance.nestingLevel.colorEnabled = !!(w.chkNestColor && w.chkNestColor.getSelection());
 
   // Feature 5 — Highlight repeated elements
   c.appearance.highlightRepeated.enabled    = !!(w.chkHighlightRep && w.chkHighlightRep.getSelection());
@@ -1274,18 +1280,20 @@ function _saveUI(ctx) {
  * @param {any} ctrl  the param's widget; its type follows def.kind
  * @param {ParamWidget} def
  * @param {unknown} value
+ * @param {DialogWidgets} w  the view's On checkbox beside its field
  */
-function _paramToWidget(ctrl, def, value) {
+function _paramToWidget(ctrl, def, value, w) {
   if (!ctrl || value === undefined || value === null) return;
   switch (def.kind) {
     case "spin":  ctrl.setSelection(value); break;
     case "check": ctrl.setSelection(!!value); break;
     case "conditions": ctrl.setConditions(value); break;
     case "view": {
-      // The view's path as it is now (found by id), else the path the preset names.
+      // The view's path as it is now (found by id), else the path the preset names; on in its checkbox.
       const ref = /** @type {BackgroundRef} */ (value);
       const view = ref.id || ref.path ? SelectionRead.findBackgroundView(ref) : null;
       ctrl.setText(view ? SelectionRead.viewPath(view) : ref.path);
+      if (w.chkBackgroundOn) w.chkBackgroundOn.setSelection(ref.on);
       break;
     }
     case "combo": {
@@ -1302,25 +1310,28 @@ function _paramToWidget(ctrl, def, value) {
 /**
  * @param {any} ctrl  the param's widget; its type follows def.kind
  * @param {ParamWidget} def
+ * @param {DialogWidgets} w  the view's On checkbox beside its field
  */
-function _paramFromWidget(ctrl, def) {
+function _paramFromWidget(ctrl, def, w) {
   switch (def.kind) {
     case "spin":     return ctrl.getSelection();
     case "check":    return ctrl.getSelection();
     case "conditions":    return ctrl.getConditions();
     case "combo":    return String(ctrl.getText());
-    case "view":     return _backgroundRef(String(ctrl.getText()).trim());
+    case "view":     return _backgroundRef(w);
   }
 }
 
 /**
- * The background view a path names: its id when the model has it, so a rename or move keeps it.
- * @param {string} path
+ * The background view the Background field names: its id when the model has it, so a rename or move
+ * keeps it, and whether its On checkbox is ticked.
+ * @param {DialogWidgets} w
  * @returns {BackgroundRef}
  */
-function _backgroundRef(path) {
-  const view = path ? SelectionRead.findBackgroundView({ id: "", path }) : null;
-  return { id: view ? String(view.id) : "", path };
+function _backgroundRef(w) {
+  const path = String(w.txtBackgroundView.getText()).trim();
+  const view = path ? SelectionRead.findBackgroundView({ id: "", path, on: true }) : null;
+  return { id: view ? String(view.id) : "", path, on: w.chkBackgroundOn ? w.chkBackgroundOn.getSelection() : true };
 }
 
 /**
@@ -1331,7 +1342,7 @@ function _backgroundRef(path) {
 function _readBackgroundField(ctx) {
   const txt = ctx.widgets.txtBackgroundView;
   if (!txt) return;
-  const ref = _backgroundRef(String(txt.getText()).trim());
+  const ref = _backgroundRef(ctx.widgets);
   try {
     ctx.background = SelectionRead.readBackground(ref);
     txt.setToolTipText(Defs.paramTooltip("backgroundView"));

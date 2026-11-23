@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "name": "Test/gemma/Bedrijfsfuncties background",
   "algorithm": "Tiles",
   "params": {
@@ -42,7 +42,8 @@
     "connectionLabelSpacing": false,
     "backgroundView": {
       "id": "id-4135af01a06f4d94a828b8bc4aed98ab",
-      "path": "/Views/Test/8 GEMMA background"
+      "path": "/Views/Test/8 GEMMA background",
+      "on": true
     },
     "backgroundLeavesInPlace": false
   },
@@ -100,15 +101,12 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "color": "#ffffff", "fontSize": 16, "bold": true, "child": "same"},
-        {"direction": "outgoing", "relation": "aggregation-relationship", "child": "business-function", "color": "Bedrijf gedrag", "fontSize": 14, "bold": true},
-        {"parent": "business-function", "direction": "incoming", "relation": "serving-relationship", "child": "application-service", "color": "Applicatie gedrag"}
+        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "color": "#ffffff", "darkenStart": 2, "lightenPerLevel": 30, "fontSize": 16, "fontStyle": "bold", "child": "same"},
+        {"direction": "outgoing", "relation": "aggregation-relationship", "child": "business-function", "color": "Bedrijf gedrag", "darkenStart": 2, "lightenPerLevel": 30, "fontSize": 14, "fontStyle": "bold"},
+        {"parent": "business-function", "direction": "incoming", "relation": "serving-relationship", "child": "application-service", "color": "Applicatie gedrag", "darkenStart": 2, "lightenPerLevel": 30}
       ],
       "fontEnabled": true,
-      "fontDecreasePerLevel": 2,
-      "colorEnabled": true,
-      "darkenStart": 2,
-      "lightenPerLevel": 30
+      "colorEnabled": true
     },
     "highlightRepeated": {
       "enabled": false,

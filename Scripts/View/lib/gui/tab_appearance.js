@@ -1,5 +1,5 @@
 /**
- * Appearance tab of the View dialog: palette, style by property, style by nesting level, highlight repeated elements.
+ * Appearance tab of the View dialog: palette, color and font by nesting level, style by property, highlight repeated elements.
  */
 
 const REPO_ROOT = (() => {
@@ -31,12 +31,9 @@ const { RELATION_TYPE_IDS, DEFAULT_PRESET } = Defs;
 
 const SWT               = Java.type("org.eclipse.swt.SWT");
 const LabelWidget       = Java.type("org.eclipse.swt.widgets.Label");
-const CompositeWidget   = Java.type("org.eclipse.swt.widgets.Composite");
-const SpinnerWidget     = Java.type("org.eclipse.swt.widgets.Spinner");
 const ButtonWidget      = Java.type("org.eclipse.swt.widgets.Button");
 const ComboWidget       = Java.type("org.eclipse.swt.widgets.Combo");
 const GridDataFactory         = Java.type("org.eclipse.jface.layout.GridDataFactory");
-const GridLayoutFactory       = Java.type("org.eclipse.jface.layout.GridLayoutFactory");
 
 /**
  * True when an active nesting Include condition has Every (a child appears in every parent).
@@ -74,6 +71,46 @@ function _stylePropItems(ctx, r) {
   if (of === "relation") return Counts.propNames(rels.filter(x => !r.relation || x.type === r.relation));
   const type = of === "target" ? r.target : r.source;
   return Counts.propNames(els.filter(x => !type || x.type === type));
+}
+
+/**
+ * The objects a nesting style condition's property is read from, on the predicted view (the raw selection
+ * before the first count): the child or parent elements of its types, or the relations of its relation type.
+ * @param {DialogContext} ctx
+ * @param {NestingStyleCondition} r
+ */
+function _nestPropObjects(ctx, r) {
+  const pred = ctx.predicted;
+  if (r.propertyOf === "relation") {
+    const rels = pred ? pred.relations : (ctx.rawModelObjects || []).filter(o => _REL_TYPE_ID_SET.has(o.type));
+    return rels.filter(x => !r.relation || x.type === r.relation);
+  }
+  const type = r.propertyOf === "parent" ? r.parent : r.child === ConditionLists.SAME_TYPE ? r.parent : r.child;
+  const els = pred ? pred.elements : TabSelection.rawElements(ctx, "");
+  return els.filter(x => !type || x.type === type);
+}
+
+/**
+ * The counts and ⚠ of the nesting style table, from the nesting of the last recount (Counts.nestingStyleCounts).
+ * Cheap: called on every change of the table and of the Color and Font switches.
+ * @param {DialogContext} ctx
+ */
+function updateNestingStyleCounts(ctx) {
+  const w = ctx.widgets;
+  const t = w.tblNestingStyleConditions;
+  if (!t) return;
+  const view = ctx.predicted && ctx.counts ? ctx.counts.nestingView : null;
+  if (!view) { t.setCounts([]); t.setWarnings(new Map()); return; }
+  try {
+    const settings = { colorEnabled: w.chkNestColor.getSelection(), fontEnabled: w.chkNestFont.getSelection() };
+    const r = Counts.nestingStyleCounts(t.displayedConditions(), settings, view, ctx.relationsOf);
+    t.setCounts(r.counts);
+    t.setWarnings(r.warnings);
+  } catch (e) {
+    Log.error(`Appearance: the nesting style conditions were not counted: ${/** @type {Error} */ (e).message || e}`, { effect: "their counts and ⚠ are empty." });
+    Log.detail("ERROR", String(/** @type {Error} */ (e).stack || e));
+    t.setCounts([]); t.setWarnings(new Map());
+  }
 }
 
 // ⚠ column of the style conditions: conditions that style the same object on the predicted view.
@@ -167,7 +204,40 @@ function buildAppearanceTab(tabFolder, ctx) {
   const paletteColors = () => { const p = palette(); return p ? p.colors : []; };
   const paletteRanges = () => Widgets.rangeItems(palette());
 
-  // ── 1. Style by property: style conditions ──────────────────────────────────────
+  // ── Color and font by nesting level ─────────────────────────────────────
+  const grpNest = Widgets.group(page, "Color and font by nesting level", 1);
+
+  // Info label — shown/hidden via updateNestingLevelState (hidden when a Nesting condition is on).
+  w.lblNestingInfo = Widgets.noteLabel(grpNest, "Turn on a Nesting condition in the Layout tab to use this.");
+  w.nestDescLbl = Widgets.noteLabel(grpNest, "Each condition selects parent-to-child nesting steps and defines how each child looks. " +
+    "Deeper levels within a condition become lighter and smaller. With a background view, elements start with their appearance " +
+    "from that view. Choose Background to preserve it.");
+
+  // The switches, then the conditions both use.
+  const nestRow = Widgets.formRow(grpNest, "Apply:", formRows);
+  const chkNestColor = Widgets.checkBox(nestRow, "Color");
+  chkNestColor.setToolTipText("Apply the conditions' fill colors. Off: the fill color comes from the background look, else the element type's default.");
+  chkNestColor.addListener(SWT.Selection, () => { updateNestingLevelState(ctx); onChange(); });
+  w.chkNestColor = chkNestColor;
+  const chkNestFont = Widgets.checkBox(nestRow, "Font");
+  chkNestFont.setToolTipText("Apply the conditions' fonts. Off: the font comes from the background look, else Archi's default.");
+  chkNestFont.addListener(SWT.Selection, () => { updateNestingLevelState(ctx); onChange(); });
+  w.chkNestFont = chkNestFont;
+
+  const onNestChange = () => { ctx.markModified(); ctx.nestingStyleChanged(); };
+  w.tblNestingStyleConditions = conditionTable(grpNest, {
+    kind: "nestingStyle", onChange: onNestChange,
+    columns: nestingStyleConditionColumns(paletteColors, {
+      color: () => chkNestColor.getSelection(), font: () => chkNestFont.getSelection(), background: () => !!ctx.backgroundInUse,
+    }),
+    onLayout: relayout,
+    propItems:  r => Counts.propNames(_nestPropObjects(ctx, r)),
+    valueItems: r => Counts.propValues(_nestPropObjects(ctx, r), r.property),
+    emptyText: "No conditions: nothing is styled by nesting level.",
+    addTooltip: "Add a nesting step to follow. When conditions select the same element, the most specific wins.",
+  });
+
+  // ── Style by property: style conditions ──────────────────────────────────────
   const grpSbp = Widgets.group(page, "Style by property", 1);
 
   Widgets.noteLabel(grpSbp, "Color elements or relations by property values. Each condition says what gets the color and whose property gives the value.");
@@ -207,87 +277,7 @@ function buildAppearanceTab(tabFolder, ctx) {
   cmbWidth.addListener(SWT.Selection, onChange);
   w.cmbStyleLineWidth = cmbWidth;
 
-  // ── 4. Style by nesting level ─────────────────────────────────────────────
-  const grpNest = Widgets.group(page, "Style by nesting level", 1);
-
-  // Info label — shown/hidden via updateNestingLevelState (hidden when a Nesting condition is on).
-  w.lblNestingInfo = Widgets.noteLabel(grpNest, "Turn on a Nesting condition in the Layout tab to use this.");
-  w.nestDescLbl = Widgets.noteLabel(grpNest, "Emphasize significant nesting levels with color and font. " +
-    "Each condition marks a level; deeper levels get lighter and smaller.");
-  // Keep appearance note — shown via updateKeepAppearanceNotes.
-  w.lblNestKeepAppearance = Widgets.noteLabel(grpNest, "The elements of the background view keep their appearance " +
-    "(Layout › Keep appearance); here they take only the font size. Elements inside them continue from their color.");
-  w.lblNestKeepAppearance.setVisible(false);
-  w.lblNestKeepAppearance.getLayoutData().exclude = true;
-
-  // Switches first, then the conditions both use. One raster: the first label after each
-  // switch lines up.
-  let nestRow = Widgets.formRow(grpNest, "Apply:", formRows, "nestSwitches", 3);
-  /** @param {string} text */
-  const nestLabel = text => {
-    const l = new LabelWidget(nestRow, SWT.NONE);
-    l.setText(text);
-    return l;
-  };
-
-  // Font row
-  const chkNestFont = Widgets.checkBox(nestRow, "Font");
-  GridDataFactory.fillDefaults().span(2, 1).applyTo(chkNestFont.control);
-  chkNestFont.setToolTipText("Where a condition starts, the container takes its Font size and Bold;\n" +
-                             "each level deeper is smaller and not bold.");
-  chkNestFont.addListener(SWT.Selection, () => { updateNestingLevelState(ctx); onChange(); });
-  w.chkNestFont = chkNestFont;
-
-  const decreaseTip = "Points smaller per level deeper, never below the default size.";
-  w.lblNestDecrease = nestLabel("Smaller per level");
-  w.lblNestDecrease.setToolTipText(decreaseTip);
-  const decrease = _spinnerWithUnit(nestRow, "pt");
-  decrease.spinner.setValues(2, 1, 6, 0, 1, 1);
-  decrease.spinner.setToolTipText(decreaseTip);
-  decrease.spinner.addListener(SWT.Selection, onChange);
-  w.spinNestFontDecrease = decrease.spinner;
-  w.lblNestFontPt = decrease.unit;
-
-  // Color row
-  nestRow = Widgets.formRow(grpNest, "", formRows, "nestSwitches", 3);
-  const chkNestColor = Widgets.checkBox(nestRow, "Color");
-  GridDataFactory.fillDefaults().span(2, 1).applyTo(chkNestColor.control);
-  chkNestColor.setToolTipText("The elements a condition selects take its color; each level deeper in that color is lighter.\n" +
-                              "When conditions select the same element, the most specific wins.");
-  chkNestColor.addListener(SWT.Selection, () => { updateNestingLevelState(ctx); onChange(); });
-  w.chkNestColor = chkNestColor;
-
-  const lightenTip = "Per level deeper, the fill moves this percentage closer to white (hue and saturation kept),\n" +
-                     "until the next nesting type or color change.";
-  w.lblNestLighten = nestLabel("Lighter per level");
-  w.lblNestLighten.setToolTipText(lightenTip);
-  const lighten = _spinnerWithUnit(nestRow, "%");
-  lighten.spinner.setValues(15, 5, 90, 0, 5, 5);
-  lighten.spinner.setToolTipText(lightenTip);
-  lighten.spinner.addListener(SWT.Selection, onChange);
-  w.spinNestLighten = lighten.spinner;
-  w.lblNestLightenPct = lighten.unit;
-
-  const darkenTip = "At a nesting type or color change the fill starts this many levels darker than its color,\n" +
-                    "so its color is reached this many levels in.";
-  w.lblNestDarken = nestLabel("Start darker");
-  w.lblNestDarken.setToolTipText(darkenTip);
-  const darken = _spinnerWithUnit(nestRow, "levels");
-  darken.spinner.setValues(DEFAULT_PRESET.appearance.nestingLevel.darkenStart, 0, 3, 0, 1, 1);
-  darken.spinner.setToolTipText(darkenTip);
-  darken.spinner.addListener(SWT.Selection, onChange);
-  w.spinNestDarken = darken.spinner;
-  w.lblNestDarkenSteps = darken.unit;
-
-  w.tblNestingStyleConditions = conditionTable(grpNest, {
-    kind: "nestingStyle", onChange,
-    columns: nestingStyleConditionColumns(paletteColors, { color: () => chkNestColor.getSelection(), font: () => chkNestFont.getSelection() }),
-    onLayout: relayout,
-    emptyText: "No conditions: nothing is styled by nesting level.",
-    addTooltip: "Add a nesting step to follow. When conditions select the same element, the most specific wins.",
-  });
-
-  // ── 5. Highlight repeated elements ───────────────────────────────────────
+  // ── Highlight repeated elements ───────────────────────────────────────
   const grpHighlight = Widgets.group(page, "Highlight repeated elements", 1);
 
   Widgets.noteLabel(grpHighlight, "Elements that have multiple occurrences get the same color. Repetition becomes visible across the model.");
@@ -314,45 +304,9 @@ function buildAppearanceTab(tabFolder, ctx) {
   finish();
 }
 
-/**
- * A spinner with its unit right behind it: one control cell of a form row (Look 4).
- * @param {Swt.Composite} row
- * @param {string} unit
- * @returns {{ spinner: Swt.Spinner, unit: Swt.Label }}
- */
-function _spinnerWithUnit(row, unit) {
-  const cell = new CompositeWidget(row, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(2).spacing(4, 0).applyTo(cell);
-  const spinner = new SpinnerWidget(cell, SWT.BORDER);
-  GridDataFactory.swtDefaults().hint(Widgets.SPINNER_WIDTH, SWT.DEFAULT).applyTo(spinner);
-  const lbl = new LabelWidget(cell, SWT.NONE);
-  lbl.setText(unit);
-  return { spinner, unit: lbl };
-}
-
 const PALETTE_NOTE = "Every color and color range on this tab comes from the palette.";
-const PALETTE_NOTE_KEEP = "The elements of the background view keep their colors (Layout › Keep appearance); every other color comes from the palette.";
 
-/**
- * The notes of Keep appearance (Layout tab): shown while it takes effect, a background view named
- * and the switch on and active for the algorithm.
- * @param {DialogContext} ctx
- */
-function updateKeepAppearanceNotes(ctx) {
-  const w = ctx.widgets;
-  if (!w.lblPaletteNote || !w.chkBackgroundKeepAppearance || !w.txtBackgroundView) return;   // a tab not yet built
-  const on = w.chkBackgroundKeepAppearance.isEnabled() && w.chkBackgroundKeepAppearance.getSelection()
-    && String(w.txtBackgroundView.getText()).trim() !== "";
-  const text = on ? PALETTE_NOTE_KEEP : PALETTE_NOTE;
-  if (String(w.lblPaletteNote.getText()) === text) return;
-  w.lblPaletteNote.setText(text);
-  w.lblNestKeepAppearance.setVisible(on);
-  w.lblNestKeepAppearance.getLayoutData().exclude = !on;
-  try { ctx.appearancePage.layout(true, true); } catch (e) {}   // silent: layout on a page that may be disposed
-  Widgets.resizeScrolled(ctx.appearanceScrolled, ctx.appearancePage);
-}
-
-// Enable/disable the "Style by nesting level" controls based on whether any nesting
+// Enable/disable the "Color and font by nesting level" controls based on whether any nesting
 // conditions are configured in the Layout tab. Called from _syncToUI and when the nesting conditions
 // change, so both tabs stay in sync.
 /** @param {DialogContext} ctx */
@@ -377,24 +331,11 @@ function updateNestingLevelState(ctx) {
   Widgets.enable(w.chkNestColor,         hasNesting);
   Widgets.enable(w.chkHighlightRep,      _hasEveryContainer(w));  // repeats only come from conditions with Every
   updateAppearancePropStates(ctx);
-
-  const hasFont = hasNesting && w.chkNestFont.getSelection();
-  Widgets.enable(w.lblNestDecrease,      hasFont);
-  Widgets.enable(w.spinNestFontDecrease, hasFont);
-  Widgets.enable(w.lblNestFontPt,        hasFont);
-
-  const hasColor = hasNesting && w.chkNestColor.getSelection();
-  Widgets.enable(w.lblNestDarken,        hasColor);
-  Widgets.enable(w.spinNestDarken,       hasColor);
-  Widgets.enable(w.lblNestDarkenSteps,   hasColor);
-  Widgets.enable(w.lblNestLighten,        hasColor);
-  Widgets.enable(w.spinNestLighten,       hasColor);
-  Widgets.enable(w.lblNestLightenPct,     hasColor);
-  updateKeepAppearanceNotes(ctx);
+  updateNestingStyleCounts(ctx);   // the ⚠ follow the Color and Font switches
 }
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    buildAppearanceTab, updateNestingLevelState, updateAppearancePropStates, updateStyleWarnings, updateKeepAppearanceNotes,
+    buildAppearanceTab, updateNestingLevelState, updateAppearancePropStates, updateStyleWarnings, updateNestingStyleCounts,
   };
 }

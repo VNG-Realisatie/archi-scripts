@@ -94,7 +94,6 @@ const PARAM_WIDGETS = Object.freeze({
   columnsAcrossContainers:        { w: "chkColumnsAcrossContainers",               kind: "check" },
   backgroundView:           { w: "txtBackgroundView",            kind: "view" },
   backgroundLeavesInPlace:  { w: "chkBackgroundLeavesInPlace",   kind: "check" },
-  backgroundKeepAppearance: { w: "chkBackgroundKeepAppearance",  kind: "check" },
 });
 
 /**
@@ -246,13 +245,16 @@ function buildLayoutTab(tabFolder, ctx) {
   w.cmbSameWidth.addListener(SWT.Selection, () => updateAlgorithmControls(ctx));
   Widgets.addCheck(row, "Columns across containers", null, 2, w, "chkColumnsAcrossContainers");
   row = Widgets.formRow(grpCtr, "Background:", formRows);
+  const chkOn = Widgets.addCheck(row, "On", "Use the background view. Off: the preset keeps it, but the run lays out without it and " +
+    "Background in the nesting style conditions uses default values.", 1, w, "chkBackgroundOn");
+  chkOn.addListener(SWT.Selection, () => { updateAlgorithmControls(ctx); ctx.backgroundChanged(); });
   const field = new CompositeWidget(row, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(2).spacing(4, 0).applyTo(field);
   GridDataFactory.fillDefaults().grab(true, false).span(2, 1).hint(300, SWT.DEFAULT).applyTo(field);
   w.txtBackgroundView = new TextWidget(field, SWT.BORDER);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(w.txtBackgroundView);
   w.txtBackgroundView.setMessage("path of a view, e.g. /Views/Backgrounds/Map");
-  DialogTree.treeButton(field, {
+  w.btnBackgroundView = DialogTree.treeButton(field, {
     title:   "Choose background view",
     items:   () => ctx.backgroundNames(),
     current: () => String(w.txtBackgroundView.getText()).trim().replace(/^\/Views\//, ""),
@@ -264,9 +266,6 @@ function buildLayoutTab(tabFolder, ctx) {
   w.txtBackgroundView.addListener(SWT.DefaultSelection, () => ctx.backgroundChanged());
   w.txtBackgroundView.addListener(SWT.FocusOut, () => ctx.backgroundChanged());
   Widgets.addCheck(row, "Leaves in place", null, 2, w, "chkBackgroundLeavesInPlace");
-  Widgets.addCheck(row, "Keep appearance", null, 2, w, "chkBackgroundKeepAppearance");
-  w.chkBackgroundKeepAppearance.addListener(SWT.Selection, () => TabAppearance.updateKeepAppearanceNotes(ctx));
-  w.txtBackgroundView.addListener(SWT.Modify, () => TabAppearance.updateKeepAppearanceNotes(ctx));
 
   // ── Flow ──────────────────────────────────────────────────────────────────────
   const grpFlow = Widgets.group(page, "Flow", 1);
@@ -486,11 +485,16 @@ function updateAlgorithmControls(ctx) {
   // Containers settings only matter once a Nesting condition is on.
   if (!_nestingOn(w, alg))
     for (const k of Defs.LAYOUT_GROUPS.Containers) if (PARAM_WIDGETS[k]) Widgets.enable(w[PARAM_WIDGETS[k].w], false);
+  // The background view's On follows its field; off greys the field and what belongs to it.
+  if (w.chkBackgroundOn) {
+    Widgets.enable(w.chkBackgroundOn, w.txtBackgroundView.isEnabled());
+    if (!w.chkBackgroundOn.getSelection())
+      for (const c of [w.txtBackgroundView, w.btnBackgroundView, w.chkBackgroundLeavesInPlace]) Widgets.enable(c, false);
+  }
 
   // View size radios: unsupported options are greyed; a selected unsupported option falls back to None.
   Widgets.enable(w.radioViewSizeMaxWidth,    active.has("maxWidth"));
   Widgets.enable(w.radioViewSizeAspectRatio, active.has("aspectRatio"));
-  TabAppearance.updateKeepAppearanceNotes(ctx);   // Appearance: Keep appearance takes effect only where it is active
   const vsMode = getViewSizeMode(w);
   if (vsMode !== "none" && !active.has(vsMode) && w.radioViewSizeNone) {
     w.radioViewSizeNone.setSelection(true);

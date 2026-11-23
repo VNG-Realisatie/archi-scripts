@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "name": "Kennismodel/Kennismodel dot",
   "algorithm": "Dot",
   "params": {
@@ -76,13 +76,10 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"fontSize": 14, "bold": true, "child": "same"}
+        {"darkenStart": 0, "fontSize": 14, "fontStyle": "bold", "child": "same"}
       ],
       "fontEnabled": false,
-      "fontDecreasePerLevel": 2,
-      "colorEnabled": false,
-      "darkenStart": 0,
-      "lightenPerLevel": 15
+      "colorEnabled": false
     },
     "highlightRepeated": {
       "enabled": false,

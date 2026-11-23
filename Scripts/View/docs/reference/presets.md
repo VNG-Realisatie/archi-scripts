@@ -8,15 +8,16 @@ A preset is a value: it validates against this schema and round-trips losslessly
 
 ```
 Preset {
-  schemaVersion : 9                  // 2 = condition lists; 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions;
+  schemaVersion : 10                 // 2 = condition lists; 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions;
                                      // 5 = nesting style conditions, palette; 6 = font size and bold per nesting style condition;
-                                     // 7 = sameWidth; 8 = filter.conditions; 9 = view.folder is the whole path, no underGenerated
+                                     // 7 = sameWidth; 8 = filter.conditions; 9 = view.folder is the whole path, no underGenerated;
+                                     // 10 = numbers, font style and property match per nesting style condition, Background, backgroundView.on
   name, description : string         // description: shown under the preset picker, edited with Edit…
   algorithm     : enum               // Algorithm
   params {                           // one key per layout option: the Parameter column of the
                                      // generated tables in gui.md (Layout options, Preset-only options)
     viewSizeMode : "none"|"maxWidth"|"aspectRatio"   // which View size radio; "none" = Free
-    backgroundView : { id, path : string }            // the background view: found by id, else by path (folders and name); "" both = none
+    backgroundView : { id, path : string, on : boolean }   // the background view: found by id, else by path (folders and name); "" both = none; on: false = the run does not use it, default true
   }
   filter {                           // every list: [] = keep all
     conditions         : FilterCondition[]     // element rows (seed elements) and relation rows (relations between the filtered elements)
@@ -39,10 +40,7 @@ Preset {
     nestingLevel {
       conditions : NestingStyleCondition[]   // nesting steps followed from each root; default [{ child: "same", fontSize: 14 }]
       fontEnabled : boolean
-      fontDecreasePerLevel : number (pt)
       colorEnabled : boolean
-      darkenStart : 0..3             // levels darker the fill starts at a nesting type or color change
-      lightenPerLevel : number (%, 5–90)
     }
     highlightRepeated { enabled : boolean, colorRange : string }   // a range name of the palette
   }
@@ -125,7 +123,7 @@ One condition model for every list. A list keeps what matches **any active Inclu
 | relation | on, mode, source, relation, target, propertyOf (`relation`/`source`/`target`), property, value, everyContainer (nesting conditions only) | `params.nestingConditions`, `params.reverseConditions` | nesting / reverse: none |
 | step     | on, mode, previous, direction (`either`/`outgoing`/`incoming`), relation, added, propertyOf (`added`/`relation`/`previous`), property, value | `steps[].conditions` | follow all, as a pass-all condition `{}`; a step without any active Include match adds nothing |
 | style    | on, applyTo (`element`/`relation`/`source`/`target`), source, relation, target, propertyOf (`element`/`relation`/`source`/`target`), property, colorRange (a range name of the palette) | `appearance.styleByProperty.conditions` | no styling |
-| nestingStyle | on, parent, direction (`either`/`outgoing`/`incoming`, seen from the parent), relation, child (a type, `""` = All or `"same"` = the parent's type; default `"same"`), color (a color name of the palette, a hex, `""` = Type default or `"same"` = Same as parent; `"same"` is not a palette color name), fontSize (pt of the container where the condition starts; `0` = continues from its parent), bold (that container bold) | `appearance.nestingLevel.conditions` | no styling |
+| nestingStyle | on, parent, direction (`either`/`outgoing`/`incoming`, seen from the parent), relation, child (a type, `""` = All or `"same"` = the parent's type; default `"same"`), propertyOf (`child`/`parent`/`relation`), property, value, color (a color name of the palette, a hex, `""` = Type default, `"same"` = Same as parent or `"background"` = Background; `"same"` and `"background"` are not palette color names), darkenStart (0–3, levels darker at a nesting type or color change), lightenPerLevel (5–90 %), fontSize (pt of the start element; `0` = same as parent, 8–24, or `"background"`), fontStyle (`normal`, `bold`, `italic`, `bolditalic`, `"same"` = the parent's, `"background"`), fontDecreasePerLevel (1–6 pt) | `appearance.nestingLevel.conditions` | no styling |
 
 **Step conditions are written from the previous step's elements.**
 - `direction`: `outgoing` = the previous-step element is the relation's source; `incoming` = it is the target; `either` (default) = both.
@@ -189,3 +187,5 @@ The view property *View origin* holds how the view was made, as JSON, for Regene
 ```
 
 `id` finds the object; `name` is a label, refreshed at every regenerate. `direction`: only when the run overruled the preset. `folder`: *One view each*, the full path under Views (`"/"` = Views itself); with `mirrored`, the root of the mirrored folders. An origin from before schema 9 (Mirrored without `folder`, with `underGenerated`) is read as `folder` and `mirrored`. `element`: *One view each*. `modified`: made with unsaved settings, or expanded since. `script`: made by that script; the origin then holds only this key.
+
+**Schema 10 migration.** `tools/migrate_presets_nesting_style.js` (idempotent, every preset and `_session.json`): the global numbers of `nestingLevel` go into every condition; `bold: true` becomes `fontStyle: "bold"`, otherwise `"normal"`; `backgroundView.on` is `true`; `backgroundKeepAppearance: true` becomes `color: "background"` and `fontStyle: "background"` in every condition (the font size stays), so those views keep their look. A palette color named `same` or `background` is refused.

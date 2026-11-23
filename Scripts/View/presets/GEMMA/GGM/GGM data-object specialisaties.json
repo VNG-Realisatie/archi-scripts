@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "name": "GEMMA/GGM/GGM data-object specialisaties",
   "algorithm": "Dot",
   "params": {
@@ -74,13 +74,10 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"fontSize": 14, "bold": true, "child": "same"}
+        {"darkenStart": 0, "fontSize": 14, "fontStyle": "bold", "child": "same"}
       ],
       "fontEnabled": false,
-      "fontDecreasePerLevel": 2,
-      "colorEnabled": false,
-      "lightenPerLevel": 15,
-      "darkenStart": 0
+      "colorEnabled": false
     },
     "highlightRepeated": {
       "enabled": false,

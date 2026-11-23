@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "name": "Default",
   "description": "The selection plus every element directly related to it. Start a new preset from here with Save As….",
   "algorithm": "Layered",
@@ -69,10 +69,7 @@
         {"fontSize": 14, "child": "same"}
       ],
       "fontEnabled": false,
-      "fontDecreasePerLevel": 2,
-      "colorEnabled": false,
-      "lightenPerLevel": 15,
-      "darkenStart": 1
+      "colorEnabled": false
     },
     "highlightRepeated": {
       "enabled": false,

@@ -90,13 +90,13 @@ function _backgroundOf(snapshot, params, isModifyAction) {
 }
 
 /**
- * Keep appearance: the visuals of each element on the background view, in view order, with the
+ * The background looks: the visuals of each element on the background view, in view order, with the
  * element each lies in, outside a diagram-block (an element in a diagram-block keeps that one's own).
  * Appearance.backgroundLook picks the one an occurrence keeps.
  * @param {BackgroundSnapshot} background
  * @returns {Map<string, BackgroundLook[]>}  element id → its visuals
  */
-function _backgroundLooks(background) {
+function backgroundLooks(background) {
   /** @type {Map<string, BackgroundLook[]>} */
   const looks = new Map();
   for (const vo of background.sourceVisualElements) {
@@ -264,7 +264,7 @@ function composeObjectSet(snapshot, preset, actionId) {
       visuals,
       joinRun,
       ...(withTables ? { tables: isModifyAction ? Table.withIds(withTables.tables, _copiesOnView(withTables, snapshot)) : withTables.tables } : {}),
-      ...(withTables && preset.params.backgroundKeepAppearance ? { backgroundLooks: _backgroundLooks(withTables) } : {}),
+      ...(withTables ? { backgroundLooks: backgroundLooks(withTables) } : {}),
     },
     filteredCounts,
     filteredBaseRels,
@@ -791,6 +791,7 @@ function _uniqueById(objects) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     applyFilter,
+    backgroundLooks,
     buildObjectSet,
     composeObjectSet,
     expandStepWithRelations,

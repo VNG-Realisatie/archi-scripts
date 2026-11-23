@@ -51,7 +51,7 @@ declare namespace Swt {
   interface RGB { red: number; green: number; blue: number }
   interface Color { getRGB(): RGB; dispose(): void }
   interface Image { dispose(): void }
-  interface Font {}
+  interface Font { dispose(): void }
   /** Name, height (pt) and style of a font; toString() gives the string Archi stores and FontFactory reads. */
   interface FontData { getHeight(): number; toString(): string }
   interface FontMetrics { getHeight(): number; getAverageCharacterWidth(): number }
@@ -126,6 +126,7 @@ declare namespace Swt {
 
   interface Control extends Widget {
     getParent(): Composite;
+    getFont(): Font;
     getShell(): Shell;
     setToolTipText(text: string): void;
     setEnabled(enabled: boolean): void;

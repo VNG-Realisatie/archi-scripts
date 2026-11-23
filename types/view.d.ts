@@ -71,12 +71,22 @@ type NestingStyleCondition = {
   relation: string;
   /** A type id, "" = All, "same" = the parent's type. */
   child: string;
-  /** A color name of the chosen palette; "" = Default (the element type's default fill). */
+  /** Property match: whose property is read. */
+  propertyOf: "child" | "parent" | "relation";
+  property: string;
+  value: string;
+  /** Fill color: a color name of the chosen palette or a hex; "" = Type default; "same" = Same as parent; "background" = Background. */
   color: string;
-  /** Font size (pt) of the container where the condition starts; 0 = continue from the parent. */
-  fontSize: number;
-  /** Bold for the container where the condition starts. */
-  bold: boolean;
+  /** Levels darker the fill color starts at a nesting type or color change. */
+  darkenStart: number;
+  /** Percentage closer to white per deeper nesting level within the condition. */
+  lightenPerLevel: number;
+  /** Font size (pt) of the start element; 0 = continues from the parent; "background" = Background. */
+  fontSize: number | "background";
+  /** Font style of the start element. */
+  fontStyle: "normal" | "bold" | "italic" | "bolditalic" | "background" | "same";
+  /** Points smaller per deeper nesting level within the condition, never below 9 pt. */
+  fontDecreasePerLevel: number;
 };
 
 interface ConditionByKind {
@@ -181,6 +191,19 @@ interface PropertySource {
   prop(key: string): unknown;
 }
 
+/** One end of a nesting step as a nesting style condition reads it: the element type, and the element for a property match. */
+interface NestingEnd {
+  type: string;
+  element?: PropertySource | null;
+}
+
+/** A model relation between a parent and its child; outgoing = the parent is its source; relation for a property match. */
+interface NestingRel {
+  type: string;
+  outgoing: boolean;
+  relation?: PropertySource | null;
+}
+
 // ── Presets (Scripts/View/lib/defs.js: DEFAULT_PRESET, validatePreset) ───────────────────────────
 
 /** Repeat of a step: 1–5 runs, or until a run adds nothing (capped at REPEAT_MAX). */
@@ -231,12 +254,10 @@ type PresetParams = {
   backgroundView: BackgroundRef;
   /** Tiles: the leaves of the background view keep their place too; false: only its containers. */
   backgroundLeavesInPlace: boolean;
-  /** Tiles: the elements of the background view keep its appearance, but for font size. */
-  backgroundKeepAppearance: boolean;
 };
 
-/** A background view as a preset names it: found by id; the path (folders and name) is a label, and finds it when the id is empty. */
-type BackgroundRef = { id: string; path: string };
+/** A background view as a preset names it: found by id; the path (folders and name) is a label, and finds it when the id is empty; on: false = the run does not use it. */
+type BackgroundRef = { id: string; path: string; on: boolean };
 
 /** A background view as read (selection_read.readBackground): what it puts on the view, and its table. */
 interface BackgroundSnapshot {
@@ -253,7 +274,7 @@ interface BackgroundSnapshot {
   tables: Tables;
 }
 
-/** Keep appearance: a visual of an element on the background view, and the element it lies in there (null: the view root). */
+/** Background look: a visual of an element on the background view, and the element it lies in there (null: the view root). */
 interface BackgroundLook {
   visual: VisualObject;
   parentId: string | null;
@@ -325,10 +346,7 @@ type Preset = {
     nestingLevel: {
       conditions: NestingStyleCondition[];
       fontEnabled: boolean;
-      fontDecreasePerLevel: number;
       colorEnabled: boolean;
-      darkenStart: number;
-      lightenPerLevel: number;
     };
     highlightRepeated: { enabled: boolean; colorRange: string };
   };
@@ -748,6 +766,21 @@ interface DialogCounts {
   layoutConditions: LayoutConditionCounts | null;
   /** The totals line: on the expanded view; null without an expandSnapshot. */
   expandView: ViewCounts | null;
+  /** The nesting of the predicted view, for the nesting style table's counts (nestingStyleCounts). */
+  nestingView: NestingView;
+}
+
+/** The nesting of the predicted view: its laid-out elements, their occurrences and the background view in use. */
+interface NestingView {
+  elements: ArchiElement[];
+  nesting: NestingResolution;
+  background: BackgroundSnapshot | null;
+}
+
+/** The nesting style table's counts and ⚠ per condition (nestingStyleCounts). */
+interface NestingStyleCounts {
+  counts: ConditionTableCounts[];
+  warnings: Map<number, string>;
 }
 
 // ── Dialog condition tables (Scripts/View/lib/gui/condition_table.js) ─────────────────────────────────────
@@ -794,6 +827,14 @@ interface ConditionTableColumnBase<R> {
   onChange?: (condition: R) => void;
   /** Count key shown after the selected item (choice, prop) or in the cell (count). */
   count?: string;
+  /** A field of a compound cell: reads its value (default: the condition's field by key). */
+  get?: (condition: R) => any;
+  /** A field of a compound cell: writes its value (default: the condition's field by key). */
+  set?: (condition: R, value: any) => void;
+  /** A field of a compound cell: a line under it that explains the chosen value; a compound column: a line in its tooltip. */
+  note?: (condition: R) => string;
+  /** A field of a compound cell: false leaves it out of the window. */
+  visible?: (condition: R) => boolean;
 }
 
 interface ConditionTableChoiceColumn<R = AnyCondition> extends ConditionTableColumnBase<R> {
@@ -812,15 +853,33 @@ interface ConditionTablePlainColumn<R = AnyCondition> extends ConditionTableColu
   default?: boolean;
   /** count: the cell text for n (default "(n)"). */
   format?: (n: number) => string;
+  /** check as a field of a compound cell: the checkbox's text. */
+  text?: string;
+}
+
+/** A number field of a compound cell: a spinner from min to max, its unit behind it. */
+interface ConditionTableSpinColumn<R = AnyCondition> extends ConditionTableColumnBase<R> {
+  kind: "spin";
+  min: number;
+  max: number;
+  step?: number;
+  unit?: string;
 }
 
 /** A compound cell: a summary of several fields, edited in a pop-up with one column per field. */
 interface ConditionTableCompoundColumn<R = AnyCondition> extends ConditionTableColumnBase<R> {
   kind: "compound";
-  /** The fields of the pop-up, in order: choice (a combo), prop and value (a filtered list). */
-  fields: readonly (ConditionTableChoiceColumn<R> | ConditionTablePlainColumn<R>)[];
+  /** The fields of the pop-up, in order: choice (a combo), prop and value (a filtered list), color (the palette menu), spin (a number), check (a checkbox). */
+  fields: readonly ConditionTableField<R>[];
   summary: (condition: R) => string;
+  /** The font style the summary is drawn in (normal, bold, italic, bolditalic); absent: the table's font. */
+  textStyle?: (condition: R) => string;
+  /** The colors of a swatch before the summary; [] = an empty frame. */
+  swatch?: (condition: R) => readonly string[];
 }
+
+/** A field of a compound cell's window. */
+type ConditionTableField<R = AnyCondition> = ConditionTableChoiceColumn<R> | ConditionTableColorColumn<R> | ConditionTablePlainColumn<R> | ConditionTableSpinColumn<R>;
 
 type ConditionTableColumn<R = AnyCondition> = ConditionTableChoiceColumn<R> | ConditionTableColorColumn<R> | ConditionTablePlainColumn<R> | ConditionTableCompoundColumn<R>;
 
@@ -980,20 +1039,10 @@ type DialogWidgets = {
   pickMixedColor: ColorPicker;
   cmbStyleLineWidth: Swt.Combo;
   lblNestingInfo: Swt.Label;
-  lblNestKeepAppearance: Swt.Label;
   lblPaletteNote: Swt.Label;
   nestDescLbl: Swt.Label;
   chkNestFont: CheckBox;
-  lblNestDecrease: Swt.Label;
-  spinNestFontDecrease: Swt.Spinner;
-  lblNestFontPt: Swt.Label;
   chkNestColor: CheckBox;
-  lblNestDarken: Swt.Label;
-  spinNestDarken: Swt.Spinner;
-  lblNestDarkenSteps: Swt.Label;
-  lblNestLighten: Swt.Label;
-  spinNestLighten: Swt.Spinner;
-  lblNestLightenPct: Swt.Label;
   chkHighlightRep: CheckBox;
   lblHighlightRepRange: Swt.Label;
   pickHighlightRepRange: ColorPicker;
@@ -1011,8 +1060,9 @@ type DialogWidgets = {
   txtViewFolder: Swt.Text;
   btnViewFolder: Swt.Button;
   txtBackgroundView: Swt.Text;
+  btnBackgroundView: Swt.Button;
+  chkBackgroundOn: CheckBox;
   chkBackgroundLeavesInPlace: CheckBox;
-  chkBackgroundKeepAppearance: CheckBox;
   rdoMirrored: Swt.Button;
   lblMirrored: Swt.Label;
   /** "View:" and the view a Modify action changes. */
@@ -1081,6 +1131,10 @@ interface DialogContext {
   background?: BackgroundSnapshot | null; // the view in the Background field, read; null when empty or not found
   /** Read the view in the Background field again, then recount. */
   backgroundChanged: () => void;
+  /** A background view is chosen, on and used by the algorithm: Background takes its values from it. */
+  backgroundInUse?: boolean;
+  /** The nesting style table changed: its counts and ⚠ again, from the last recount's nesting. */
+  nestingStyleChanged: () => void;
   backgroundNames: () => string[]; // every view as the background field names it, without /Views/
   recount: () => void; // recount after a change of the settings (marks the dialog modified)
   markModified: () => void;

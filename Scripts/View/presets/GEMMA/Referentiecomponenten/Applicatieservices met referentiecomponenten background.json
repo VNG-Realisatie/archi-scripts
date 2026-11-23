@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "name": "GEMMA/Referentiecomponenten/Applicatieservices met referentiecomponenten background",
   "algorithm": "Tiles",
   "params": {
@@ -41,10 +41,10 @@
     "connectionLabelSpacing": false,
     "backgroundView": {
       "id": "id-e3defc7db98b4103aab7af54eb1b86b4",
-      "path": "/Views/Beheer/Background views/Background applicatieservices"
+      "path": "/Views/Beheer/Background views/Background applicatieservices",
+      "on": true
     },
-    "backgroundLeavesInPlace": false,
-    "backgroundKeepAppearance": true
+    "backgroundLeavesInPlace": false
   },
   "filter": {
     "conditions": [],
@@ -53,17 +53,16 @@
   "relatedElements": {
     "steps": [
       {
-        "name": "",
-        "repeat": 2,
+        "name": "Domein en doelgroep",
+        "repeat": 1,
         "conditions": [
-          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "application-service"},
-          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping", "property": "GEMMA subtype", "value": "Domein en doelgroep"},
-          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping", "property": "GEMMA subtype", "value": "Domein"}
+          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping", "property": "GEMMA subtype", "value": "Domein"},
+          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping", "property": "GEMMA subtype", "value": "Domein en doelgroep"}
         ]
       },
       {
         "name": "",
-        "repeat": 4,
+        "repeat": 1,
         "conditions": [
           {"direction": "outgoing", "relation": "aggregation-relationship", "added": "application-service"},
           {"direction": "incoming", "relation": "realization-relationship", "added": "application-component"}
@@ -71,15 +70,16 @@
       },
       {
         "name": "",
-        "repeat": 2,
+        "repeat": 1,
         "conditions": [
-          {"on": false, "direction": "incoming", "relation": "realization-relationship", "added": "application-component"}
+          {"direction": "incoming", "relation": "realization-relationship", "added": "application-component"},
+          {"direction": "outgoing", "added": "application-service"}
         ]
       }
     ]
   },
   "view": {
-    "name": "Publieksdiensten AS view",
+    "name": "Publieksdiensten",
     "folder": "/_Generated/Referentiecomponenten/Background/Applicatieservices en referentiecomponenten",
     "suffix": "",
     "mirrored": false
@@ -93,15 +93,12 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "color": "Grouping", "fontSize": 16, "bold": true, "child": "same"},
-        {"direction": "outgoing", "relation": "aggregation-relationship", "child": "application-service", "color": "same", "fontSize": 11},
-        {"on": false, "parent": "application-service", "direction": "outgoing", "relation": "aggregation-relationship", "child": "same"}
+        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "child": "grouping", "color": "background", "darkenStart": 0, "lightenPerLevel": 50, "fontSize": 16, "fontStyle": "background"},
+        {"direction": "outgoing", "relation": "aggregation-relationship", "child": "application-service", "color": "same", "darkenStart": 0, "lightenPerLevel": 50, "fontSize": 11, "fontStyle": "background"},
+        {"on": false, "parent": "application-service", "direction": "outgoing", "relation": "aggregation-relationship", "color": "background", "darkenStart": 0, "lightenPerLevel": 50, "fontStyle": "background", "child": "same"}
       ],
       "fontEnabled": true,
-      "fontDecreasePerLevel": 2,
-      "colorEnabled": true,
-      "darkenStart": 0,
-      "lightenPerLevel": 50
+      "colorEnabled": true
     },
     "highlightRepeated": {
       "enabled": false,

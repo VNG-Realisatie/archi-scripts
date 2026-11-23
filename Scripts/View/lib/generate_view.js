@@ -168,6 +168,8 @@ function generate_view(rawPreset, uiSelection, actionId, options = {}) {
   if (settings.invalid) {
     throw new Error(`${settings.invalid} engineParams setting(s) of the wrong type (✗ above). Correct the preset; nothing is written.`);
   }
+  const noBackground = Appearance.backgroundWithoutView(preset);
+  if (noBackground) Log.warn(noBackground, { action: "choose a background view on the Layout tab and switch it on, or another value for those conditions." });
   Log.debug(`Name: "${preset.view.name}"  Folder: "${preset.view.folder}"${preset.view.mirrored ? "  Mirrored" : ""}`);
   {
     const vsMode = _rawParams.viewSizeMode || "none";

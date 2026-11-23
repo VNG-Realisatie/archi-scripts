@@ -56,17 +56,17 @@ const ICON_OFFSET = Object.freeze({
  * @typedef {object} LabelInput  what the label sizes are read from besides the layout graph
  * @property {TextMeasure}   measure
  * @property {LineBreaks}    breaks       where Archi may break label text
- * @property {TextFont}      defaultFont  Archi's default view font (Style by nesting level writes its name)
+ * @property {TextFont}      defaultFont  Archi's default view font (Color and font by nesting level writes its name)
  * @property {NewVisualDefaults} newVisual  how Archi creates a new element visual (its label layout)
- * @property {RelationIndex} relationsOf  the model relations of an element (Style by nesting level)
- * @property {boolean}       isModify     Layout only / Expand view: Style by nesting level resets a font it no longer sets
+ * @property {RelationIndex} relationsOf  the model relations of an element (Color and font by nesting level)
+ * @property {boolean}       isModify     Layout only / Expand view: Color and font by nesting level resets a font it no longer sets
  *
  * @typedef {object} LabelSources  where a node's label layout comes from
  * @property {(nodeId: string) => ArchiElement | undefined} elementOf  the element of an occurrence; undefined for a diagram object
  * @property {(nodeId: string) => VisualObject | undefined} visualOf   the visual on the target view paired with the occurrence
  * @property {Preset["appearance"]["nestingLevel"]} nestingLevel
  * @property {Set<string>} backgroundElements  elements of the background view: styled as containers
- * @property {Map<string, BackgroundLook[]>} backgroundLooks  Keep appearance: element id → its visuals on the background view (Appearance.backgroundLook), whose font and text layout it keeps
+ * @property {Map<string, BackgroundLook[]>} backgroundLooks  element id → its visuals on the background view (Appearance.backgroundLook): the background look, whose font and text layout it takes
  * @property {LabelInput} input
  *
  * @typedef {object} LabelLayout  how Archi lays out one node's label
@@ -77,13 +77,11 @@ const ICON_OFFSET = Object.freeze({
  */
 
 /**
- * How each element node's label is laid out. Font: the one Style by nesting level sets or resets,
- * else the visual's, else Archi's default view font; an element that keeps the appearance of the
- * background view (Keep appearance) takes the font name and style from its visual there, the size as
- * before. Text width: the visual's figure type, text alignment, text position and icon (the
- * background view's visual for an element that keeps its appearance); a new visual as Archi creates
- * it (figure type, text alignment and text position from Archi's preferences, a grouping
- * left-aligned; icon shown).
+ * How each element node's label is laid out. Font: the one Color and font by nesting level sets or
+ * resets, else the font of its background look, else the visual's, else Archi's default view font.
+ * Text width: the figure type, text alignment, text position and icon of its background look, else
+ * of the visual; a new visual as Archi creates it (figure type, text alignment and text position from
+ * Archi's preferences, a grouping left-aligned; icon shown).
  * @param {LayoutNode[]}           nodes
  * @param {Record<string, string>} parentMap
  * @param {LabelSources}           src
@@ -93,27 +91,32 @@ function labelLayouts(nodes, parentMap, src) {
   const containers = new Set(Object.values(parentMap));
   /** @type {(id: string) => number} */
   const depthOf = id => { let d = 0; for (let p = parentMap[id]; p; p = parentMap[p]) d++; return d; };
+  /** @type {(id: string) => VisualObject | undefined} */
+  const lookOf = id => {
+    const el = src.elementOf(id);
+    const parentEl = parentMap[id] ? src.elementOf(parentMap[id]) : undefined;
+    return el ? Appearance.backgroundLook(src.backgroundLooks, el.id, parentEl ? parentEl.id : null) : undefined;
+  };
   /** @type {import("./appearance").NestingNode[]} */
   const nestingNodes = [];
   for (const n of nodes) {
     const el = src.elementOf(n.id);
     if (!el) continue;   // a diagram object: no nesting style
     const parentEl = n.parent ? src.elementOf(n.parent) : undefined;
+    const look = lookOf(n.id);
     nestingNodes.push({
-      id: n.id, parentId: n.parent, type: el.type,
-      rels: parentEl ? _relsBetween(parentEl, el, src.input.relationsOf) : [],
+      id: n.id, parentId: n.parent, type: el.type, element: el,
+      rels: parentEl ? Appearance.relsBetween(parentEl, el, src.input.relationsOf) : [],
       depth: depthOf(n.id), isContainer: containers.has(n.id), onBackground: src.backgroundElements.has(el.id),
+      ...(look ? { look: Appearance.lookValues(look) } : {}),
     });
   }
   const styled = Appearance.nestingFonts(nestingNodes, src.nestingLevel, src.input.isModify, src.input.defaultFont);
   return id => {
     const el = src.elementOf(id);
-    const parentEl = parentMap[id] ? src.elementOf(parentMap[id]) : undefined;
-    const look = el ? Appearance.backgroundLook(src.backgroundLooks, el.id, parentEl ? parentEl.id : null) : undefined;
+    const look = lookOf(id);
     const vo = look || src.visualOf(id);
-    const own = src.visualOf(id);
-    let font = styled.get(id) || (own ? { name: own.fontName, size: own.fontSize, style: own.fontStyle } : null);
-    if (look) font = { name: look.fontName, size: (font || src.input.defaultFont).size, style: look.fontStyle };
+    const font = styled.get(id) || (vo ? { name: vo.fontName, size: vo.fontSize, style: vo.fontStyle } : null);
     return { font, ...(el ? _iconRoom(el.type, vo, src.input.newVisual) : { iconCut: 0, iconClear: 0 }), breaks: src.input.breaks };
   };
 }
@@ -139,23 +142,6 @@ function _iconRoom(type, vo, newVisual) {
   return { iconCut: alignment === TEXT_ALIGNMENT_CENTER ? 2 * clear : clear, iconClear: 0 };
 }
 
-/**
- * The model relations between a parent element and its child, as Style by nesting level reads them.
- * @param {ArchiElement}  parent
- * @param {ArchiElement}  child
- * @param {RelationIndex} relationsOf
- * @returns {{ type: string, outgoing: boolean }[]}  outgoing = the parent is the source
- */
-function _relsBetween(parent, child, relationsOf) {
-  /** @type {{ type: string, outgoing: boolean }[]} */
-  const rels = [];
-  for (const r of relationsOf(parent)) {
-    const src = r.source && r.source.id, tgt = r.target && r.target.id;
-    if (src === parent.id && tgt === child.id) rels.push({ type: r.type, outgoing: true });
-    else if (tgt === parent.id && src === child.id) rels.push({ type: r.type, outgoing: false });
-  }
-  return rels;
-}
 
 /**
  * The narrowest each container can be: its widest child and padding on both sides, at least its

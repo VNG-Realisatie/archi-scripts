@@ -164,21 +164,47 @@ eq(RF.detectConditionConflicts(new Map([[0, new Set(["a", "b"])], [1, new Set(["
 eq(RF.detectConditionConflicts(new Map([[0, new Set(["a"])], [1, new Set(["b"])]])), [], "no conflicts");
 
 // ── nesting style conditions ──────────────────────────────────────────────────
-eq(norm("nestingStyle", [{}]), [{ on: true, parent: "", direction: "either", relation: "", child: "same", color: "", fontSize: 0, bold: false }], "nesting style: defaults");
-eq(norm("nestingStyle", [{ fontSize: 14, bold: true }])[0].fontSize, 14, "nesting style: font size");
+eq(norm("nestingStyle", [{}]), [{ on: true, parent: "", direction: "either", relation: "", child: "same", propertyOf: "child", property: "", value: "",
+  color: "", darkenStart: 1, lightenPerLevel: 15, fontSize: 0, fontStyle: "normal", fontDecreasePerLevel: 2 }], "nesting style: defaults");
+eq(norm("nestingStyle", [{ fontSize: 14, fontStyle: "bold" }])[0].fontSize, 14, "nesting style: font size");
+eq(norm("nestingStyle", [{ color: "background", fontSize: "background", fontStyle: "background" }]).map(r => [r.color, r.fontSize, r.fontStyle]),
+   [["background", "background", "background"]], "nesting style: Background for fill color, font size and font style");
 eq(refused("nestingStyle", [{ fontSize: "14" }]).startsWith("test[0]: "), true, "nesting style: font size must be a number");
-eq(refused("nestingStyle", [{ bold: "yes" }]).startsWith("test[0]: "), true, "nesting style: bold must be true or false");
+eq(refused("nestingStyle", [{ fontSize: 30 }]).startsWith("test[0]: "), true, "nesting style: font size from 8 to 24");
+eq(refused("nestingStyle", [{ fontStyle: "heavy" }]).startsWith("test[0]: "), true, "nesting style: font style one of the list");
+eq(refused("nestingStyle", [{ ["bo" + "ld"]: true }]).startsWith("test[0]: "), true, "nesting style: bold is no key any more (schema 10: fontStyle)");
+eq(refused("nestingStyle", [{ lightenPerLevel: 95 }]).startsWith("test[0]: "), true, "nesting style: Lighter per level from 5 to 90");
+eq(refused("nestingStyle", [{ darkenStart: 1.5 }]).startsWith("test[0]: "), true, "nesting style: Start darker a whole number");
+eq(refused("nestingStyle", [{ propertyOf: "source" }]).startsWith("test[0]: "), true, "nesting style: Property of child, parent or relation");
 eq(norm("nestingStyle", [{ child: "grouping", color: "Bedrijf gedrag" }])[0].child, "grouping", "nesting style: child type");
 eq(refused("nestingStyle", [{ parent: "same" }]).startsWith("test[0]: "), true, "nesting style: same only for child");
 eq(RF.serializeCondition("nestingStyle", norm("nestingStyle", [{}])[0]), { child: "same" }, "nesting style: child always written");
-const nsm = (raw, pt, ct, rels) => RF.nestingStyleConditionMatches(norm("nestingStyle", [raw])[0], pt, ct, rels);
+const nsm = (raw, pt, ct, rels, ends = {}) =>
+  RF.nestingStyleConditionMatches(norm("nestingStyle", [raw])[0], { type: pt, element: ends.parent }, { type: ct, element: ends.child, rels });
 const agg = [{ type: "aggregation-relationship", outgoing: true }];
+const withProps = props => ({ prop: k => (k in props ? props[k] : null) });
 eq(nsm({}, "grouping", "grouping", []), true, "nesting style: same type, no relation needed");
 eq(nsm({}, "grouping", "business-object", agg), false, "nesting style: same type rejects another type");
 eq(nsm({ child: "" }, "grouping", "business-object", []), true, "nesting style: child All");
 eq(nsm({ child: "", relation: "aggregation-relationship" }, "grouping", "business-object", []), false, "nesting style: relation needed");
 eq(nsm({ child: "", direction: "outgoing" }, "grouping", "business-object", agg), true, "nesting style: outgoing");
 eq(nsm({ child: "", direction: "incoming" }, "grouping", "business-object", agg), false, "nesting style: incoming rejects outgoing");
+{
+  const ends = { parent: withProps({ Status: "Oud" }), child: withProps({ Status: "Actief" }) };
+  eq(nsm({ child: "", property: "Status", value: "Actief" }, "grouping", "business-object", [], ends), true, "property match: the child's property");
+  eq(nsm({ child: "", propertyOf: "parent", property: "Status", value: "Actief" }, "grouping", "business-object", [], ends), false, "property match: the parent's property");
+  eq(nsm({ child: "", propertyOf: "parent", property: "Status", value: "Oud" }, "grouping", "business-object", [], ends), true, "property match: the parent's property matches");
+  const rels = [{ type: "aggregation-relationship", outgoing: true, relation: withProps({ Status: "Oud" }) },
+                { type: "serving-relationship", outgoing: true, relation: withProps({ Status: "Actief" }) }];
+  eq(nsm({ child: "", propertyOf: "relation", property: "Status", value: "Actief" }, "grouping", "business-object", rels), true, "property match: a relation with the value");
+  eq(nsm({ child: "", relation: "aggregation-relationship", propertyOf: "relation", property: "Status", value: "Actief" }, "grouping", "business-object", rels), false,
+     "property match: the relation of the condition's type must have it");
+  eq(nsm({ child: "", propertyOf: "relation", property: "Status", value: "Actief" }, "grouping", "business-object", []), false, "property match on a relation needs a relation");
+  const root = (raw, props) => RF.nestingStyleConditionMatchesRoot(norm("nestingStyle", [raw])[0], { type: "grouping", element: withProps(props) });
+  eq([root({}, {}), root({ property: "Status", value: "Actief" }, { Status: "Actief" }), root({ property: "Status", value: "Actief" }, {}),
+      root({ propertyOf: "parent", property: "Status", value: "" }, {}), root({ relation: "serving-relationship" }, {})], [true, true, false, false, true],
+     "root container: its child type; a property match on itself only; relation and direction do not count");
+}
 
 // ── nesting style chains (appearance.followNestingChains) ─────────────────────
 global.Java = { type: () => ({}) };
@@ -195,12 +221,13 @@ const chainNodes = [
 const NS = raw => raw.map(r => Object.assign(RF.defaultCondition("nestingStyle"), r));
 const depthOf = new Map(chainNodes.map(n => [n.id, n.depth]));
 const chains = rules => {
-  const { styles, conflicts } = Appearance.followNestingChains(chainNodes, NS(rules), 2);
+  const { styles, conflicts } = Appearance.followNestingChains(chainNodes, NS(rules));
   const out = {}; styles.forEach((v, k) => { out[k] = `${depthOf.get(k)}/${v.depthSinceChange}/${v.color}`; });
   return { out, conflicts };
 };
-const fonts = rules => {
-  const out = {}; Appearance.followNestingChains(chainNodes, NS(rules), 2).styles.forEach((v, k) => { out[k] = `${v.fontSize}${v.bold ? "b" : ""}`; });
+const BOLD = { normal: "", bold: "b", italic: "i", bolditalic: "bi" };
+const fonts = (rules, nodes = chainNodes) => {
+  const out = {}; Appearance.followNestingChains(nodes, NS(rules)).styles.forEach((v, k) => { out[k] = `${v.fontSize}${BOLD[v.fontStyle]}`; });
   return out;
 };
 eq(chains([{ parent: "grouping", color: "Grijs" }]).out, { g0: "0/0/Grijs", g1: "1/1/Grijs" }, "chains: same-type chain stops at another type");
@@ -228,9 +255,9 @@ eq(chains([{ parent: "", child: "grouping", relation: "aggregation-relationship"
    { out: { g0: "0/0/A", g1: "1/0/B" }, conflicts: ["1, 2"] }, "chains: another color is a nesting color change; a root does not count the relation");
 eq(chains([{ parent: "grouping", child: "", relation: "aggregation-relationship" }]).out,
    { g0: "0/0/", g1: "1/1/", f1: "2/0/" }, "chains: Default continues under the same type, a nesting type change starts again");
-eq(fonts([{ fontSize: 14, bold: true }]), { g0: "14b", o0: "14b", g1: "12", o1: "12" }, "fonts: a root takes its condition's font, deeper levels smaller and not bold");
-eq(fonts([{ parent: "grouping", fontSize: 16, bold: true }, { parent: "", child: "business-function", relation: "aggregation-relationship" },
-          { parent: "business-function", child: "application-service", direction: "incoming", relation: "serving-relationship", fontSize: 14, bold: true }]),
+eq(fonts([{ fontSize: 14, fontStyle: "bold" }]), { g0: "14b", o0: "14b", g1: "12", o1: "12" }, "fonts: a root takes its condition's font, deeper levels smaller and not bold");
+eq(fonts([{ parent: "grouping", fontSize: 16, fontStyle: "bold" }, { parent: "", child: "business-function", relation: "aggregation-relationship" },
+          { parent: "business-function", child: "application-service", direction: "incoming", relation: "serving-relationship", fontSize: 14, fontStyle: "bold" }]),
    { g0: "16b", g1: "14", f1: "12", f2: "10", s1: "14b" },
    "fonts: a condition without font size continues from its parent; a condition with one restarts where it starts");
 eq(fonts([{ parent: "grouping", fontSize: 12 }, { parent: "", child: "business-function", relation: "aggregation-relationship", fontSize: 18 }]),
@@ -239,10 +266,48 @@ eq(fonts([{ parent: "grouping", fontSize: 12 }, { parent: "", child: "business-f
   // a leaf beside a container (here a root leaf and a leaf under g0) takes the font; a lone leaf does not
   const side = [node("g0", null, "grouping", 0, true), node("x0", null, "grouping", 0, false),
     node("g1", "g0", "grouping", 1, true, agg), node("g2", "g0", "grouping", 1, false, agg), node("g3", "g1", "grouping", 2, false, agg)];
-  const out = {}; Appearance.followNestingChains(side, NS([{ fontSize: 14, bold: true }]), 2).styles.forEach((v, k) => { out[k] = `${v.fontSize}${v.bold ? "b" : ""}/${v.asContainer}`; });
+  const out = {}; Appearance.followNestingChains(side, NS([{ fontSize: 14, fontStyle: "bold" }])).styles.forEach((v, k) => { out[k] = `${v.fontSize}${BOLD[v.fontStyle]}/${v.asContainer}`; });
   eq(out, { g0: "14b/true", x0: "14b/true", g1: "12/true", g2: "12/true", g3: "10/false" }, "fonts: a leaf beside a container is styled as a container");
 }
 eq(chains([{ parent: "grouping", child: "", relation: "aggregation-relationship", fontSize: 12 }, { parent: "grouping", child: "", direction: "outgoing" }]).conflicts,
    ["1, 2"], "chains: equally specific conditions with different fonts: conflict reported");
+eq(fonts([{ fontSize: 14, fontStyle: "italic", fontDecreasePerLevel: 4 }]), { g0: "14i", o0: "14i", g1: "10", o1: "10" }, "fonts: Smaller per level and font style per condition");
+{
+  const props = [node("g0", null, "grouping", 0, true), Object.assign(node("f1", "g0", "business-function", 1, false, agg), { element: withProps({ Status: "Actief" }) })];
+  const out = {}; Appearance.followNestingChains(props, NS([{ parent: "grouping", child: "", color: "A" }, { parent: "grouping", child: "", property: "Status", value: "Actief", color: "B" },
+    { parent: "grouping", child: "", color: "C" }])).styles.forEach((v, k) => { out[k] = v.color; });
+  eq(out.f1, "B", "chains: a property match beats an otherwise equal condition, whatever the order");
+}
+{
+  // Background: each element its own value from its background look; without one the fallback (and it is counted)
+  const look = (fontSize, fontStyle, fillColor) => ({ fillColor, fontName: "Serif", fontSize, fontStyle });
+  const bg = [node("g0", null, "grouping", 0, true), node("g1", "g0", "grouping", 1, true, agg), node("g2", "g1", "grouping", 2, false, agg)];
+  bg[0].look = look(18, "bolditalic", "#a6c3dd"); bg[1].look = look(11, "normal", "#a6c3dd");
+  eq(fonts([{ fontSize: "background", fontStyle: "background" }], bg), { g0: "18bi", g1: "11", g2: "9" },
+     "Background: each element its own font size and style, at every level; without a look 9 pt normal");
+  const r = Appearance.followNestingChains(bg, NS([{ color: "background", fontSize: "background", fontStyle: "bold" }]));
+  eq([r.styles.get("g1").color, r.withoutLook.color.get(1).size, r.withoutLook.font.get(1).size], ["background", 1, 1], "Background: elements without a look are counted per condition");
+  const both = Appearance.followNestingChains(bg, NS([{ color: "background", fontSize: "background", fontStyle: "background" }]));
+  eq(Appearance.withoutLookCounts(both.withoutLook, { colorEnabled: true, fontEnabled: true }).get(1), 1, "Background: an element without a look counts once, whatever attributes use Background");
+  const mixed = [node("g0", null, "grouping", 0, true), node("o1", "g0", "business-object", 1, false, agg)];
+  mixed[0].look = look(14, "bold", null);
+  eq(fonts([{ fontSize: "background" }, { child: "business-object", fontSize: 0 }], mixed), { g0: "14", o1: "12" },
+     "Background: a start element without a font size continues from the parent's look size");
+  const same = Appearance.followNestingChains(bg, NS([{ color: "same" }]));
+  eq([same.styles.get("g0").color, same.parentlessRoots, same.withoutLook.color.size], ["background", ["g0"], 0],
+     "Same as parent on a root container: it keeps its background look, reported as parentless, not as without a look");
+}
+{
+  // Font style Same as parent: the parent's style; a root takes its background look's, else normal; no Background fallback count
+  const sp = [node("g0", null, "grouping", 0, true), node("s1", "g0", "application-service", 1, false, agg), node("s2", "g0", "application-service", 1, false, agg)];
+  sp[0].look = { fillColor: null, fontName: "Serif", fontSize: 16, fontStyle: "bold" };
+  const r = Appearance.followNestingChains(sp, NS([{ parent: "grouping", child: "grouping", fontSize: 16, fontStyle: "background" },
+    { child: "application-service", fontSize: 11, fontStyle: "same" }]));
+  eq([r.styles.get("g0").fontStyle, r.styles.get("s1").fontStyle, r.styles.get("s1").fontSize, r.withoutLook.font.has(2)], ["bold", "bold", 11, false],
+     "Font style Same as parent: the parent's style, and no Background fallback for the elements");
+  const root = Appearance.followNestingChains(sp.slice(0, 1), NS([{ fontStyle: "same", fontSize: 16 }]));
+  eq(root.styles.get("g0").fontStyle, "bold", "Font style Same as parent on a root container: its background look's style");
+  eq(norm("nestingStyle", [{ fontStyle: "same" }])[0].fontStyle, "same", "nesting style: font style same is valid");
+}
 console.log(failed ? `\n${failed} FAILED` : "all rel_filter tests passed");
 process.exit(failed ? 1 : 0);

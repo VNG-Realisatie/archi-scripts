@@ -303,11 +303,11 @@ function layoutRuntime(inProcess) {
 
 /**
  * The background view as selection_read.readBackground gives it in Archi: its elements (each once), diagram
- * objects and diagram-blocks, its element visuals, and the tables of its boxes; null without one.
- * @param {{id: string, path: string} | undefined} ref  preset.params.backgroundView
+ * objects and diagram-blocks, its element visuals, and the tables of its boxes; null without one, or when it is off.
+ * @param {{id: string, path: string, on: boolean} | undefined} ref  preset.params.backgroundView
  */
 function readBackground(model, ref) {
-  if (!ref || (!ref.id && !ref.path)) return null;
+  if (!ref || !ref.on || (!ref.id && !ref.path)) return null;
   const view = model.views.find(v => v.id === ref.id) || model.views.find(v => "/" + v.path === ref.path);
   if (!view) throw new Error(`Background view "${ref.path || ref.id}" is not in this model.`);
   const w = _walkView(model, view);

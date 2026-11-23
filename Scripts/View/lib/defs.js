@@ -85,7 +85,6 @@ const PARAM_LABELS = Object.freeze({
   columnsAcrossContainers:  "Columns across containers",
   backgroundView:           "Background",
   backgroundLeavesInPlace:  "Leaves in place",
-  backgroundKeepAppearance: "Keep appearance",
   direction:                "Direction",
   acyclicer:                "Cycles",
   ranking:                  "Ranking",
@@ -133,8 +132,6 @@ const PARAM_TOOLTIPS = Object.freeze({
                              "Path of the view, e.g. /Views/Backgrounds/Map. An element under nothing on it brings its parents; one that reaches it by no path is left out."],
   backgroundLeavesInPlace:  ["The leaves of the background view keep their place too.",
                              "Off: only its containers keep theirs; its leaves are always on the view, and the layout places them (sorted, compact)."],
-  backgroundKeepAppearance: ["The elements of the background view keep its appearance: fill, line, font and text.",
-                             "Font size follows Style by nesting level; Highlight repeated and Style by property still color them."],
   direction:                ["Direction of the main flow.", ""],
   acyclicer:                ["How relation cycles are broken before layout; no effect without cycles.",
                              "Default: depth-first search. Greedy: reverses as few relations as it can."],
@@ -196,7 +193,7 @@ const LAYOUT_GROUPS = Object.freeze({
   Nesting:     ["nestingConditions"],
   Reverse:     ["reverseConditions"],
   Containers:  ["containerAlgorithm", "connectionsMode", "padding",
-                "sort", "sameWidth", "columnsAcrossContainers", "backgroundView", "backgroundLeavesInPlace", "backgroundKeepAppearance"],
+                "sort", "sameWidth", "columnsAcrossContainers", "backgroundView", "backgroundLeavesInPlace"],
   Flow:        ["direction", "acyclicer", "ranking", "nodePlacement", "circles", "layerSpacing"],
   Elements:    ["elementWidth", "elementHeight", "labelSizing", "labelMaxLineWidth", "elementSpacing"],
   Connections: ["routing", "labelPosition", "connectionLabelSpacing", "connectionSpacing", "connectionElementSpacing"],
@@ -358,7 +355,7 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    false,  // tiles position nodes only — they do not route edges
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, "nestingConditions", "padding", "sort", "sameWidth", "columnsAcrossContainers",
-      ...PARAMS_VIEW_SIZE, "labelSizing", "labelMaxLineWidth", "elementSpacing", "reverseConditions", "backgroundView", "backgroundLeavesInPlace", "backgroundKeepAppearance",
+      ...PARAMS_VIEW_SIZE, "labelSizing", "labelMaxLineWidth", "elementSpacing", "reverseConditions", "backgroundView", "backgroundLeavesInPlace",
     ],
     supportedOptions:     { sameWidth: Object.values(SAME_WIDTH) },
     labelPositionDefault: null,
@@ -755,7 +752,7 @@ const SPLINE_SAMPLE_POINTS = 8;
 // ── Preset schema defaults ────────────────────────────────────────────────────
 
 const DEFAULT_PRESET = Object.freeze({
-  schemaVersion: 9,   // 2 = condition lists (rel_filter.js); 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions; 5 = nesting style conditions + palette; 6 = font size and bold per nesting style condition; 7 = sameWidth replaces alignWidthSameType, backgroundLeavesInPlace replaces backgroundEveryBox; 8 = filter.conditions (element and relation rows, applyTo) replaces filter.elementConditions and filter.relationConditions; 9 = view.folder is the whole path under Views and replaces view.underGenerated (the root of Mirrored too); older presets are migrated offline
+  schemaVersion: 10,   // 2 = condition lists (rel_filter.js); 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions; 5 = nesting style conditions + palette; 6 = font size and bold per nesting style condition; 7 = sameWidth replaces alignWidthSameType, backgroundLeavesInPlace replaces backgroundEveryBox; 8 = filter.conditions (element and relation rows, applyTo) replaces filter.elementConditions and filter.relationConditions; 9 = view.folder is the whole path under Views and replaces view.underGenerated (the root of Mirrored too); 10 = per nesting style condition its numbers, font style and property match, Background, backgroundView.on, backgroundKeepAppearance removed; older presets are migrated offline
   name:      "",
   algorithm: "Layered",
   params: {
@@ -793,9 +790,8 @@ const DEFAULT_PRESET = Object.freeze({
     labelSizing:           false,   // derive node width/height from the measured label (label_size.labelSizedLeaf)
     labelMaxLineWidth:     400,    // widest element Use label width makes before the label wraps
     connectionLabelSpacing:      true,   // reserve space for connection labels in ELK Layered (prevents overlap)
-    backgroundView:        { id: "", path: "" },   // Tiles: the view the selection fills (lib/background.js); id finds it, path is its label
+    backgroundView:        { id: "", path: "", on: true },   // Tiles: the view the selection fills (lib/background.js); id finds it, path is its label; on: false = the run does not use it
     backgroundLeavesInPlace: false, // the leaves of the background view keep their place too; false: only its containers (Table.tablesWithContainers)
-    backgroundKeepAppearance: false, // the elements of the background view keep its appearance, but for font size (Appearance.applyBackgroundAppearance)
   },
   // Filter lists (empty = keep everything); condition shapes in rel_filter.js.
   filter: {
@@ -824,10 +820,7 @@ const DEFAULT_PRESET = Object.freeze({
       // Nesting style conditions (kind "nestingStyle"): the nesting steps styling follows from each root container.
       conditions:         [{ child: "same", fontSize: 14 }],
       fontEnabled:        false,
-      fontDecreasePerLevel: 2,
       colorEnabled:       false,
-      darkenStart:        1,     // steps darker than its color the fill starts at a nesting type or color change (chroma darken)
-      lightenPerLevel:     15,
     },
     highlightRepeated: { enabled: false, colorRange: "Pastel1" },
   },
@@ -1010,16 +1003,16 @@ function _legacyKeys(raw) {
 }
 
 /**
- * A background view reference from a preset file: { id, path }, both strings.
+ * A background view reference from a preset file: { id, path, on }; id and path strings, on a boolean (default true).
  * @param {unknown} raw
  * @returns {BackgroundRef}
- * @throws when it is not an object with string id and path
+ * @throws when it is not an object with string id and path, or on is not a boolean
  */
 function _backgroundRef(raw) {
   const r = /** @type {Record<string, unknown>} */ (raw);   // Cast: checked below
-  if (!r || typeof r !== "object" || typeof r.id !== "string" || typeof r.path !== "string")
-    throw new Error(`Preset params.backgroundView must be { "id": "…", "path": "…" } (both may be empty); it is ${JSON.stringify(raw)}.`);
-  return { id: r.id, path: r.path };
+  if (!r || typeof r !== "object" || typeof r.id !== "string" || typeof r.path !== "string" || (r.on !== undefined && typeof r.on !== "boolean"))
+    throw new Error(`Preset params.backgroundView must be { "id": "…", "path": "…", "on": true | false } (id and path may be empty); it is ${JSON.stringify(raw)}.`);
+  return { id: r.id, path: r.path, on: r.on !== false };
 }
 
 /**
@@ -1134,11 +1127,8 @@ function validatePreset(raw) {
     if (ra.nestingLevel && typeof ra.nestingLevel === "object") {
       const rn = ra.nestingLevel;
       if (Array.isArray(rn.conditions)) pa.nestingLevel.conditions = conditions("nestingStyle", rn.conditions, "appearance.nestingLevel.conditions");
-      if (typeof rn.fontEnabled          === "boolean") pa.nestingLevel.fontEnabled          = rn.fontEnabled;
-      if (typeof rn.fontDecreasePerLevel === "number")  pa.nestingLevel.fontDecreasePerLevel = rn.fontDecreasePerLevel;
-      if (typeof rn.colorEnabled         === "boolean") pa.nestingLevel.colorEnabled         = rn.colorEnabled;
-      if (typeof rn.darkenStart          === "number")  pa.nestingLevel.darkenStart          = Math.max(0, Math.min(3, Math.round(rn.darkenStart)));
-      if (typeof rn.lightenPerLevel === "number") pa.nestingLevel.lightenPerLevel = rn.lightenPerLevel;
+      if (typeof rn.fontEnabled  === "boolean") pa.nestingLevel.fontEnabled  = rn.fontEnabled;
+      if (typeof rn.colorEnabled === "boolean") pa.nestingLevel.colorEnabled = rn.colorEnabled;
     }
 
     if (ra.highlightRepeated && typeof ra.highlightRepeated === "object") {

@@ -99,13 +99,29 @@ for (const file of files(PRESETS)) {
   }
 }
 
-// The name "same" is reserved for a nesting style color (Same as parent): a palette may not hold a color of that name.
+// Schema 10: backgroundView.on (default true); the schema 9 keys are reported, not read.
+{
+  const v = Defs.validatePreset({ schemaVersion: 10, algorithm: "Tiles", params: { backgroundView: { id: "x", path: "/Views/X" } } });
+  eq(v.params.backgroundView, { id: "x", path: "/Views/X", on: true }, "backgroundView.on defaults to true");
+  eq(Defs.validatePreset({ algorithm: "Tiles", params: { backgroundView: { id: "x", path: "", on: false } } }).params.backgroundView.on, false, "backgroundView.on false is kept");
+  eq(Defs.unknownPresetKeys({ params: { backgroundKeepAppearance: true }, appearance: { nestingLevel: { darkenStart: 1, lightenPerLevel: 15, fontDecreasePerLevel: 2 } } }),
+     ["params.backgroundKeepAppearance", "appearance.nestingLevel.darkenStart", "appearance.nestingLevel.lightenPerLevel", "appearance.nestingLevel.fontDecreasePerLevel"],
+     "the schema 9 keys are unknown in schema 10");
+  let message = "";
+  try { Defs.validatePreset({ schemaVersion: 9, algorithm: "Tiles" }); } catch (e) { message = String(e.message); }
+  eq(message.includes("expected 10"), true, "a schema 9 preset is refused: migrate it (tools/migrate_presets_nesting_style.js)");
+}
+
+// The names "same" and "background" are reserved for a nesting style fill color (Same as parent, Background): a palette may not hold a color of that name.
 {
   const Palettes = require("../lib/palettes");
   const palette = colors => ({ palettes: [{ name: "P", colors, ranges: [{ name: "R", colors: ["#ffffff", "#000000"], padding: [0, 0] }] }] });
   let refused = "";
   try { Palettes.validatePalettes(palette([{ name: ConditionLists.SAME_TYPE, hex: "#ffffcc" }])); } catch (e) { refused = String(e.message); }
   eq(/reserved/.test(refused), true, "a palette color named like the nesting style's Same as parent is refused");
+  refused = "";
+  try { Palettes.validatePalettes(palette([{ name: ConditionLists.BACKGROUND, hex: "#ffffcc" }])); } catch (e) { refused = String(e.message); }
+  eq(/reserved/.test(refused), true, "a palette color named like the nesting style's Background is refused");
   eq(Palettes.validatePalettes(palette([{ name: "Blue", hex: "#ffffcc" }])).length, 1, "a palette with ordinary color names is accepted");
 }
 

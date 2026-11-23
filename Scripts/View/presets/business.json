@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "name": "business",
   "algorithm": "Layered",
   "params": {
@@ -61,9 +61,8 @@
     "palette": "Brewer",
     "nestingLevel": {
       "conditions": [
-        {"bold": true, "child": "same"}
-      ],
-      "darkenStart": 0
+        {"darkenStart": 0, "fontStyle": "bold", "child": "same"}
+      ]
     }
   }
 }

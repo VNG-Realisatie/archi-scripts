@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "name": "GEMMA/Kernwaarden",
   "algorithm": "Layered",
   "params": {
@@ -68,13 +68,10 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"bold": true, "child": "same"}
+        {"darkenStart": 0, "fontStyle": "bold", "child": "same"}
       ],
       "fontEnabled": false,
-      "fontDecreasePerLevel": 2,
-      "colorEnabled": false,
-      "darkenStart": 0,
-      "lightenPerLevel": 15
+      "colorEnabled": false
     },
     "highlightRepeated": {
       "enabled": false,

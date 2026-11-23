@@ -9,7 +9,7 @@
  *   PRESET     the dialog opens on this preset instead of the session
  *   SHOTS      folder for the screenshots (NN_<name>.png), must exist
  *   SUITE      the steps to run: "tables" (default, the condition-table checklist), "open" (the dialog as it opens)
- *              or "keepAppearance" (Layout › Keep appearance and its notes on the Appearance tab)
+ *              or "nestingStyle" (the nesting style table on the Appearance tab, the Background row on the Layout tab)
  * Each key logs the control that has the focus ("key … → focus List"), so a key that went elsewhere shows.
  *
  * Do not touch mouse or keyboard while it runs: the input is posted to the desktop (Display.post).
@@ -377,21 +377,36 @@ const SUITES = {
     [1000, () => { if (button("Layout only").getEnabled()) clickControl(button("Layout only")); }],
     [1500, () => { logActionArea("layout_only"); shotShell("layout_only"); }],
   ],
-  // Keep appearance (Layout, Containers): the switch under Leaves in place, and the notes it shows on the Appearance tab.
-  keepAppearance: [
+  // Color and font by nesting level (Appearance): the table, its Property, Color and Font windows, and the Layout tab's Background row with On.
+  nestingStyle: [
     [2500, () => clickTab("Layout")],
-    [1000, () => showInScroll(button("Keep appearance"))],
-    [1000, () => { log(`keep appearance enabled: ${button("Keep appearance").getEnabled()}`); shotShell("layout_keep_off"); }],
-    [800,  () => moveToControl(button("Keep appearance"))],
-    [300,  () => clickControl(button("Keep appearance"))],
-    [1500, () => shotShell("layout_keep_on")],
+    [1000, () => showInScroll(button("Leaves in place"))],
+    [1000, () => shotShell("layout_background")],
     [100,  () => clickTab("Appearance")],
-    [1500, () => { log(`notes: ${notes().join(" | ")}`); shotShell("appearance_keep_on"); }],
+    [1500, () => { log(`notes: ${notes().join(" | ")}`); shotShell("appearance_nesting"); }],
+    [500,  () => openCell(NSTYLE(), 0, "Color")],
+    [1500, () => { logPopup("color_window"); shot("color_window", shell.getMonitor().getBounds()); }],
+    [100,  () => pressInPopup("Cancel")],
+    [800,  () => openCell(NSTYLE(), 1, "Font")],
+    [1500, () => { logPopup("font_window"); shot("font_window", shell.getMonitor().getBounds()); }],
+    [100,  () => chooseInPopupCombo(0)],
+    [1500, () => { logPopup("font_background"); shot("font_background", shell.getMonitor().getBounds()); }],
+    [100,  () => pressInPopup("Cancel")],
+    [800,  () => openCell(NSTYLE(), 0, "Property")],
+    [1500, () => { logPopup("property_window"); shot("property_window", shell.getMonitor().getBounds()); }],
+    [100,  () => pressInPopup("Cancel")],
     [100,  () => clickTab("Layout")],
-    [800,  () => { showInScroll(button("Keep appearance")); moveToControl(button("Keep appearance")); }],
-    [300,  () => clickControl(button("Keep appearance"))],
+    [800,  () => { showInScroll(button("Leaves in place")); clickControl(button("On")); }],
+    [1500, () => shotShell("layout_background_off")],
     [100,  () => clickTab("Appearance")],
-    [1500, () => { log(`notes: ${notes().join(" | ")}`); shotShell("appearance_keep_off"); }],
+    [1500, () => shotShell("appearance_background_off")],
+    [500,  () => openCell(NSTYLE(), 0, "Color")],
+    [1500, () => { logPopup("color_window_off"); shot("color_window_off", shell.getMonitor().getBounds()); }],
+    [100,  () => pressInPopup("OK")],
+    [800,  () => openCell(NSTYLE(), 0, "Font")],
+    [1500, () => { logPopup("font_window_off"); shot("font_window_off", shell.getMonitor().getBounds()); }],
+    [100,  () => pressInPopup("OK")],
+    [800,  () => { const c = ctxConditions(); log(`after OK, background off: ${JSON.stringify(c[0] && [c[0].color, c[0].fontSize, c[0].fontStyle])}`); }],
   ],
   // The compound Property cell: its window on Selection (element filter, step) and Layout (nesting).
   compound: [
@@ -509,10 +524,15 @@ function run(i) {
   });
 }
 
+/** @type {any} */ let dialogCtx = null;
+/** The nesting style conditions as the dialog holds them. */
+const ctxConditions = () => dialogCtx.widgets.tblNestingStyleConditions.getConditions();
+
 // The dialog is shown once its last tab is built: start the suite then.
 const buildPropertiesTab = TabProperties.buildPropertiesTab;
 TabProperties.buildPropertiesTab = function (/** @type {any} */ tf, /** @type {any} */ ctx) {
   const r = buildPropertiesTab(tf, ctx);
+  dialogCtx = ctx;
   tabFolder = tf;
   shell = tf.getShell();
   tf.getDisplay().asyncExec(() => { fixButtonPositionGTK(); shell.forceActive(); run(0); });
