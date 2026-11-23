@@ -93,8 +93,8 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "child": "grouping", "color": "background", "darkenStart": 0, "lightenPerLevel": 50, "fontSize": 16, "fontStyle": "background"},
-        {"direction": "outgoing", "relation": "aggregation-relationship", "child": "application-service", "color": "same", "darkenStart": 0, "lightenPerLevel": 50, "fontSize": 11, "fontStyle": "background"},
+        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "child": "grouping", "color": "background", "darkenStart": 0, "lightenPerLevel": 50, "fontSize": 16, "fontStyle": "bold"},
+        {"direction": "outgoing", "relation": "aggregation-relationship", "child": "application-service", "color": "same", "darkenStart": 0, "lightenPerLevel": 65, "fontSize": 11, "fontStyle": "same"},
         {"on": false, "parent": "application-service", "direction": "outgoing", "relation": "aggregation-relationship", "color": "background", "darkenStart": 0, "lightenPerLevel": 50, "fontStyle": "background", "child": "same"}
       ],
       "fontEnabled": true,

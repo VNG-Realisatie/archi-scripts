@@ -1,7 +1,5 @@
 # View: nesting style with background look and compound cells
 
-Block 5 renames this file to `plan/view-nesting-style-background-look.md` (AGENTS.md hard rule 8: no generated name).
-
 ## Context
 
 Goal: color nested views both with chosen colors and from a background view. The dialog is as unambiguous as possible; the condition rows of Selection and Appearance look and work alike.
@@ -222,6 +220,5 @@ User: confirm the GEMMA view in Archi.
 
 ## Handoff
 
-- Done: blocks 0–4. Schema 10 and the appearance engine (background look as base layer, *Background* and *Same as parent* per appearance attribute, per-condition numbers, font style, property match, `backgroundView.on`, migration); the dialog (Color and font by nesting level with compound Property, Color and Font cells, counts and ⚠, Background On, fallback shown while no background view is in use). Font style also has *Same as parent* and font size *Same as parent* (was *Continues*).
-- Next: block 5 (Sonnet): GEMMA check and close.
-- User: start a new session on Sonnet with the prompt line below.
+- Done: blocks 0–5. Schema 10, the appearance engine and the dialog are committed (`65b64a9`). GEMMA check on a copy of the GEMMA model: "Publieksdiensten" with the example preset: all 71 application services have the tint of their own container (*Same as parent* 65 %, e.g. `#e0eaf3` under `#a6c3dd`, `#eff2e5` under `#d1dab4`, also "Klanttevredenheidsmeting en analyse" inside "Publieksdiensten applicatieservices voor gemeente"); where the background view holds the service in the same container (45), the largest channel difference is 9; 25 services are not on the background view.
+- User: confirm the GEMMA view in Archi (open the dialog with the preset *GEMMA/Referentiecomponenten/Applicatieservices met referentiecomponenten background*, New view on "Publieksdiensten").
