@@ -238,7 +238,7 @@ Element conditions and relation conditions are independent: without an Include c
 - **Each step expands outward from the previous step's additions only**, not from the whole accumulated set. A sequence reads as "from these, reach those; from *those*, reach the next".
 - A step condition reads from that set: *previous-step type → direction (outgoing / incoming / either) → added relation type → added element type*, plus an optional property value. It shows what it reaches.
 - Followed relations are drawn; the added type and property only decide which elements join.
-- **Repeat** runs the step 1–5 times, or *until nothing new* (at most 10 runs); each run starts from the previous run's additions. It belongs to the whole step: a different depth per relation takes a step of its own.
+- **Repeat** runs the step 1–5 times, or *until nothing new* (at most 10 runs); each run starts from the previous run's additions, and all runs together are what the next step starts from. The dialog counts per run. It belongs to the whole step: a different depth per relation takes a step of its own.
 - **An empty step ends the chain.**
 - A step adds elements only. A relation whose other end is a relation (ArchiMate allows a relation on a relation) is not followed; following relations on relations is not supported yet.
 

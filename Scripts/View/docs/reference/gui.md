@@ -136,7 +136,7 @@ Decides *which* objects feed the layout: the counts at the top, then the global 
 - **Containing**: the count after folders and views are opened up.
 - **Filter conditions**: each condition's type combo shows how many it keeps on its own, *Grouping (28)*.
 - **Adds**: one counter per step, in its header. It shows what the step *adds*, not a running total, and `Adds: nothing` when zero. A collapsed step without a name also names its number of conditions.
-- **Step conditions**: the chosen Added relations / Added elements type shows `(n)`, *Aggregation (3)*. That is what the step adds with only that condition (same input, same repeat), so adding or changing another condition never changes it.
+- **Step conditions**: the chosen Added relations / Added elements type shows `(n)`, *Aggregation (3)*. That is what the step adds with only that condition. With a repeat above 1× the count is per run, *Aggregation (6 + 12 + 12)*, for the runs that add something. Run 1 counts from the step's input, so another condition never changes it; each next run counts what this condition alone adds from what *all* conditions added in the run before, so it depends on the other conditions. The step header shows only the totals.
 - An Exclude condition shows instead what it removes from the other conditions' result.
 - Only types with a count above zero are shown.
 - Counts update on every change of a condition, on/off, repeat or step order. They use the same selection logic as the action ([counting rules](selection-nesting.md#counting-rules)).

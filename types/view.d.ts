@@ -733,7 +733,10 @@ type DialogStepCounts = StepAdds & {
   capped: boolean;
   /** What the step saw before its conditions: the conditions' property lists. */
   candidates: StepCandidate[];
-  conditionCounts: StepAdds[];
+  /** Per displayed condition: a number, or "5 + 7 + 2" per run when the step runs more than once. */
+  conditionCounts: ConditionTableCounts[];
+  /** What the step adds per run with all its conditions. */
+  runAdds: StepAdds[];
 };
 
 /** The Layout tab's counts on the predicted view (layoutConditionCounts). */
@@ -794,7 +797,8 @@ interface ConditionTableItem {
 }
 
 /** Per-condition counts shown in a condition table, by count key (column key or column `count`). */
-type ConditionTableCounts = Record<string, number | undefined>;
+/** A count is a number, or a per-run sum as text ("5 + 7 + 2", steps). */
+type ConditionTableCounts = Record<string, number | string | undefined>;
 
 /** A drawn checkbox with its label (gui/widgets.js checkBox): grey when disabled, unlike a GTK checkbox. `control` is what gets laid out. */
 interface CheckBox {
@@ -852,7 +856,7 @@ interface ConditionTablePlainColumn<R = AnyCondition> extends ConditionTableColu
   /** check: false = unchecked when the condition has no value. */
   default?: boolean;
   /** count: the cell text for n (default "(n)"). */
-  format?: (n: number) => string;
+  format?: (n: number | string) => string;
   /** check as a field of a compound cell: the checkbox's text. */
   text?: string;
 }

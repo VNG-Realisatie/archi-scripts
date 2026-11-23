@@ -121,6 +121,21 @@ eq(counts("2 Edited", expandSnapshot).expandView,
   eq(Counts.dialogCounts(after).steps.map(s => s.conditionCounts), [[{ elements: 0, relations: 0 }]], "2 Edited, step count cache after a filter change");
 }
 
+// A repeated step counts per run: the runs add up to what the step adds, and a condition shows its count per run.
+{
+  const input = countInput(modelTreeSelection("6 GEMMA"), null);
+  const all = { ...ConditionLists.defaultCondition("step"), on: true };
+  const noComposition = { ...all, mode: "exclude", relation: "composition-relationship" };
+  const conditions = [all, noComposition];
+  input.steps = [{ step: { repeat: Defs.REPEAT_UNTIL_NOTHING_NEW, conditions }, displayedConditions: conditions, cache: new Map() }];
+  const s = Counts.dialogCounts(input).steps[0];
+  eq({ elements: s.elements, relations: s.relations, runAdds: s.runAdds, conditionCounts: s.conditionCounts }, {
+    elements: 35, relations: 49,
+    runAdds: [{ elements: 6, relations: 6 }, { elements: 12, relations: 14 }, { elements: 12, relations: 22 }, { elements: 4, relations: 6 }, { elements: 1, relations: 1 }],
+    conditionCounts: [{ elements: "6 + 12 + 12 + 4 + 1", relations: "6 + 14 + 22 + 6 + 1" }, { elements: "0 + 0 + 0 + 0 + 0", relations: "0 + 0 + 0 + 0 + 0" }],
+  }, "6 GEMMA, repeated step per run");
+}
+
 // ── Nesting style table: parents and children per condition, as the appearance pass styles the written view ──────
 {
   global.Java = global.Java || { type: n => n.endsWith("Files") ? { readString: p => fs.readFileSync(String(p), "utf8"), exists: p => fs.existsSync(String(p)) } : { get: p => p } };

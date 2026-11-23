@@ -103,9 +103,8 @@ function dialogCounts(input) {
     const { added, hops: stepHops, rels: stepRels, cumulative: newCumul, runs, capped, candidates } =
       Pipeline.expandStepWithRelations(relationsOf, stepInput, s.step, cumulative, seenRelIds);
     stepHops.forEach(h => hops.push(h));
-    const adds = { elements: added.length, relations: stepRels.length };
-    steps.push({ ...adds, runs, capped, candidates,
-      conditionCounts: stepConditionCounts(relationsOf, s, stepInput, cumulative, seenBefore, adds, chainKey) });
+    const { conditionCounts, runAdds } = stepConditionCounts(relationsOf, s, stepInput, cumulative, seenBefore, chainKey);
+    steps.push({ elements: added.length, relations: stepRels.length, runs, capped, candidates, conditionCounts, runAdds });
     cumulative = newCumul;
     stepRels.forEach(r => finalRels.push(r));
     stepInput = added;                                                       // chain advance
@@ -261,28 +260,69 @@ function _filterTableCounts(input, filteredElements) {
 // ── Per-condition counts ───────────────────────────────────────────────────────────
 
 /**
- * Per-condition counts of a step: what the step adds with this condition alone — same input, same repeat —
- * so a condition's count changes only when the condition or the step input changes, never because another
- * condition was added. An Exclude condition: what it removes from the other conditions' result. Results are
- * cached per condition and chain key in the step's cache, so adding a condition computes only the new one.
+ * Per-condition counts of a step, per run. Run 1: what the step adds with this condition alone, from the step
+ * input, so adding another condition never changes it. Run k ≥ 2: what this condition alone adds from what all
+ * conditions together added in run k − 1, as the step runs; it depends on the other conditions. An Exclude
+ * condition: what it removes from the other conditions' result in that run. Runs are shown while the step adds
+ * something, at least run 1. Results are cached per condition, run and chain key in the step's cache.
  * @param {RelationIndex}  relationsOf
  * @param {DialogStep}     s
  * @param {ArchiElement[]} input
  * @param {ArchiElement[]} cumulative
  * @param {Set<string>}    seen
- * @param {StepAdds}       total  what the step adds with all its conditions
  * @param {string}         chainKey  the settings input, cumulative and seen follow from (dialogCounts)
- * @returns {StepAdds[]}  one entry per displayed condition; a condition that is off is counted as if it were on
+ * @returns {{ conditionCounts: ConditionTableCounts[], runAdds: StepAdds[] }}
+ *   conditionCounts — one entry per displayed condition: a number, or "5 + 7 + 2" with more than one run;
+ *                     a condition that is off is counted as if it were on
+ *   runAdds         — what the step adds per run with all its conditions
  */
-function stepConditionCounts(relationsOf, s, input, cumulative, seen, total, chainKey) {
+function stepConditionCounts(relationsOf, s, input, cumulative, seen, chainKey) {
   const { step, displayedConditions: conditions, cache } = s;
   if (cache.size > STEP_COUNT_CACHE_MAX) cache.clear();
+  const once = Object.assign({}, step, { repeat: 1 });
+  /** @type {StepAdds[][]} per run, per condition */
+  const perRun = [];
+  /** @type {StepAdds[]} */
+  const runAdds = [];
+  let base = input, cumul = cumulative, seenRun = new Set(seen);
+  for (let k = 1; k <= Defs.repeatMaxRuns(step.repeat); k++) {
+    const state = { base, cumul, seenRun: new Set(seenRun) };   // the run below adds to seenRun
+    // Run 1 starts from the step input alone; a later run from what all conditions added before it.
+    const runKey = `${chainKey}|${k}|${k === 1 ? "" : JSON.stringify(step.conditions)}`;
+    const all = Pipeline.expandStepWithRelations(relationsOf, base, once, cumul, seenRun);
+    const total = { elements: all.added.length, relations: all.rels.length };
+    if (k > 1 && total.elements === 0) break;
+    runAdds.push(total);
+    perRun.push(_runConditionCounts(relationsOf, once, conditions, state, total, runKey, cache));
+    if (total.elements === 0) break;
+    base = all.added; cumul = all.cumulative;
+  }
+  /** @param {number} i @param {"elements" | "relations"} key */
+  const shown = (i, key) => perRun.length === 1 ? perRun[0][i][key] : perRun.map(r => r[i][key]).join(" + ");
+  return {
+    conditionCounts: conditions.map((_, i) => ({ elements: shown(i, "elements"), relations: shown(i, "relations") })),
+    runAdds,
+  };
+}
+
+/**
+ * Per-condition counts of one run of a step (stepConditionCounts).
+ * @param {RelationIndex}    relationsOf
+ * @param {Step}             once        the step, run once
+ * @param {StepCondition[]}  conditions  the displayed conditions
+ * @param {{ base: ArchiElement[], cumul: ArchiElement[], seenRun: Set<string> }} state  before the run
+ * @param {StepAdds}         total       what the run adds with all conditions
+ * @param {string}           runKey
+ * @param {Map<string, StepAdds>} cache
+ * @returns {StepAdds[]}
+ */
+function _runConditionCounts(relationsOf, once, conditions, state, total, runKey, cache) {
   /** @param {StepCondition[]} list */
   const run = list => {
-    const key = `${step.repeat}|${chainKey}|${JSON.stringify(list)}`;
+    const key = `${runKey}|${JSON.stringify(list)}`;
     let r = cache.get(key);
     if (!r) {
-      const res = Pipeline.expandStepWithRelations(relationsOf, input, Object.assign({}, step, { conditions: list }), cumulative, new Set(seen));
+      const res = Pipeline.expandStepWithRelations(relationsOf, state.base, Object.assign({}, once, { conditions: list }), state.cumul, new Set(state.seenRun));
       r = { elements: res.added.length, relations: res.rels.length };
       cache.set(key, r);
     }

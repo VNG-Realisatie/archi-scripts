@@ -338,8 +338,8 @@ function _toggleCollapseBlock(ctx, blockObj) {
 function _repeatPicker(parent, onChange) {
   const btn = new ButtonWidget(parent, SWT.PUSH);
   btn.setToolTipText(
-    "How many times this step runs; each run starts from the previous run's additions.\n" +
-    `∞: until a run adds nothing (at most ${Defs.REPEAT_MAX}×).`);
+    "Run 1 starts from the previous step's additions (step 1: the filtered selection), each next run from the run before.\n" +
+    `All runs together feed the next step. ∞: until a run adds nothing (at most ${Defs.REPEAT_MAX}×).`);
   GridDataFactory.swtDefaults().hint(44, 22).align(SWT.BEGINNING, SWT.CENTER).applyTo(btn);
   let value = Defs.REPEAT_OPTIONS[0].value;
   /** @type {Swt.Menu | null} */

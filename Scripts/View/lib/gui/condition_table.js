@@ -1005,8 +1005,8 @@ const STEP_CONDITION_COLUMNS = Object.freeze([
              "Incoming: the relation ends at an element of the previous step.\nEither: both (default)." },
   // The condition's counts sit after the chosen type: "Aggregation (18)", "Business Service (5)".
   Object.assign(_relCol("relation", "Added relations", "Relationship types to follow from the previous step.\n" + _COUNT_TIP),
-    { count: "relations", width: 166 }),
-  Object.assign(_typeCol("added", "Added elements", "Types of the elements this step adds.\n" + _COUNT_TIP, 180),
+    { count: "relations", width: 260 }),
+  Object.assign(_typeCol("added", "Added elements", "Types of the elements this step adds.\n" + _COUNT_TIP, 280),
     { count: "elements" }),
   _propCol("Match only when the added element, the followed relation or the previous element has the specified property value. Click to configure. Empty: any value.",
     { key: "propertyOf", header: "Property of", kind: "choice", items: STEP_PROP_OF_ITEMS,
