@@ -54,32 +54,32 @@
     "steps": [
       {
         "name": "Domein en doelgroep",
-        "repeat": 1,
+        "repeat": 4,
         "conditions": [
-          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping", "property": "GEMMA subtype", "value": "Domein"},
-          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping", "property": "GEMMA subtype", "value": "Domein en doelgroep"}
+          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping"},
+          {"on": false, "previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping", "property": "GEMMA subtype", "value": "Domein en doelgroep"}
         ]
       },
       {
         "name": "",
         "repeat": 1,
         "conditions": [
-          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "application-service"},
-          {"direction": "incoming", "relation": "realization-relationship", "added": "application-component"}
+          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "application-service"},
+          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "application-component"}
         ]
       },
       {
         "name": "",
-        "repeat": 1,
+        "repeat": 3,
         "conditions": [
-          {"direction": "incoming", "relation": "realization-relationship", "added": "application-component"},
-          {"direction": "outgoing", "added": "application-service"}
+          {"previous": "application-service", "direction": "incoming", "relation": "realization-relationship", "added": "application-component"},
+          {"previous": "application-service", "direction": "outgoing", "relation": "aggregation-relationship", "added": "application-service"}
         ]
       }
     ]
   },
   "view": {
-    "name": "Publieksdiensten",
+    "name": "Sociaal domein AS background",
     "folder": "/_Generated/Referentiecomponenten/Background/Applicatieservices en referentiecomponenten",
     "suffix": "",
     "mirrored": false
@@ -94,7 +94,7 @@
     "nestingLevel": {
       "conditions": [
         {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "child": "grouping", "color": "background", "darkenStart": 0, "lightenPerLevel": 50, "fontSize": 16, "fontStyle": "bold"},
-        {"direction": "outgoing", "relation": "aggregation-relationship", "child": "application-service", "color": "same", "darkenStart": 0, "lightenPerLevel": 65, "fontSize": 11, "fontStyle": "same"},
+        {"direction": "outgoing", "relation": "aggregation-relationship", "child": "application-service", "color": "same", "darkenStart": 0, "lightenPerLevel": 50, "fontStyle": "italic"},
         {"on": false, "parent": "application-service", "direction": "outgoing", "relation": "aggregation-relationship", "color": "background", "darkenStart": 0, "lightenPerLevel": 50, "fontStyle": "background", "child": "same"}
       ],
       "fontEnabled": true,
