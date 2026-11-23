@@ -45,7 +45,7 @@ Usage: **element** for a model element on the view, **diagram object** for an ob
 | **start element** | The element where a condition starts styling a nesting chain: the root container, or a child selected by a different condition than its parent. The condition's fill color, font size and font style apply there; deeper levels within the same condition become lighter and smaller according to its settings. *Start darker* applies at a nesting type change or nesting color change (§ Explanation and tooltips). | "the container where a condition starts" |
 | **font style** | `normal`, `bold`, `italic`, `bolditalic` (jArchi `fontStyle`) or Background. In the dialog, Bold and Italic are separate switches. | column *Bold* (boolean) |
 | **Color and font by nesting level** | The Appearance group that styles elements along nesting chains. | *Style by nesting level* |
-| **compound cell** | A table cell that shows a summary of several fields and opens a pop-up containing those fields when clicked. | optional columns and *Match property* |
+| **compound cell** | A table cell that shows a summary of several fields and opens a window containing those fields when clicked. | optional columns and *Match property* |
 | **property match** | The property-based criteria of a condition: *Property of* (a choice of whose property is read), *Property* and *Value*. | the same fields, now in one compound cell |
 | **position** | The arrangement the background view imposes: where the parts of the view are relative to each other, represented as a table (existing terms *table*, *table row*, *table column*, *cell*). | — |
 
@@ -70,7 +70,7 @@ An On checkbox beside the background view (Layout tab), like the On checkbox of 
 - The background look applies whenever the background view is on; there is no separate *Keep appearance* switch.
 - A condition overrides per appearance attribute: fill color, font size, font style. The value Background means: no override. Line, font name, font color, figure, image and text always come from the background look.
 - Per condition: *Start darker* (at a nesting type change or nesting color change), *Lighter per level* (each deeper nesting level within the condition; for Same as parent the one nesting step from the parent's fill color), *Smaller per level* (each deeper nesting level, never below 9 pt).
-- Not applicable, so greyed in the pop-up: *Start darker* with Background and Same as parent; *Lighter per level* with Background; *Smaller per level* with font size Background.
+- Not applicable, so greyed in the window: *Start darker* with Background and Same as parent; *Lighter per level* with Background; *Smaller per level* with font size Background.
 - Property match in a nesting style condition: Property of = `child` | `parent` | `relation`. Specificity: +1 for a property match, beside parent type, relation and direction.
 - Removed: the `fromKept` rule in `followNestingChains` (a child of the same type follows a kept fill color) and the exception "only the font size comes from the condition". Same as parent and Background now say it explicitly.
 - **Root containers.** A nesting step always has a parent and a child, so a root container is never the child of a nesting step. A condition still styles a root container whose type matches its Child type (Parent type All or that type); that is how a root grouping gets font size 16 and bold. The rule stays, explained as: "a condition also styles a root container of its child type". With fill color Same as parent there is no parent to take it from: the root keeps its background look, else Type default (no override), and the row shows ⚠.
@@ -85,15 +85,13 @@ Example, GEMMA "Applicatieservices met referentiecomponenten background":
 
 ## Dialog
 
-### Compound cell with pop-up (Selection and Appearance, one pattern)
+### Compound cell with a window (Selection and Appearance, one pattern) — built in block 2
 
-- New column kind `compound` in `lib/gui/condition_table.js`: the cell shows a summary (owner draw, like the other cells); click, Space or Enter opens a pop-up under the cell.
-- Pop-up: a `Shell` with `SWT.NO_TRIM`, placed as `_placeTreePopup` (`lib/gui/widgets.js:709`) does, kept on screen. A header line reads the condition as one sentence (the existing row tooltip sentence), so it is clear which row is being edited.
-- Changes apply at once (table and counts redraw). Enter or a click outside closes; Esc restores the values from when it opened and closes. Tab moves through the fields.
-- Long lists (property values) in the pop-up: a list with a filter field and counts, the pattern of `_openTreePopup` (`widgets.js:552`, `TextWidget` with `SWT.SEARCH`). The pop-up may be taller and wider than the cell; that is its advantage over columns.
-- A summary that does not fit ends in "…"; the cell tooltip gives the whole text.
-- A new field in a condition later is a field in a pop-up, not a column.
-- Read before building: `Scripts/View/docs/reference/gui.md` § Look and feel, `skills/jarchi-scripting/swt-gtk.md`, `Scripts/View/docs/ARCHITECTURE.md` § Dialog.
+- Column kind `compound` in `lib/gui/condition_table.js` (`summary`, `fields`); a click, Space or Enter opens `Widgets.openFieldsWindow`: a small modal window under the cell, on the cell's monitor, movable, titled with the field and the condition, the fields side by side, OK and Cancel.
+- A choice changes only the window; OK (or Enter) applies and recounts once; Cancel, Esc and the close button undo.
+- A list field (property, value) has a filter field; its names are read again only when another field changed. Choosing another property empties the value.
+- A summary that does not fit ends in "…"; the cell tooltip gives the whole summary. Property of shows its short name in the summary (*Previous*, *Source*).
+- A new field of a condition later is a field in the window, not a column. In block 4 the Color and Font cells use the same window (choice, color picker, spinner fields still to add to `openCompound`).
 
 ### Selection tab
 
@@ -113,13 +111,13 @@ Columns: On · Parent type (n) · Direction · Relation type · Child type (n) �
 
 - Counts in the type cells, as "Aggregation (62)" in the Nesting table: Parent type `(n)` = distinct parents of the nesting steps this condition styles; Child type `(n)` = elements it styles directly (one nesting level, root containers included), only nesting steps it wins.
 - ⚠ column at the end of the row, the pattern of the ⚠ column of Style by property (`kind: "warn"`, `setWarnings`). The icon shows when the predicted view has children with Background that are not on the background view, or Same as parent on a root container. Its tooltip says what happens; the console says the same at the run.
-- Background in the pop-ups is greyed without a background view, or with the background view off.
+- Background in the windows is greyed without a background view, or with the background view off.
 - The row with *Smaller per level*, *Lighter per level* and *Start darker* under the switches goes; the *Font* and *Color* switches stay.
 - Layout tab: *Keep appearance* goes; the background view gets an On checkbox; *Leaves in place* stays.
 
 ### Explanation and tooltips (draft, English as in the dialog)
 
-Rules: a tooltip says what the field does, briefly, and repeats no choice values. The choice values (Background, Same as parent, Type default, …) are explained in the pop-up, as a short line under the picker or as the item's tooltip.
+Rules: a tooltip says what the field does, briefly, and repeats no choice values. The choice values (Background, Same as parent, Type default, …) are explained in the window, as a short line under the picker or as the item's tooltip.
 
 Group title *Color and font by nesting level*, explanation:
 > Each condition selects parent-to-child nesting steps and defines how each child looks. Deeper levels within a condition become lighter and smaller. With a background view, elements start with their appearance from that view. Choose Background to preserve it.
@@ -149,7 +147,7 @@ Counts: "(n)" after the chosen type is the number on the predicted view, the sam
 | Background (greyed out) | No background view selected, or the background view is disabled on the Layout tab. |
 | Property (Selection) | Match only when the object has the specified property value. Click to configure. Empty: any value. |
 
-Pop-up choice descriptions, worded in parallel; Background has the same text for fill color, font size and font style:
+Window choice descriptions, worded in parallel; Background has the same text for fill color, font size and font style:
 
 | Choice | Description |
 |---|---|
@@ -206,7 +204,7 @@ Checks: `gui_check.ajs` on the Selection tab, judged by the agent. User: approve
 
 ### Block 4 — Appearance dialog and counts (Opus)
 
-`lib/gui/tab_appearance.js` (group order Colors → Color and font by nesting level → Style by property → Highlight repeated; columns, explanation, numbers row removed), `lib/gui/condition_table.js` (`nestingStyleConditionColumns` with compound Property, Color and Font cells, ⚠), `lib/gui/counts.js` (parents and children per condition through `followNestingChains` on the predicted nesting), `lib/gui/tab_layout.js` (*Keep appearance* removed, On checkbox), `lib/gui/dialog_main.js`. Docs: `gui.md` (tab, tooltips, pop-up texts), ARCHITECTURE § Dialog.
+`lib/gui/tab_appearance.js` (group order Colors → Color and font by nesting level → Style by property → Highlight repeated; columns, explanation, numbers row removed), `lib/gui/condition_table.js` (`nestingStyleConditionColumns` with compound Property, Color and Font cells, ⚠), `lib/gui/counts.js` (parents and children per condition through `followNestingChains` on the predicted nesting), `lib/gui/tab_layout.js` (*Keep appearance* removed, On checkbox), `lib/gui/dialog_main.js`. Docs: `gui.md` (tab, tooltips, window texts), ARCHITECTURE § Dialog.
 Checks: `gui_check.ajs` on Appearance and Layout, `counts_test.js`. User: approve the dialog before the docs.
 
 ### Block 5 — GEMMA check and close (Sonnet)
@@ -218,12 +216,12 @@ User: confirm the GEMMA view in Archi.
 
 - `npm run typecheck` at exit 0 after every block.
 - Node: `appearance_test.js` (Background per appearance attribute, fallback, Same as parent under a background look, per-condition numbers, font style, property match, no `fromKept`, pass order), `preset_test.js` (schema 10, reserved names, migration idempotent), `counts_test.js` (parents/children per condition), `rel_filter_test.js` (property match, specificity), `background_test.js` (background view off), `rules_test.js`, the other `tools/*_test.js`.
-- Dialog: skill `view-testing`, `tools/gui_check.ajs` on Selection and Appearance: table width, pop-ups (placement, Esc/Enter, filter list), greyed cells; the agent judges the screenshots itself.
+- Dialog: skill `view-testing`, `tools/gui_check.ajs` on Selection and Appearance: table width, windows (placement, OK/Cancel, filter list), greyed cells; the agent judges the screenshots itself.
 - Archi: skill `view-baseline`, run by the agent; expected differences only for the two presets with *Keep appearance* off (line, font name, figure).
 - GEMMA: "Applicatieservices met referentiecomponenten background" with the example above; the application services on "Publieksdiensten" get the tint of their own container (`#e0eaf3` under `#a6c3dd`), also inside "Publieksdiensten applicatieservices voor gemeente".
 
 ## Handoff
 
-- Done: plan approved; block 0 (`~/ai` commit c9bf5aa); block 1 (Same as parent, Type default, 90 %, docs, preset).
-- Next: block 2 (Opus): compound cell and Selection Property.
-- User: switch to Opus (`/model opus`) and say "done".
+- Done: blocks 0, 1 and 2 (compound cell with a window; Property cell on the Selection and Layout tables; *Match property* removed; `gui_check.ajs` suite `compound`, run in Xvfb).
+- Next: block 3 (Opus): schema 10 and the appearance engine.
+- User: start a new session on Opus with the prompt line below.

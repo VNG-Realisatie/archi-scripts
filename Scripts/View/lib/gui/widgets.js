@@ -760,6 +760,63 @@ function openListPopup(control, cell, labels, selected, choose) {
   list.setFocus();
 }
 
+const BUTTON_WIDTH = 100;   // px of OK and Cancel, as the dialog's Cancel
+
+// ── Fields window ─────────────────────────────────────────────────────────────
+// The fields of a compound cell: a small modal window under the cell, on the cell's monitor, with a
+// title naming the condition, one column per field, and OK and Cancel. OK (or Enter) applies the
+// fields; Cancel, Esc and the close button undo them. It can be moved like any window.
+
+/**
+ * @param {Swt.Control} control  the control the cell belongs to
+ * @param {Swt.Rectangle} cell  the cell in display coordinates
+ * @param {{ title: string, columns: number, onOk: () => void, onCancel: () => void, onClose: () => void }} opts
+ * @returns {{ body: Swt.Composite, open: (focus: Swt.Control | null) => void }}
+ *   body: the parent of the fields; open: place and show the window
+ */
+function openFieldsWindow(control, cell, opts) {
+  const win = new ShellWidget(control.getShell(), SWT.DIALOG_TRIM | SWT.APPLICATION_MODAL);
+  win.setText(opts.title);
+  GridLayoutFactory.fillDefaults().numColumns(1).margins(GROUP_MARGIN_H, GROUP_MARGIN_V).spacing(0, 10).applyTo(win);
+  const body = new CompositeWidget(win, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(opts.columns).spacing(GAP_PAIR, 4).applyTo(body);
+  GridDataFactory.fillDefaults().grab(true, true).applyTo(body);
+
+  // OK and Cancel, bottom right, as wide as the dialog's Cancel.
+  const buttons = new CompositeWidget(win, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(2).spacing(GAP_FIELD, 0).applyTo(buttons);
+  GridDataFactory.fillDefaults().align(SWT.END, SWT.CENTER).grab(true, false).applyTo(buttons);
+  let ok = false;
+  const btnOk = new ButtonWidget(buttons, SWT.PUSH);
+  btnOk.setText("OK");
+  GridDataFactory.fillDefaults().hint(BUTTON_WIDTH, SWT.DEFAULT).applyTo(btnOk);
+  btnOk.addListener(SWT.Selection, () => { ok = true; win.close(); });
+  const btnCancel = new ButtonWidget(buttons, SWT.PUSH);
+  btnCancel.setText("Cancel");
+  GridDataFactory.fillDefaults().hint(BUTTON_WIDTH, SWT.DEFAULT).applyTo(btnCancel);
+  btnCancel.addListener(SWT.Selection, () => win.close());
+  win.setDefaultButton(btnOk);
+
+  // Esc and the close button close the window too: everything but OK undoes.
+  win.addListener(SWT.Close, () => { if (ok) opts.onOk(); else opts.onCancel(); });
+  win.addListener(SWT.Dispose, opts.onClose);
+
+  /** @param {Swt.Control | null} focus */
+  const open = focus => {
+    const size = win.computeSize(SWT.DEFAULT, SWT.DEFAULT);
+    const monitors = [...control.getDisplay().getMonitors()];
+    const monitor = monitors.find(m => m.getBounds().contains(cell.x, cell.y)) || control.getShell().getMonitor();
+    const area  = monitor.getClientArea();
+    const below = cell.y + cell.height;
+    const y = Math.max(area.y, below + size.y <= area.y + area.height ? below : cell.y - size.y);
+    const x = Math.max(area.x, Math.min(cell.x, area.x + area.width - size.x));
+    win.setBounds(x, y, size.x, size.y);
+    win.open();
+    if (focus) focus.setFocus();
+  };
+  return { body, open };
+}
+
 // Inside a group, the same on every tab (ARCHITECTURE § Dialog, Look and feel realisation).
 const GROUP_MARGIN_H = 8;
 const GROUP_MARGIN_V = 6;
@@ -1082,6 +1139,6 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     scrolledTab, resizeScrolled, getBoldFont, getGroupBackground, noteLabel, hasNestingConditions,
     colorPicker, paletteColorPicker, colorRangePicker, paletteColorChoice, colorRangeChoice, colorItemFor, openColorMenu, drawSwatch, SWATCH_H, SWATCH_W,
-    rangeItems, treePicker, fillTree, fillFolderTree, firstName, openListPopup, group, formRow, alignFormColumns, addCombo, enable, pushBtn, addCheck, checkBox, drawCheck, CHECK_SIZE, addSpinnerRow, SPINNER_WIDTH, GAP_FIELD, GAP_PAIR, GROUP_MARGIN_H,
+    rangeItems, treePicker, fillTree, fillFolderTree, firstName, openListPopup, openFieldsWindow, group, formRow, alignFormColumns, addCombo, enable, pushBtn, addCheck, checkBox, drawCheck, CHECK_SIZE, addSpinnerRow, SPINNER_WIDTH, GAP_FIELD, GAP_PAIR, GROUP_MARGIN_H,
   };
 }

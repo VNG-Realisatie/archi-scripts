@@ -756,6 +756,8 @@ interface DialogCounts {
 interface ConditionTableItem {
   value: string | number;
   label: string;
+  /** A shorter label where a summary shows the item (a compound cell). */
+  short?: string;
 }
 
 /** Per-condition counts shown in a condition table, by count key (column key or column `count`). */
@@ -788,7 +790,6 @@ interface ConditionTableColumnBase<R> {
   header?: string;
   tooltip?: string;
   width?: number;
-  optional?: boolean;
   enabled?: (condition: R) => boolean;
   onChange?: (condition: R) => void;
   /** Count key shown after the selected item (choice, prop) or in the cell (count). */
@@ -813,14 +814,21 @@ interface ConditionTablePlainColumn<R = AnyCondition> extends ConditionTableColu
   format?: (n: number) => string;
 }
 
-type ConditionTableColumn<R = AnyCondition> = ConditionTableChoiceColumn<R> | ConditionTableColorColumn<R> | ConditionTablePlainColumn<R>;
+/** A compound cell: a summary of several fields, edited in a pop-up with one column per field. */
+interface ConditionTableCompoundColumn<R = AnyCondition> extends ConditionTableColumnBase<R> {
+  kind: "compound";
+  /** The fields of the pop-up, in order: choice (a combo), prop and value (a filtered list). */
+  fields: readonly (ConditionTableChoiceColumn<R> | ConditionTablePlainColumn<R>)[];
+  summary: (condition: R) => string;
+}
+
+type ConditionTableColumn<R = AnyCondition> = ConditionTableChoiceColumn<R> | ConditionTableColorColumn<R> | ConditionTablePlainColumn<R> | ConditionTableCompoundColumn<R>;
 
 interface ConditionTableOptions<K extends ConditionKind> {
   kind: K;
   columns: readonly ConditionTableColumn<ConditionByKind[K]>[];
   /** At least the default condition (= keep everything); hands back [] for it. */
   filterList?: boolean;
-  propCondition?: boolean;
   /** An empty feature list shows the default condition switched off. */
   placeholder?: boolean;
   onChange?: () => void;

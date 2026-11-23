@@ -107,18 +107,18 @@ Decides *which* objects feed the layout: the counts at the top, then the global 
 │ │               First object: Business Actor: Customer                              │ │
 │ │  Containing:  12 elements, 8 relations                                            │ │
 │ │  Filter selection by element and relation (no Include condition of a kind = …):   │ │
-│ │   On │ Mode │ Apply to │ Element / source type │ Relation type │ Target type │ Count │ │
-│ │   ☑  │ Include │ Element │ All                │ (grey)        │ (grey)      │       │ │
-│ │   [+ Add condition]  ☐ Match property                                             │ │
+│ │   On │ Mode │ Apply to │ Element / source type │ Relation type │ Target type │ Property │ Count │
+│ │   ☑  │ Include │ Element │ All                │ (grey)        │ (grey)      │ —        │       │
+│ │   [+ Add condition]                                                               │ │
 │ │  Filter selection by diagram type (no Include condition = keep …):                │ │
 │ │   On │ Mode │ Diagram type     [+ Add condition]                                  │ │
 │ └───────────────────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Expand selection ────────────────────────────────────────────────────────────────┐ │
 │ │ ┌───────────────────────────────────────────────────────────────────────────────┐ │ │
 │ │ │ [▾] [1× ▾] Step 1 · Adds: 4 elements · 3 relations                 [↑][↓] [✕] │ │ │
-│ │ │ On│Mode   │Previous step elements│Direction│Added relations│Added elements│   │ │ │
-│ │ │ ☑ │Include│Grouping              │Outgoing │Aggregation (3)│All (4)       │✕  │ │ │
-│ │ │ [+ Add condition]  ☐ Match property                                           │ │ │
+│ │ │ On│Mode   │Previous step elements│Direction│Added relations│Added elements│Property│ │
+│ │ │ ☑ │Include│Grouping              │Outgoing │Aggregation (3)│All (4)       │—    ✕ │ │
+│ │ │ [+ Add condition]                                                             │ │ │
 │ │ └───────────────────────────────────────────────────────────────────────────────┘ │ │
 │ │ ┌───────────────────────────────────────────────────────────────────────────────┐ │ │
 │ │ │ [▸] [∞ ▾]  Applications · Adds: 12 elements                        [↑][↓] [✕] │ │ │
@@ -142,7 +142,9 @@ Decides *which* objects feed the layout: the counts at the top, then the global 
 - Counts update on every change of a condition, on/off, repeat or step order. They use the same selection logic as the action ([counting rules](selection-nesting.md#counting-rules)).
 
 **Editing a condition.** This applies to every condition table: Selection, Nesting, Reverse and Style.
-- A click edits a cell. A cell with ▾ (a type, mode, direction, property or value) opens its list under the cell, the current item selected; a click or Enter chooses, Esc or a click elsewhere closes. A click on *On* or another check cell toggles it, on a color cell opens the palette menu, on ✕ removes the condition.
+- A click edits a cell. A cell with ▾ (a type, mode, direction, property) opens its list under the cell, the current item selected; a click or Enter chooses, Esc or a click elsewhere closes. A click on *On* or another check cell toggles it, on a color cell opens the palette menu, on a compound cell opens its window, on ✕ removes the condition.
+- **Compound cell.** A cell that holds several fields of the condition shows a summary of them and opens a small window under the cell (on the cell's monitor; it can be moved). The title names the field and the condition (*Property · condition 2: Element · Business Actor*); the fields stand side by side, a list with a filter field above it where a list can be long. A choice changes only the window; *OK* (or Enter) applies the fields and recounts once, *Cancel*, Esc or the close button undo them. The cell tooltip gives the whole summary, also when the cell cuts it off. A new field of a condition goes into such a window, not into a column of its own.
+- **Property cell** (the global filter, steps, Nesting and Reverse): the property match as one compound cell, `—` without one, else `Status = Actief`, with *Property of* its short name first (*Previous: Status = Actief*). The window holds *Property of* (where the table has it), *Property* (*Any*: no property match) and *Value* (*(empty)*: the property has no value), greyed until a property is chosen. Choosing another property empties the value.
 - Keyboard: a table is one Tab stop. In it ↑ ↓ move between rows and ← → between cells, the cell shown with a dotted frame; Space or Enter edits that cell as a click does. Esc outside a list closes the dialog (Cancel).
 - A mouse resting on a cell shows its tooltip: the column's, the row's on the first cell (style conditions), the warning's on ⚠. A column header shows the column's.
 
@@ -152,15 +154,15 @@ Decides *which* objects feed the layout: the counts at the top, then the global 
 - Switching a condition on or off updates every count: the active conditions, the off conditions, the step totals and *On the generated view*.
 
 **Global filter.** Two condition tables ([condition lists](presets.md#condition-lists)). Each shows the default row `Include | All` when nothing is filtered.
-- **Elements and relations**: On · Mode · Apply to · Element / source type · Relation type · Target type, plus Property · Value behind *Match property*, and a Count. *Apply to* Element: the type is the element's type and the property matches the element; Relation type and Target type are greyed. *Apply to* Relation: source, relation and target type; the property cells are greyed. Switching *Apply to* empties the cells that no longer apply. The element and relation conditions are independent (no Include condition of a kind keeps all of it). The Count is the elements or relations the condition keeps on its own; an Exclude condition: how many it removes. *Match property* is on and locked as soon as a condition uses a property.
+- **Elements and relations**: On · Mode · Apply to · Element / source type · Relation type · Target type · Property, and a Count. *Apply to* Element: the type is the element's type and the property matches the element; Relation type and Target type are greyed. *Apply to* Relation: source, relation and target type; the property cells are greyed. Switching *Apply to* empties the cells that no longer apply. The element and relation conditions are independent (no Include condition of a kind keeps all of it). The Count is the elements or relations the condition keeps on its own; an Exclude condition: how many it removes.
 - **Diagram type**: On · Mode · Diagram type, for the diagram objects of selected views; a view reference matches *reference*. The table is shown only when the selection holds diagram objects; its conditions are kept either way.
 
 **Steps** (GUI title *Expand selection*). A one-line explanation, the ordered steps, and `[+ Add step]` under the last one. Each step is a frame:
 - **Header**, on the left: the collapse triangle (▾/▸), **Repeat** and the bold title: the step's name, or `Step N` without one. A click on the title or the summary collapses too. Then the `Adds:` summary. On the right: move (↑ ↓) and, set apart, remove (✕). Their different place and shape keep collapsing and moving apart.
 - **Name**: a double-click on the title edits it in place. Enter, or a click outside the field, keeps it; Esc cancels; empty gives `Step N` back. A changed name shows `*`.
 - **Repeat**: a button with a menu, `1×`–`5×` or `∞` (until nothing new), as high as the header buttons and of one width. Before the title, so it keeps its place whatever the name. With `∞`, `Adds:` shows `(nothing new after N×)` or `(stopped at max 10×)`.
-- **Condition table**: On · Mode · Previous step elements · Direction · Added relations · Added elements, plus Property of · Property · Value behind *Match property*. Property and value lists come from the step's candidates (every relation the step saw, before its conditions) that match the condition's types.
-- **Footer**: `[+ Add condition]` and *Match property*.
+- **Condition table**: On · Mode · Previous step elements · Direction · Added relations · Added elements · Property. Property and value lists come from the step's candidates (every relation the step saw, before its conditions) that match the condition's types.
+- **Footer**: `[+ Add condition]`.
 
 ### Layout tab
 
@@ -187,9 +189,9 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Reverse ─────────────────────────────────────────────────────────────┐ │
 │ │  Flip these relations:                                                │ │
-│ │   On │ Mode    │ Source │ Relation         │ Target │        │       │ │
-│ │   ☐  │ Include │ All    │ All              │ All    │        │ ✕     │ │
-│ │   [+ Add condition]  ☐ Match property                                 │ │
+│ │   On │ Mode    │ Source │ Relation  │ Target │ Property │        │   │ │
+│ │   ☐  │ Include │ All    │ All       │ All    │ —        │        │ ✕ │ │
+│ │   [+ Add condition]                                                   │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Containers ──────────────────────────────────────────────────────────┐ │
 │ │  Layout:   Layout inside [Layered ▼]  Connections [Across… ▼]    Padding [20] │

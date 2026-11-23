@@ -96,7 +96,7 @@ function buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
 
   Widgets.noteLabel(grpInfo, "Filter selection by element and relation (no Include condition of a kind = keep all of it, minus Exclude):");
   w.tblFilterConditions = conditionTable(grpInfo, {
-    kind: "filter", columns: FILTER_CONDITION_COLUMNS, filterList: true, propCondition: true,
+    kind: "filter", columns: FILTER_CONDITION_COLUMNS, filterList: true,
     addTooltip: "Add a condition. Conditions of one kind combine: a match with any Include condition is kept, " +
                 "unless an Exclude condition also matches. Element and relation conditions are independent.",
     onChange: onFilterChange, onLayout: onSelLayout,
@@ -240,7 +240,7 @@ function addRelatedBlock(ctx, stepData) {
   });
 
   blockObj.table = conditionTable(body, {
-    kind: "step", columns: STEP_CONDITION_COLUMNS, filterList: true, propCondition: true,
+    kind: "step", columns: STEP_CONDITION_COLUMNS, filterList: true,
     onChange: () => { refreshBlockHeader(blockObj); onChange(); }, onLayout,
     propItems:  r => Counts.propNames(_stepPropObjects(blockObj, r)),
     valueItems: r => Counts.propValues(_stepPropObjects(blockObj, r), r.property),

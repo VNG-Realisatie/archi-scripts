@@ -20,7 +20,7 @@ declare namespace Swt {
     readonly SEPARATOR: number; readonly HORIZONTAL: number; readonly VERTICAL: number;
     readonly H_SCROLL: number; readonly V_SCROLL: number; readonly BOLD: number; readonly SAVE: number;
     readonly NORMAL: number; readonly ITALIC: number;
-    readonly INHERIT_DEFAULT: number; readonly NO_TRIM: number; readonly SEARCH: number; readonly ICON_CANCEL: number;
+    readonly INHERIT_DEFAULT: number; readonly NO_TRIM: number; readonly DIALOG_TRIM: number; readonly APPLICATION_MODAL: number; readonly SEARCH: number; readonly ICON_CANCEL: number;
     readonly LEFT: number; readonly FULL_SELECTION: number; readonly NO_SCROLL: number;
     // alignment and sizes
     readonly BEGINNING: number; readonly LEAD: number; readonly CENTER: number; readonly END: number;
@@ -29,7 +29,7 @@ declare namespace Swt {
     readonly Selection: number; readonly DefaultSelection: number; readonly Modify: number;
     readonly FocusOut: number; readonly MouseUp: number; readonly Paint: number; readonly Resize: number;
     readonly FocusIn: number; readonly KeyDown: number; readonly Traverse: number; readonly Dispose: number;
-    readonly MouseDown: number; readonly MouseDoubleClick: number; readonly Deactivate: number;
+    readonly MouseDown: number; readonly MouseDoubleClick: number; readonly Deactivate: number; readonly Close: number;
     readonly MouseMove: number; readonly MouseExit: number; readonly MeasureItem: number; readonly EraseItem: number; readonly PaintItem: number;
     // owner-draw details (EraseItem)
     readonly SELECTED: number; readonly HOT: number; readonly FOCUSED: number; readonly FOREGROUND: number; readonly BACKGROUND: number;
@@ -55,7 +55,7 @@ declare namespace Swt {
   /** Name, height (pt) and style of a font; toString() gives the string Archi stores and FontFactory reads. */
   interface FontData { getHeight(): number; toString(): string }
   interface FontMetrics { getHeight(): number; getAverageCharacterWidth(): number }
-  interface Monitor { getClientArea(): Rectangle }
+  interface Monitor { getClientArea(): Rectangle; getBounds(): Rectangle }
 
   interface GC {
     setBackground(color: Color): void;
@@ -177,6 +177,9 @@ declare namespace Swt {
     getBounds(): Rectangle;
     setBounds(x: number, y: number, width: number, height: number): void;
     open(): void;
+    close(): void;
+    setText(text: string): void;
+    setDefaultButton(button: Button): void;
   }
 
   interface Label extends Control {
@@ -213,6 +216,7 @@ declare namespace Swt {
 
   interface Combo extends Composite {
     add(item: string): void;
+    setItems(items: unknown): void;
     removeAll(): void;
     select(index: number): void;
     getSelectionIndex(): number;
@@ -271,6 +275,7 @@ declare namespace Swt {
   interface List extends Scrollable {
     setItems(items: unknown): void;
     setSelection(index: number): void;
+    deselectAll(): void;
     getSelectionIndex(): number;
     showSelection(): void;
     getItemHeight(): number;

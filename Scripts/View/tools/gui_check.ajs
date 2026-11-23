@@ -18,7 +18,7 @@
  *     -application com.archimatetool.commandline.app -consoleLog -nosplash --loadModel <copy> \
  *     --script.runScript "$(pwd -W)/Scripts/View/tools/gui_check.ajs" > gui_check.txt 2>&1
  * Linux, in an X server of its own (Wayland: the desktop's XWayland reads its screen as black):
- *   Xwayland :97 -geometry 2000x1900 &
+ *   Xvfb :97 -screen 0 2000x1900x24 &
  *   env -u WAYLAND_DISPLAY DISPLAY=:97 SELECT_ID=… PRESET=… SHOTS=<dir> Scripts/View/tools/archi_cli.sh Scripts/View/tools/gui_check.ajs <model>
  */
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
@@ -34,6 +34,8 @@ const Label = Java.type("org.eclipse.swt.widgets.Label");
 const Group = Java.type("org.eclipse.swt.widgets.Group");
 const Text = Java.type("org.eclipse.swt.widgets.Text");
 const ScrolledComposite = Java.type("org.eclipse.swt.custom.ScrolledComposite");
+const ListClass = Java.type("org.eclipse.swt.widgets.List");
+const ComboClass = Java.type("org.eclipse.swt.widgets.Combo");
 const Image = Java.type("org.eclipse.swt.graphics.Image");
 const GC = Java.type("org.eclipse.swt.graphics.GC");
 const ImageLoader = Java.type("org.eclipse.swt.graphics.ImageLoader");
@@ -289,6 +291,56 @@ const NESTING = () => table("Layout", "Nested");
 const STYLE   = () => table("Appearance", "Apply to");
 const NSTYLE  = () => table("Appearance", "Parent type");
 
+/** The open pop-up of a compound cell: a shell on the dialog's shell. */
+const popup = () => [...display.getShells()].find((/** @type {any} */ s) => s !== shell && !s.isDisposed() && s.isVisible() && s.getParent() === shell);
+/** The lists in the open pop-up, in field order. */
+const popupLists = () => { const out = []; const walk = (/** @type {any} */ c) => { for (const k of c.getChildren()) { if (k instanceof ListClass) out.push(k); else if (k.getChildren) walk(k); } }; const p = popup(); if (p) walk(p); return out; };
+/** Click item i of a list in the pop-up. @param {any} list @param {number} i */
+function clickListItem(list, i) { const h = list.getItemHeight(); const p = list.toDisplay(10, i * h + Math.floor(h / 2)); clickAt(p.x, p.y); }
+/** Open a cell as a click does, without a posted click (on GTK the pointer is not always where a posted move put it): the table's MouseUp at the cell. @param {any} t @param {number} row @param {string} col */
+function openCell(t, row, col) {
+  reveal(t);
+  const r = t.getItem(row).getBounds(colIdx(t, col));
+  const e = new SWTEvent(); e.button = 1; e.x = r.x + 5; e.y = r.y + Math.floor(r.height / 2);
+  display.setCursorLocation(t.toDisplay(e.x, e.y));   // fixButtonPositionGTK takes the position from the pointer
+  t.notifyListeners(SWT.MouseUp, e);
+}
+/** Press a button of the open pop-up window. @param {string} text */
+function pressInPopup(text) {
+  const p = popup(); if (!p) return;
+  /** @type {any} */ let found = null;
+  const walk = (/** @type {any} */ c) => { for (const k of c.getChildren()) { if (k instanceof Button && String(k.getText()) === text) found = k; else if (k instanceof Composite) walk(k); } };
+  walk(p);
+  if (found) found.notifyListeners(SWT.Selection, new SWTEvent());
+}
+/** Choose item i of the combo in the open pop-up window. @param {number} i */
+function chooseInPopupCombo(i) {
+  const p = popup(); if (!p) return;
+  /** @type {any} */ let found = null;
+  const walk = (/** @type {any} */ c) => { for (const k of c.getChildren()) { if (k instanceof ComboClass) found = k; else if (k instanceof Composite) walk(k); } };
+  walk(p);
+  if (found) { found.select(i); found.notifyListeners(SWT.Selection, new SWTEvent()); }
+}
+/** The text of a table cell as the table draws it is not readable; the condition's summary is logged instead. @param {any} t @param {number} row @param {string} col */
+function cellText(t, row, col) { return `${t.getItem(row).getBounds(colIdx(t, col))}`; }
+/** Log what the pop-up shows, as text. @param {string} name */
+function logPopup(name) {
+  const p = popup();
+  if (!p) { log(`${name}: no pop-up; shells: ${[...display.getShells()].map((/** @type {any} */ s) => `"${s.getText()}" visible=${s.isVisible()} onDialog=${s.getParent() === shell} dialog=${s === shell}`).join(" | ")}`); return; }
+  /** @type {string[]} */
+  const lines = [];
+  const walk = (/** @type {any} */ c) => { for (const k of c.getChildren()) {
+    const cls = k instanceof Label ? "Label" : k instanceof ComboClass ? "Combo" : k instanceof ListClass ? "List" : k instanceof Text ? "Text" : "";
+    if (cls === "Label") lines.push(`Label "${k.getText()}" ${k.getEnabled() ? "" : "(grey)"}`);
+    else if (cls === "Combo") lines.push(`Combo "${k.getText()}" ${k.getEnabled() ? "" : "(grey)"}`);
+    else if (cls === "List") lines.push(`List [${[...k.getItems()].slice(0, 6).join(", ")}${k.getItemCount() > 6 ? ", …" : ""}] selected ${k.getSelectionIndex()} ${k.getEnabled() ? "" : "(grey)"}`);
+    else if (cls === "Text") lines.push(`Text "${k.getText()}" ${k.getEnabled() ? "" : "(grey)"}`);
+    if (k.getChildren) walk(k);
+  } };
+  walk(p);
+  log(`${name}: window "${p.getText()}" ${p.getBounds()}\n  ${lines.join("\n  ")}`);
+}
+
 /** @type {Record<string, [number, () => void][]>} */
 const SUITES = {
   // The folder and background pickers: their buttons next to the fields.
@@ -341,6 +393,29 @@ const SUITES = {
     [100,  () => clickTab("Appearance")],
     [1500, () => { log(`notes: ${notes().join(" | ")}`); shotShell("appearance_keep_off"); }],
   ],
+  // The compound Property cell: its window on Selection (element filter, step) and Layout (nesting).
+  compound: [
+    [2500, () => clickTab("Selection")],
+    [1000, () => shotShell("selection_tab")],
+    [500,  () => openCell(ELEMENT(), 0, "Property")],
+    [1500, () => { logPopup("element_window"); shot("element_window", shell.getMonitor().getBounds()); }],
+    [300,  () => { const l = popupLists()[0]; if (l) { l.setSelection(1); l.notifyListeners(SWT.Selection, new SWTEvent()); } }],
+    [1500, () => logPopup("element_property_chosen")],
+    [100,  () => pressInPopup("Cancel")],
+    [1500, () => { logPopup("after_cancel"); log(`element property cell after Cancel: ${cellText(ELEMENT(), 0, "Property")}`); }],
+    [500,  () => openCell(STEP(), 0, "Property")],
+    [1500, () => { logPopup("step_window"); shot("step_window", shell.getMonitor().getBounds()); }],
+    [100,  () => chooseInPopupCombo(1)],
+    [1500, () => logPopup("step_property_of_relation")],
+    [100,  () => chooseInPopupCombo(2)],
+    [1500, () => logPopup("step_property_of_previous")],
+    [100,  () => pressInPopup("OK")],
+    [1000, () => { logPopup("after_ok"); clickTab("Layout"); }],
+    [1500, () => openCell(NESTING(), 0, "Property")],
+    [1500, () => { logPopup("nesting_window"); shot("nesting_window", shell.getMonitor().getBounds()); }],
+    [100,  () => pressInPopup("Cancel")],
+    [1000, () => shotShell("layout_tab")],
+  ],
   // The condition-table checklist (plan/view-condition-table-as-native-table.md § To agree, "Behaviour that stays").
   tables: [
     [2500, () => { log("tables:\n  " + tables().map(x => `${x.tab}: ${x.headers.join("|")} (${x.t.getItemCount()} rows)`).join("\n  ")); clickTab("Selection"); }],
@@ -361,17 +436,10 @@ const SUITES = {
     [1500, () => shotTable("element_row_added", ELEMENT())],
     [100,  () => clickCell(ELEMENT(), 1, ELEMENT().getColumnCount() - 1)],
     [1500, () => shotTable("element_row_removed", ELEMENT())],
-    [100,  () => clickControl(footerChild(ELEMENT(), 1))],
-    [1500, () => shotShell("element_match_property")],
-    [100,  () => clickCell(ELEMENT(), 0, "Property")],
-    [1200, () => shotTable("element_property_list", ELEMENT())],
-    [100,  () => { key(K.DOWN); key(K.ENTER); }],
-    [2500, () => shotTable("element_property_chosen", ELEMENT())],
-    [100,  () => clickCell(ELEMENT(), 0, "Value")],
-    [1200, () => shotTable("element_value_list", ELEMENT())],
-    [100,  () => key(K.ESC)],
-    [800,  () => shotTable("element_value_list_closed", ELEMENT())],
+    // The Property cell's pop-up: suite compound.
     // Keyboard: after an edit the table has the focus, the cursor on the edited cell.
+    [100,  () => clickCell(ELEMENT(), 0, "Element / source type")],
+    [1000, () => key(K.ESC)],
     [100,  () => { key(K.LEFT); key(K.LEFT); }],
     [600,  () => shotTable("kbd_cursor_moved", ELEMENT())],
     [100,  () => key(K.ENTER)],
@@ -382,9 +450,6 @@ const SUITES = {
     [100,  () => key(K.SPACE)],
     [1500, () => { footerChild(ELEMENT(), 0).setFocus(); shiftTab(); }],
     [800,  () => shotTable("kbd_shift_tab_into_table", ELEMENT())],
-    [100,  () => clickCell(ELEMENT(), 0, "Property")],
-    [1000, () => { key(K.HOME); key(K.ENTER); }],
-    [2500, () => shotTable("element_property_cleared", ELEMENT())],
     // Steps
     [100,  () => hoverHeader(STEP(), "Previous step elements")],
     [2000, () => shotTable("step_header_tooltip", STEP())],

@@ -4,14 +4,14 @@
  *   ┌ header ───────────────────────────────────────────┐
  *   │ one row per condition: one cell per column      ✕ │   one native table; every cell is drawn
  *   └───────────────────────────────────────────────────┘
- *   [+ Add condition]  ☐ Match property  (caller's footer controls)
+ *   [+ Add condition]  (caller's footer controls)
  *
  * The table keeps its conditions as plain objects and draws every cell from them (SWT owner draw), so a
  * changed value, count or enabled state is a redraw, not a widget update, and a table is one native
  * window whatever its size (plan/view-condition-table-as-native-table.md). A click edits a cell: a
  * choice, property or value cell opens a list under the cell, a check cell toggles, a color cell opens
- * the palette menu, ✕ removes the condition. Keyboard: ↑ ↓ row, ← → cell, Space or Enter edits.
- * Structural changes (add, remove, Match property) add or remove rows and columns; value changes redraw.
+ * the palette menu, a compound cell a window with its fields, ✕ removes the condition. Keyboard: ↑ ↓ row, ← → cell, Space or Enter edits.
+ * Structural changes (add, remove) add or remove rows; value changes redraw.
  *
  * Filter lists (opts.filterList) always show at least the default condition (= keep everything) and
  * hand back [] for it; feature lists may be empty. With opts.placeholder an empty feature list
@@ -45,6 +45,9 @@ const ButtonWidget      = Java.type("org.eclipse.swt.widgets.Button");
 const TableWidget       = Java.type("org.eclipse.swt.widgets.Table");
 const TableColumnWidget = Java.type("org.eclipse.swt.widgets.TableColumn");
 const TableItemWidget   = Java.type("org.eclipse.swt.widgets.TableItem");
+const ComboWidget       = Java.type("org.eclipse.swt.widgets.Combo");
+const TextWidget        = Java.type("org.eclipse.swt.widgets.Text");
+const ListWidget        = Java.type("org.eclipse.swt.widgets.List");
 const ToolTipWidget     = Java.type("org.eclipse.swt.widgets.ToolTip");
 const RowLayout         = Java.type("org.eclipse.swt.layout.RowLayout");
 const SWTGC             = Java.type("org.eclipse.swt.graphics.GC");
@@ -60,10 +63,14 @@ const ARROW      = "▾";  // marks a cell that opens a list
 const HEADER_PAD = 6;    // px a header keeps beside its text
 const DEL_WIDTH  = 28;   // the ✕ column
 const DEL_TIP    = "Remove this condition.";
+const ANY        = "Any";       // the empty item of a property list in a pop-up: no property match
+const EMPTY      = "(empty)";   // the empty item of a value list: the property has no value
+const LIST_FIELD_WIDTH = 200;   // px of a property or value list in a pop-up
+const LIST_FIELD_ROWS  = 10;    // visible items of that list
 const TIP_DELAY  = 500;  // ms the mouse rests on a cell before its tooltip shows
 const TIP_OFFSET = 20;   // px between the mouse and the tooltip below it
 /** Column width when the column gives none. */
-const WIDTH_BY_KIND = { check: 44, count: 36, warn: 24, prop: 100, value: 100, choice: 150, color: 150 };
+const WIDTH_BY_KIND = { check: 44, count: 36, warn: 24, prop: 100, value: 100, choice: 150, color: 150, compound: 190 };
 
 /**
  * Column definition:
@@ -77,8 +84,10 @@ const WIDTH_BY_KIND = { check: 44, count: 36, warn: 24, prop: 100, value: 100, c
  *             count   read-only count, set with setCounts; "(n)" or col.format(n)
  *             warn    read-only "⚠", set with setWarnings
  *             color   a swatch and name; the palette menu of a ColorChoice (widgets.js): items, missing, fallback, other
+ *             compound  col.summary(condition) in the cell; a click opens a small window with col.fields, one
+ *                     column per field (choice: a combo; prop, value: a filtered list), OK and Cancel; OK
+ *                     applies the fields and recounts, Cancel undoes them
  *   width     width (px); cells keep it, nothing stretches with the dialog
- *   optional  true: shown only with Match property (or when a condition has a property)
  *   enabled   (condition) => boolean; the cell is greyed when false
  *             A condition that is off (on: false) greys its whole row except the "on" cell and ✕.
  *   onChange  (condition) => void; normalise related fields after this column changed
@@ -102,11 +111,9 @@ function conditionTable(parent, opts) {
   let counts     = [];
   /** @type {Map<number, string>} */
   let warnings   = new Map();
-  let propOn     = false;
   let enabled    = true;
   /** @type {ConditionTableColumn<ConditionByKind[K]>[]} the columns in the table; the ✕ column follows them */
   let vcols      = [];
-  let optionalShown = false;  // optional columns are in the table
   const cursor   = { row: 0, col: 0 };   // the cell with the keyboard focus; col === vcols.length is ✕
   /** @type {Swt.Menu | null} */
   let colorMenu  = null;
@@ -162,14 +169,6 @@ function conditionTable(parent, opts) {
     changed();
   });
 
-  /** @type {CheckBox | null} */
-  let chkProp = null;
-  if (opts.propCondition) {
-    const chk = Widgets.checkBox(footer, "Match property");
-    chk.setToolTipText("Show columns to match by a property value. Always on when a condition uses it.");
-    chk.addListener(SWT.Selection, () => { propOn = chk.getSelection(); rebuildColumns(); syncRows(); });
-    chkProp = chk;
-  }
   if (opts.footer) opts.footer(footer);
 
   const changed = () => { if (opts.onChange) opts.onChange(); };
@@ -185,11 +184,6 @@ function conditionTable(parent, opts) {
     if (conditions.length > 0) return;
     if (opts.filterList)  conditions.push(ConditionLists.defaultCondition(kind));
     else if (opts.placeholder) conditions.push(placeholderCondition());
-  };
-  const anyProperty = () => conditions.some(r => !!r.property);
-  const visibleCols = () => {
-    const showOptional = propOn || anyProperty();
-    return cols.filter(c => !c.optional || showOptional);
   };
 
   // ── Cell contents ─────────────────────────────────────────────────────────────
@@ -272,6 +266,7 @@ function conditionTable(parent, opts) {
       case "count": return countText(col, counts[i]);
       case "warn":  return warnings.has(i) ? "⚠" : "";
       case "color": return colorItem(col, condition).label;
+      case "compound": return col.summary(condition);
       case "check": return "";
     }
     return "";
@@ -336,7 +331,7 @@ function conditionTable(parent, opts) {
         gc.setForeground(d.getSystemColor(on ? SWT.COLOR_WIDGET_FOREGROUND : SWT.COLOR_WIDGET_NORMAL_SHADOW));
         x += sw + CELL_PAD; w -= sw + CELL_PAD;
       }
-      const opens = col.kind === "choice" || col.kind === "prop" || col.kind === "value" || col.kind === "color";
+      const opens = col.kind === "choice" || col.kind === "prop" || col.kind === "value" || col.kind === "color" || col.kind === "compound";
       if (opens) {
         const aw = gc.textExtent(ARROW).x;
         gc.drawText(ARROW, r.x + r.width - CELL_PAD - aw, ty, SWT.DRAW_TRANSPARENT);
@@ -443,7 +438,141 @@ function conditionTable(parent, opts) {
         });
         break;
       }
+      case "compound":
+        hideTip();   // a tooltip of the cell would lie over the window
+        openCompound(cell, col, condition);
+        break;
     }
+  }
+
+  // ── Compound cell ─────────────────────────────────────────────────────────────
+
+  /**
+   * The title of a compound cell's window: the field and which condition it edits, by its choice cells that apply.
+   * @param {ConditionTableColumn<ConditionByKind[K]>} col
+   * @param {number} row
+   * @param {ConditionByKind[K] & Record<string, any>} condition
+   */
+  const windowTitle = (col, row, condition) => {
+    const parts = vcols.filter(c => c.kind === "choice" && c.key !== "mode" && cellOn(c, condition))
+      .map(c => choiceLabel(/** @type {ConditionTableChoiceColumn<ConditionByKind[K]>} */ (c), condition[c.key]));
+    return `${col.header} · condition ${row + 1}: ${parts.join(" · ")}`;
+  };
+
+  /**
+   * The window of a compound cell: its fields side by side; OK applies them and recounts, Cancel undoes them.
+   * @param {{ row: number, col: number }} cell
+   * @param {ConditionTableCompoundColumn<ConditionByKind[K]>} col
+   * @param {ConditionByKind[K] & Record<string, any>} condition
+   */
+  function openCompound(cell, col, condition) {
+    const before = Object.assign({}, condition);
+    const panel = Widgets.openFieldsWindow(table, cellOnScreen(cell.row, cell.col), {
+      title: windowTitle(col, cell.row, condition),
+      columns: col.fields.length,
+      onOk: () => afterChange(col, condition),
+      onCancel: () => { Object.assign(condition, before); table.redraw(); },
+      onClose: () => { if (!table.isDisposed()) table.setFocus(); },
+    });
+    /** @type {(() => void)[]} the fields re-read the condition after each change */
+    const updates = [];
+    // A choice changes the condition and the other fields; the dialog recounts once, on OK: counting
+    // a large selection takes seconds, too long per click in a list.
+    const commit = (/** @type {ConditionTableColumn<ConditionByKind[K]>} */ field) => {
+      if (field.onChange) field.onChange(condition);
+      if (col.onChange) col.onChange(condition);
+      updates.forEach(u => u());
+    };
+    /** @type {Swt.Control | null} */
+    let first = null;
+    for (const field of col.fields) {
+      const box = new CompositeWidget(panel.body, SWT.NONE);
+      GridLayoutFactory.fillDefaults().numColumns(1).spacing(0, 4).applyTo(box);
+      GridDataFactory.fillDefaults().align(SWT.FILL, SWT.FILL).applyTo(box);
+      const lbl = new LabelWidget(box, SWT.NONE);
+      lbl.setText(field.header || "");
+      if (field.tooltip) lbl.setToolTipText(field.tooltip);
+      const f = field.kind === "choice" ? _choiceField(box, field, condition, commit) : _listField(box, field, condition, cell.row, commit);
+      f.controls.forEach(c => { if (field.tooltip) c.setToolTipText(field.tooltip); });
+      const update = () => {
+        f.update();
+        const on = !field.enabled || field.enabled(condition);
+        lbl.setEnabled(on);
+        f.controls.forEach(c => { c.setEnabled(on); if (!on && c instanceof ListWidget) c.deselectAll(); });
+      };
+      updates.push(update);
+      update();
+      if (!first && f.controls[0].isEnabled()) first = f.controls[0];
+    }
+    panel.open(first);
+  }
+
+  /**
+   * A choice field of a compound cell: a read-only combo.
+   * @param {Swt.Composite} box
+   * @param {ConditionTableChoiceColumn<ConditionByKind[K]>} field
+   * @param {ConditionByKind[K] & Record<string, any>} condition
+   * @param {(field: ConditionTableColumn<ConditionByKind[K]>) => void} commit
+   */
+  function _choiceField(box, field, condition, commit) {
+    const combo = new ComboWidget(box, SWT.READ_ONLY | SWT.DROP_DOWN);
+    combo.setItems(Java.to(field.items.map(it => it.label), "java.lang.String[]"));
+    GridDataFactory.swtDefaults().applyTo(combo);
+    combo.addListener(SWT.Selection, () => {
+      const it = field.items[combo.getSelectionIndex()];
+      if (it) { condition[field.key] = it.value; commit(field); }
+    });
+    const update = () => combo.select(field.items.findIndex(it => it.value === condition[field.key]));
+    return { controls: [combo], update };
+  }
+
+  /**
+   * A property or value field of a compound cell: a filter and the list of names, "Any" first.
+   * @param {Swt.Composite} box
+   * @param {ConditionTablePlainColumn<ConditionByKind[K]>} field
+   * @param {ConditionByKind[K] & Record<string, any>} condition
+   * @param {number} row
+   * @param {(field: ConditionTableColumn<ConditionByKind[K]>) => void} commit
+   */
+  function _listField(box, field, condition, row, commit) {
+    const txt = new TextWidget(box, SWT.SEARCH | SWT.ICON_CANCEL | SWT.BORDER);
+    txt.setMessage("Filter");
+    GridDataFactory.fillDefaults().grab(true, false).applyTo(txt);
+    const list = new ListWidget(box, SWT.SINGLE | SWT.V_SCROLL | SWT.BORDER);
+    GridDataFactory.fillDefaults().grab(true, true).hint(LIST_FIELD_WIDTH, list.getItemHeight() * LIST_FIELD_ROWS).applyTo(list);
+    // Reading the names walks the objects' properties, slow on a large selection: read them again only
+    // when another field of the condition changed, not per keystroke in the filter or on the field's own choice.
+    /** @type {string[]} every name, "" first */
+    let names = [];
+    /** @type {string | null} the condition without this field's own choice, as names were read for */
+    let readFor = null;
+    const read = () => {
+      const key = JSON.stringify(Object.assign({}, condition, field.kind === "prop" ? { property: "", value: "" } : { [field.key]: "" }));
+      if (key === readFor) return;
+      readFor = key;
+      names = field.enabled && !field.enabled(condition) ? [""] : listItems(field, condition, row).names;
+    };
+    /** @type {string[]} the names the list shows, "" = any */
+    let shown = [];
+    const show = () => {
+      const filter = txt.getText().trim().toLowerCase();
+      const value = condition[field.key] || "";
+      shown = names.filter(n => n === "" || n === value || !filter || n.toLowerCase().includes(filter));
+      list.setItems(Java.to(shown.map(n => n !== "" ? n : field.kind === "prop" ? ANY : EMPTY), "java.lang.String[]"));
+      const at = shown.indexOf(value);
+      if (at >= 0) { list.setSelection(at); list.showSelection(); }
+    };
+    const update = () => { read(); show(); };
+    txt.addListener(SWT.Modify, show);
+    list.addListener(SWT.Selection, () => {
+      const i = list.getSelectionIndex();
+      if (i < 0) return;
+      if (shown[i] === (condition[field.key] || "")) return;
+      condition[field.key] = shown[i];
+      if (field.kind === "prop") condition.value = "";   // a value of the previous property does not belong to this one
+      commit(field);
+    });
+    return { controls: [txt, list], update };
   }
 
   table.addListener(SWT.MouseUp, e => {
@@ -482,6 +611,7 @@ function conditionTable(parent, opts) {
     if (!condition) return "";
     if (!col) return DEL_TIP;
     if (col.kind === "warn") return warnings.get(cell.row) || "";
+    if (col.kind === "compound") { const s = col.summary(condition); return s && s !== "—" ? `${s}\n${col.tooltip || ""}` : col.tooltip || ""; }   // the whole summary, also when the cell cuts it off
     if (cell.col === 0 && opts.rowTooltip) return opts.rowTooltip(condition);
     return col.tooltip || "";
   };
@@ -519,8 +649,7 @@ function conditionTable(parent, opts) {
   // The table's columns follow the visible columns; disposing them keeps the rows.
   function rebuildColumns() {
     for (const c of table.getColumns()) c.dispose();
-    vcols = visibleCols();
-    optionalShown = vcols.some(c => c.optional);
+    vcols = cols.slice();
     for (const col of vcols) {
       const tc = new TableColumnWidget(table, SWT.LEFT);
       tc.setText(col.header || "");
@@ -575,19 +704,8 @@ function conditionTable(parent, opts) {
   function refresh() {
     const replaced = normalizeColors();
     btnAdd.setEnabled(enabled);
-    syncPropToggle();
     table.redraw();
     if (replaced) changed();
-  }
-
-  // Match property: checked and locked while a condition uses a property. When the last property
-  // is cleared the columns stay (they are on screen), so the toggle becomes checked and free.
-  function syncPropToggle() {
-    if (!chkProp) return;
-    const locked = anyProperty();
-    if (!locked && optionalShown) propOn = true;
-    chkProp.setSelection(propOn || locked);
-    chkProp.setEnabled(enabled && !locked);
   }
 
   rebuildColumns();
@@ -602,7 +720,7 @@ function conditionTable(parent, opts) {
     setConditions(list) {
       conditions = (list || []).map(r => Object.assign(ConditionLists.defaultCondition(kind), r));
       fillEmpty();
-      counts = []; warnings = new Map(); propOn = false;
+      counts = []; warnings = new Map();
       rebuildColumns();
       syncRows();
     },
@@ -638,16 +756,16 @@ const DIRECTION_ITEMS = Object.freeze([
   { value: "either", label: "Either" }, { value: "outgoing", label: "Outgoing" }, { value: "incoming", label: "Incoming" },
 ]);
 const STEP_PROP_OF_ITEMS = Object.freeze([
-  { value: "added", label: "Added element" }, { value: "relation", label: "Added relation" },
-  { value: "previous", label: "Previous element" },
+  { value: "added", label: "Added element", short: "Added" }, { value: "relation", label: "Added relation", short: "Relation" },
+  { value: "previous", label: "Previous element", short: "Previous" },
 ]);
 const STYLE_APPLY_TO_ITEMS = Object.freeze([
   { value: "element", label: "Element" }, { value: "relation", label: "Relation" },
   { value: "source", label: "Source element" }, { value: "target", label: "Target element" },
 ]);
 const REL_PROP_OF_ITEMS = Object.freeze([
-  { value: "relation", label: "Relation" }, { value: "source", label: "Source element" },
-  { value: "target", label: "Target element" },
+  { value: "relation", label: "Relation" }, { value: "source", label: "Source element", short: "Source" },
+  { value: "target", label: "Target element", short: "Target" },
 ]);
 const STYLE_PROP_OF_ITEMS = Object.freeze([
   { value: "element", label: "Element" }, { value: "relation", label: "Relation" },
@@ -681,15 +799,25 @@ const _typeCol = (key, header, tooltip, width) => ({ key, header, tooltip, kind:
  */
 const _relCol  = (key, header, tooltip) => ({ key, header, tooltip, kind: "choice", items: RELATION_ITEMS, width: 136 });
 /**
- * @param {string} what
- * @returns {ConditionTableColumn<{ property: string }>[]}
+ * The property match of a condition as one compound cell: Property of (when the kind has it), Property
+ * and Value. The cell shows "Status = Actief", with Property of its short label "Source: Status = Actief"; "—" without one.
+ * @param {string} tooltip
+ * @param {ConditionTableChoiceColumn} [propOf]  the Property of field
+ * @returns {ConditionTableCompoundColumn<any>}
  */
-const _propCols = what => [
-  { key: "property", header: "Property", kind: "prop", width: 110, optional: true,
-    tooltip: `Only ${what} whose property has this value. Leave empty to match any property.` },
-  { key: "value", header: "Value", kind: "value", width: 100, optional: true, enabled: r => !!r.property,
-    tooltip: `Only ${what} whose property has this value.` },
-];
+const _propCol = (tooltip, propOf) => ({
+  key: "property", header: "Property", kind: "compound", width: 300, tooltip,
+  fields: [
+    ...(propOf ? [propOf] : []),
+    { key: "property", header: "Property", kind: "prop", tooltip: "The property to match. Any: no property match." },
+    { key: "value", header: "Value", kind: "value", enabled: r => !!r.property, tooltip: "The value the property must have." },
+  ],
+  summary: r => {
+    if (!r.property) return "—";
+    const it = propOf ? propOf.items.find(i => i.value === r.propertyOf) : undefined;
+    return `${it ? (it.short || it.label) + ": " : ""}${r.property} = ${r.value === "" ? EMPTY : r.value}`;
+  },
+});
 const _COUNT_TIP = "(n): relations / elements this step adds with only this condition. Conditions can overlap, so the sum can " +
                    "exceed the step total. For an Exclude condition: how many it removes from the other conditions' result.";
 
@@ -712,7 +840,8 @@ const FILTER_CONDITION_COLUMNS = Object.freeze([
   Object.assign(_typeCol("source", "Element / source type", "Element: the type to match. Relation: the type at the start of the relation. All = any type."), { width: 190 }),
   Object.assign(_relCol("relation", "Relation type", "Relationship type. All = any type."), { enabled: _isRelationRow }),
   Object.assign(_typeCol("target", "Target type", "Element type at the end of the relation. All = any type."), { enabled: _isRelationRow }),
-  ..._propCols("match elements").map(c => Object.assign({}, c, { enabled: (/** @type {FilterCondition} */ r) => _isElementRow(r) && (c.key !== "value" || !!r.property) })),
+  Object.assign(_propCol("Match only when the element has the specified property value. Click to configure. Empty: any value."),
+    { enabled: _isElementRow }),
   { key: "count", header: "Count", kind: "count", width: 50,
     tooltip: "(n): elements or relations this condition keeps on its own; for an Exclude condition, how many it removes " +
              "from the other conditions' result." },
@@ -735,9 +864,9 @@ const _countedRelCol = Object.assign({}, RELATION_CONDITION_COLUMNS[2], { count:
            "(n): relations on the view this condition matches on its own; Exclude: how many it removes." });
 /** @type {ConditionTableColumn<RelationCondition>[]} */
 const _COUNTED_FEATURE_COLUMNS = [_onCol, _featureModeCol, RELATION_CONDITION_COLUMNS[1], _countedRelCol, RELATION_CONDITION_COLUMNS[3],
-  { key: "propertyOf", header: "Property of", kind: "choice", items: REL_PROP_OF_ITEMS, width: 120, optional: true,
-    tooltip: "Where the property is read: the relation, its source or its target element." },
-  ..._propCols("relations")];
+  _propCol("Match only when the relation, its source or its target has the specified property value. Click to configure. Empty: any value.",
+    { key: "propertyOf", header: "Property of", kind: "choice", items: REL_PROP_OF_ITEMS,
+      tooltip: "Where the property is read: the relation, its source or its target element." })];
 /** @type {readonly ConditionTableColumn<RelationCondition>[]} */
 const NESTING_CONDITION_COLUMNS = Object.freeze([..._COUNTED_FEATURE_COLUMNS,
   { key: "everyContainer", header: "Every", kind: "check", width: 48, default: false,
@@ -765,9 +894,9 @@ const STEP_CONDITION_COLUMNS = Object.freeze([
     { count: "relations", width: 166 }),
   Object.assign(_typeCol("added", "Added elements", "Types of the elements this step adds.\n" + _COUNT_TIP, 180),
     { count: "elements" }),
-  { key: "propertyOf", header: "Property of", kind: "choice", items: STEP_PROP_OF_ITEMS, width: 120, optional: true,
-    tooltip: "Where the property is read: the added element, the followed relation or the previous step's element." },
-  ..._propCols("add elements"),
+  _propCol("Match only when the added element, the followed relation or the previous element has the specified property value. Click to configure. Empty: any value.",
+    { key: "propertyOf", header: "Property of", kind: "choice", items: STEP_PROP_OF_ITEMS,
+      tooltip: "Where the property is read: the added element, the followed relation or the previous step's element." }),
 ]);
 /**
  * Columns of the style table; the range cell lists the ranges of the chosen palette.

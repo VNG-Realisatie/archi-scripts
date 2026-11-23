@@ -197,7 +197,7 @@ function buildLayoutTab(tabFolder, ctx) {
     .setToolTipText(Defs.paramTooltip("nestingConditions"));
   /** @type {Partial<ConditionTableOptions<"relation">>} */
   const relPropItems = {
-    propCondition: true, placeholder: true,
+    placeholder: true,
     propItems:  r => Counts.propNames(_relPropObjects(ctx, r)),
     valueItems: r => Counts.propValues(_relPropObjects(ctx, r), r.property),
   };
