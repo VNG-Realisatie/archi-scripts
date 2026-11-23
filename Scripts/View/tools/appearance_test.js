@@ -17,6 +17,7 @@ const H    = require("./view_harness");
 const Defs = require("../lib/defs");
 const Appearance = require("../lib/appearance");
 const Expected   = require("./expected");
+const Chroma     = require("chroma-js");
 
 const _log = console.log;
 let failed = 0;
@@ -327,6 +328,38 @@ function standInView(run) {
   const src = byName(targets({ applyTo: "source", relation: "access-relationship", propertyOf: "element", property: "GEMMA type", colorRange: "Set2" }));
   eq(["Archivering", "Behandeling", "Gegevensmagazijn", "Ontvangst", "Toezicht"].every(n => n in src), true, "applyTo source: the functions and the component that access something are reached");
   eq(["Klantdossier", "Zaak", "Sturing"].some(n => n in src), false, "applyTo source: the accessed objects are not");
+}
+
+// ── Color Same as parent: the parent's written fill, one level lighter, whatever the types ───────────────────────────
+{
+  const sameNodes = [
+    { id: "r", parentId: null, type: "grouping", rels: [], depth: 0, isContainer: true },
+    { id: "c", parentId: "r", type: "application-service", rels: [], depth: 1, isContainer: true },
+    { id: "g", parentId: "c", type: "business-actor", rels: [], depth: 2, isContainer: false },
+  ];
+  const cond = { on: true, parent: "", direction: "either", relation: "", child: "", color: "same", fontSize: 0, bold: false };
+  const r = Appearance.followNestingChains(sameNodes, [cond], 2);
+  eq([r.styles.get("c").color, r.styles.get("g").color], ["same", "same"], "Same as parent: a child keeps the marker, whatever its type");
+  eq([r.styles.get("r").color, r.parentlessRoots], ["", ["r"]], "Same as parent: a root has no parent: Type default, and it is reported");
+
+  const run = newView("Bedrijfsfuncties background", "6 GEMMA");
+  const { view, visuals } = standInView(run);
+  const nl = { ...run.preset.appearance.nestingLevel, colorEnabled: true, darkenStart: 0, lightenPerLevel: 30,
+               conditions: [cond] };
+  const preset = { ...run.preset, params: Defs.effectiveParams(run.preset), appearance: { ...run.preset.appearance, nestingLevel: nl } };
+  /** @type {string[]} */
+  const warnings = [];
+  const quiet = console.log; console.log = m => warnings.push(String(m));
+  Appearance.applyAppearance(view, preset, Defs.ACTION.NEW_VIEW.id, SYMBOL_FONT);
+  console.log = quiet;
+  const light = hex => Chroma(hex).get("hsl.l");
+  const root = visuals.find(v => v.concept.name === "Bedrijfsfunctiemodel");
+  const child = visuals.find(v => v.parent === root);
+  const grand = visuals.find(v => v.parent && v.parent.parent === root && v._fill !== null);
+  eq(root._fill, DEFAULT_FILL, "Same as parent: the root gets Type default");
+  eq(child._fill, Chroma(DEFAULT_FILL).set("hsl.l", 1 - (1 - light(DEFAULT_FILL)) * 0.7).hex(), "Same as parent: the child is the parent's fill one level lighter");
+  eq(!!grand && light(grand._fill) > light(grand.parent._fill), true, "Same as parent: each level deeper is lighter again");
+  eq(warnings.some(m => /Same\s+as\s+parent/.test(m)) && !warnings.some(m => /not in palette/.test(m)), true, "Same as parent: one warning for the root, and no palette-color warning");
 }
 
 if (failed) { _log(`appearance_test: ${failed} failed`); process.exitCode = 1; }

@@ -421,18 +421,19 @@ function colorPicker(parent, opts) {
 
 /**
  * The choice of one color (nesting style conditions, Mixed values color): the palette's colors by
- * name, Other… for a color of its own (hex), and with `withDefault` the type's default fill ("").
+ * name, Other… for a color of its own (hex), and the `leading` items (the nesting style's Type default
+ * and Same as parent) before them.
  * A name the palette does not hold becomes its first color, as the run uses it (palettes.colorOf).
  * @param {() => readonly { name: string, hex: string }[]} colors
- * @param {boolean} [withDefault]
+ * @param {readonly { value: string, label: string }[]} [leading]
  * @returns {ColorChoice}
  */
-function paletteColorChoice(colors, withDefault) {
+function paletteColorChoice(colors, leading = []) {
   return {
-    items: () => [...(withDefault ? [{ value: "", label: "Default", colors: [] }] : []),
+    items: () => [...leading.map(it => ({ value: it.value, label: it.label, colors: [] })),
                   ...colors().map(c => ({ value: c.name, label: c.name, colors: [c.hex] }))],
     missing: v => ({ value: v, label: v, colors: Palettes.HEX.test(v) ? [v] : [] }),
-    fallback: list => { const first = list.find(it => it.value !== ""); return first ? first.value : ""; },
+    fallback: list => { const first = list.find(it => !leading.some(l => l.value === it.value)); return first ? first.value : ""; },
     other: true,
   };
 }
@@ -454,11 +455,11 @@ function colorRangeChoice(items) {
  * Picker of one color as a button (paletteColorChoice).
  * @param {Swt.Composite} parent
  * @param {{ colors: () => readonly { name: string, hex: string }[], value: string, onChange: (value: string) => void,
- *           withDefault?: boolean, tooltip?: string, width?: number }} opts
+ *           leading?: readonly { value: string, label: string }[], tooltip?: string, width?: number }} opts
  * @returns {ColorPicker}
  */
 function paletteColorPicker(parent, opts) {
-  return colorPicker(parent, Object.assign(paletteColorChoice(opts.colors, opts.withDefault),
+  return colorPicker(parent, Object.assign(paletteColorChoice(opts.colors, opts.leading),
     { value: opts.value, onChange: opts.onChange, tooltip: opts.tooltip, width: opts.width }));
 }
 

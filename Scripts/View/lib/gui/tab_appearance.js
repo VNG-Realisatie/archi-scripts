@@ -262,7 +262,7 @@ function buildAppearanceTab(tabFolder, ctx) {
   w.lblNestLighten = nestLabel("Lighter per level");
   w.lblNestLighten.setToolTipText(lightenTip);
   const lighten = _spinnerWithUnit(nestRow, "%");
-  lighten.spinner.setValues(15, 5, 40, 0, 5, 5);
+  lighten.spinner.setValues(15, 5, 90, 0, 5, 5);
   lighten.spinner.setToolTipText(lightenTip);
   lighten.spinner.addListener(SWT.Selection, onChange);
   w.spinNestLighten = lighten.spinner;

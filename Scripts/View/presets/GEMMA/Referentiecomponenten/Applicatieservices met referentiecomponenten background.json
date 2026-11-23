@@ -79,7 +79,7 @@
     ]
   },
   "view": {
-    "name": "Niet domeingebonden",
+    "name": "Publieksdiensten AS view",
     "folder": "/_Generated/Referentiecomponenten/Background/Applicatieservices en referentiecomponenten",
     "suffix": "",
     "mirrored": false
@@ -94,13 +94,14 @@
     "nestingLevel": {
       "conditions": [
         {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "color": "Grouping", "fontSize": 16, "bold": true, "child": "same"},
-        {"direction": "outgoing", "relation": "aggregation-relationship", "child": "application-service", "color": "Applicatie gedrag", "fontSize": 10, "bold": true}
+        {"direction": "outgoing", "relation": "aggregation-relationship", "child": "application-service", "color": "same", "fontSize": 11},
+        {"on": false, "parent": "application-service", "direction": "outgoing", "relation": "aggregation-relationship", "child": "same"}
       ],
       "fontEnabled": true,
       "fontDecreasePerLevel": 2,
       "colorEnabled": true,
-      "darkenStart": 1,
-      "lightenPerLevel": 40
+      "darkenStart": 0,
+      "lightenPerLevel": 50
     },
     "highlightRepeated": {
       "enabled": false,

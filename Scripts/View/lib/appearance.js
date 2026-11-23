@@ -53,7 +53,7 @@ const KEPT_ATTRIBUTES = Defs.VISUAL_ATTRIBUTES.filter(a => !["text", "labelExpre
  *
  * @typedef {object} NestingStyle  how followNestingChains styles a visual
  * @property {number}  depthSinceChange  levels since the last nesting type or color change: lightening
- * @property {string}  color         the color name of the condition that selected it; "" = Default
+ * @property {string}  color         the color name of the condition that selected it; "" = Type default; SAME_TYPE = the parent's color, one level lighter (a child only)
  * @property {number}  fontSize      pt; DEFAULT_FONT_SIZE = unchanged
  * @property {boolean} bold          the condition starts here and is bold
  * @property {number}  nr            the number of the condition that selected it
@@ -155,7 +155,7 @@ function _onView(view, selector, keep) {
  * @param {NestingStyleCondition[]} conditions
  * @param {number}                  fontDecreasePerLevel
  * @param {KeptColors}              [kept]
- * @returns {{ styles: Map<string, NestingStyle>, conflicts: string[] }}  conflicts: equally specific conditions ("2, 3") that select the same elements with different styles
+ * @returns {{ styles: Map<string, NestingStyle>, conflicts: string[], parentlessRoots: string[] }}  conflicts: equally specific conditions ("2, 3") that select the same elements with different styles; parentlessRoots: root containers whose condition says Same as parent, which gives them Type default
  */
 function followNestingChains(nodes, conditions, fontDecreasePerLevel, kept = { hexOf: () => null, darkenStart: 0 }) {
   const active = conditions.map((r, i) => ({ r, nr: i + 1 })).filter(x => x.r.on !== false);
@@ -165,6 +165,8 @@ function followNestingChains(nodes, conditions, fontDecreasePerLevel, kept = { h
   /** @type {Set<string>} */
   const conflicts = new Set();
   /** @type {Set<string | null>} */
+  /** @type {string[]} */
+  const parentlessRoots = [];
   const withContainer = new Set(nodes.filter(n => n.isContainer).map(n => n.parentId));
   // Stable sort: parents before children, view order within a depth.
   for (const n of nodes.slice().sort((a, b) => a.depth - b.depth)) {
@@ -174,7 +176,9 @@ function followNestingChains(nodes, conditions, fontDecreasePerLevel, kept = { h
       const sel = active.filter(x => _selectsRoot(x.r, n.type));
       if (sel.length === 0) continue;
       const win = _mostSpecific(sel, conflicts, _rootSpecificity);
-      styles.set(n.id, _keptColor(Object.assign({ depthSinceChange: 0, color: win.r.color, nr: win.nr, asContainer }, _font(win.r, DEFAULT_FONT_SIZE)), n, kept));
+      const sameAsParent = win.r.color === ConditionLists.SAME_TYPE;
+      if (sameAsParent) parentlessRoots.push(n.id);
+      styles.set(n.id, _keptColor(Object.assign({ depthSinceChange: 0, color: sameAsParent ? "" : win.r.color, nr: win.nr, asContainer }, _font(win.r, DEFAULT_FONT_SIZE)), n, kept));
       continue;
     }
     const ps = styles.get(n.parentId);
@@ -184,14 +188,14 @@ function followNestingChains(nodes, conditions, fontDecreasePerLevel, kept = { h
     if (sel.length === 0) continue;
     const win = _mostSpecific(sel, conflicts);
     const followsKept = n.type === parent.type && !!ps.fromKept;   // no type change under a kept fill: it follows the fill
-    const color = followsKept ? ps.color : win.r.color;
+    const color = followsKept ? ps.color : win.r.color;   // SAME_TYPE stays: the pass shades the parent's written fill
     const sameColor = followsKept || color === ps.color || (!!parent.keptColor && kept.hexOf(color) === parent.keptColor);
     const depthSinceChange = n.type === parent.type && sameColor ? ps.depthSinceChange + 1 : 0;
     const smaller = Math.max(DEFAULT_FONT_SIZE, ps.fontSize - fontDecreasePerLevel);
     const font = win.nr === ps.nr ? { fontSize: smaller, bold: false } : _font(win.r, smaller);
     styles.set(n.id, _keptColor(Object.assign({ depthSinceChange, color, nr: win.nr, asContainer, fromKept: followsKept }, font), n, kept));
   }
-  return { styles, conflicts: [...conflicts] };
+  return { styles, conflicts: [...conflicts], parentlessRoots };
 }
 
 /**
@@ -357,12 +361,19 @@ function _applyNestingLevel(view, settings, palette, isModify, defaultFont, styl
   const reported = new Set();
   const reportOnce = (/** @type {string} */ m) => { if (!reported.has(m)) { reported.add(m); Log.warn(`Appearance: ${m}`); } };
   /** @type {KeptColors} */
-  const kept = { hexOf: color => (color ? Palettes.colorOf(palette, color, reportOnce) : null), darkenStart: settings.darkenStart };
-  const { styles, conflicts } = followNestingChains(nodes, settings.conditions, settings.fontDecreasePerLevel, kept);
+  const kept = { hexOf: color => (color && color !== ConditionLists.SAME_TYPE ? Palettes.colorOf(palette, color, reportOnce) : null), darkenStart: settings.darkenStart };
+  const { styles, conflicts, parentlessRoots } = followNestingChains(nodes, settings.conditions, settings.fontDecreasePerLevel, kept);
   if (conflicts.length > 0)
     Log.warn(`Style by nesting level: conditions ${conflicts.join(" · ")} are equally specific and select the same elements with different styles; the last condition wins.`);
+  if (settings.colorEnabled && parentlessRoots.length > 0)
+    Log.warn(`Style by nesting level: ${parentlessRoots.length} root container(s) have a condition with color Same as parent, but no parent; they get Type default. Choose a color for that condition to change it.`);
 
-  vos.forEach((vo, i) => {
+  // Parents before children: a color Same as parent shades the fill its parent was given.
+  /** @type {Map<string, string>} */
+  const written = new Map();
+  const order = vos.map((_, i) => i).sort((a, b) => nodes[a].depth - nodes[b].depth);
+  order.forEach(i => {
+    const vo = vos[i];
     const st = styles.get(nodes[i].id);
     const font = nestingFont(st, settings, isModify, defaultFont);
     if (font) {
@@ -377,13 +388,19 @@ function _applyNestingLevel(view, settings, palette, isModify, defaultFont, styl
       return;
     }
 
-    // Color: its condition's color, or Default = the element type's default fill, shaded by
+    // Color: its condition's color, Type default = the element type's default fill, or Same as parent = one level lighter than its parent's fill; shaded by
     // depthSinceChange − darkenStart levels: darkenStart levels darker at a nesting type or color change.
     if (settings.colorEnabled) {
-      let start = st.color ? Palettes.colorOf(palette, st.color, reportOnce) : null;
-      vo.fillColor = null;                       // reading it back gives the type's default fill
-      if (!start) start = vo.fillColor;
-      vo.fillColor = _shadeHex(start, st.depthSinceChange - settings.darkenStart, settings.lightenPerLevel / 100);
+      const parentHex = st.color === ConditionLists.SAME_TYPE ? written.get(String(nodes[i].parentId)) : undefined;
+      if (parentHex) {
+        vo.fillColor = _shadeHex(parentHex, 1, settings.lightenPerLevel / 100);
+      } else {
+        let start = st.color && st.color !== ConditionLists.SAME_TYPE ? Palettes.colorOf(palette, st.color, reportOnce) : null;
+        vo.fillColor = null;                     // reading it back gives the type's default fill
+        if (!start) start = vo.fillColor;
+        vo.fillColor = _shadeHex(start, st.depthSinceChange - settings.darkenStart, settings.lightenPerLevel / 100);
+      }
+      written.set(nodes[i].id, String(vo.fillColor));
       styledVoIds.add(vo.id);
       colorSet++;
     } else if (isModify) {

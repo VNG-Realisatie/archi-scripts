@@ -42,7 +42,7 @@ Preset {
       fontDecreasePerLevel : number (pt)
       colorEnabled : boolean
       darkenStart : 0..3             // levels darker the fill starts at a nesting type or color change
-      lightenPerLevel : number (%, 5–40)
+      lightenPerLevel : number (%, 5–90)
     }
     highlightRepeated { enabled : boolean, colorRange : string }   // a range name of the palette
   }
@@ -125,7 +125,7 @@ One condition model for every list. A list keeps what matches **any active Inclu
 | relation | on, mode, source, relation, target, propertyOf (`relation`/`source`/`target`), property, value, everyContainer (nesting conditions only) | `params.nestingConditions`, `params.reverseConditions` | nesting / reverse: none |
 | step     | on, mode, previous, direction (`either`/`outgoing`/`incoming`), relation, added, propertyOf (`added`/`relation`/`previous`), property, value | `steps[].conditions` | follow all, as a pass-all condition `{}`; a step without any active Include match adds nothing |
 | style    | on, applyTo (`element`/`relation`/`source`/`target`), source, relation, target, propertyOf (`element`/`relation`/`source`/`target`), property, colorRange (a range name of the palette) | `appearance.styleByProperty.conditions` | no styling |
-| nestingStyle | on, parent, direction (`either`/`outgoing`/`incoming`, seen from the parent), relation, child (a type, `""` = All or `"same"` = the parent's type; default `"same"`), color (a color name of the palette, a hex, or `""` = Default), fontSize (pt of the container where the condition starts; `0` = continues from its parent), bold (that container bold) | `appearance.nestingLevel.conditions` | no styling |
+| nestingStyle | on, parent, direction (`either`/`outgoing`/`incoming`, seen from the parent), relation, child (a type, `""` = All or `"same"` = the parent's type; default `"same"`), color (a color name of the palette, a hex, `""` = Type default or `"same"` = Same as parent; `"same"` is not a palette color name), fontSize (pt of the container where the condition starts; `0` = continues from its parent), bold (that container bold) | `appearance.nestingLevel.conditions` | no styling |
 
 **Step conditions are written from the previous step's elements.**
 - `direction`: `outgoing` = the previous-step element is the relation's source; `incoming` = it is the target; `either` (default) = both.

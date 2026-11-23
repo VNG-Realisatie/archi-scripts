@@ -806,7 +806,10 @@ function styleConditionColumns(ranges) {
 
 /** @type {readonly ConditionTableItem[]} */
 const FONT_SIZE_ITEMS = Object.freeze([{ value: 0, label: "" }, ...Array.from({ length: 17 }, (_, i) => ({ value: i + 8, label: String(i + 8) }))]);
-const CHILD_ITEMS = Object.freeze([{ value: ConditionLists.SAME_TYPE, label: "Same as parent" }, ...ELEMENT_ITEMS]);
+const SAME_AS_PARENT = Object.freeze({ value: ConditionLists.SAME_TYPE, label: "Same as parent" });
+const CHILD_ITEMS = Object.freeze([SAME_AS_PARENT, ...ELEMENT_ITEMS]);
+/** The nesting style color's items before the palette's: the child type's default fill, and the parent's color. */
+const COLOR_LEADING = Object.freeze([{ value: "", label: "Type default" }, SAME_AS_PARENT]);
 
 /**
  * Columns of the nesting style table; the color cell lists the colors of the chosen palette.
@@ -827,9 +830,9 @@ function nestingStyleConditionColumns(colors, switches) {
       tooltip: "Type of the nested element the condition selects; Same as parent: the parent's type.\n" +
                "All = any type." },
     { key: "color", header: "Color", kind: "color", width: 190, enabled: () => switches.color(),
-      tooltip: "Color of the selected elements: a palette color, Other… or Default (the type's fill).\n" +
-               "Lighter per level; when conditions select the same element the most specific wins.",
-      ...Widgets.paletteColorChoice(colors, true) },
+      tooltip: "Color of the selected elements: a palette color, Other…, Type default (the fill of the child's type)\n" +
+               "or Same as parent (the parent's color, one level lighter). Lighter per level; when conditions select the same element the most specific wins.",
+      ...Widgets.paletteColorChoice(colors, COLOR_LEADING) },
     { key: "fontSize", header: "Font size", kind: "choice", items: FONT_SIZE_ITEMS, width: 70, enabled: () => switches.font(),
       tooltip: "Font size of the container where the condition starts; empty: continues from its parent.\n" +
                "Each level deeper is smaller by Smaller per level." },

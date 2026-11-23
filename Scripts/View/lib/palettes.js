@@ -18,6 +18,7 @@ const Log = require(REPO_ROOT + "_lib/log");
 Log.debug("Loading palettes.js");
 
 const Chroma = require("chroma-js");
+const ConditionLists = require(REPO_ROOT + "View/lib/rel_filter");
 
 const PALETTES_FILE = "_palettes.json";
 const PRESETS_DIR = __DIR__.replace(/\\/g, "/").replace(/\/lib\/?$/, "/") + "presets/";
@@ -45,6 +46,7 @@ function validatePalettes(raw) {
     const colors = p.colors.map((/** @type {any} */ c, /** @type {number} */ j) => {
       if (!c || typeof c.name !== "string" || !c.name.trim()) throw new Error(`${where}: palette "${p.name}" colors[${j}] needs a name.`);
       if (colorNames.has(c.name)) throw new Error(`${where}: palette "${p.name}" has color "${c.name}" twice.`);
+      if (c.name === ConditionLists.SAME_TYPE) throw new Error(`${where}: palette "${p.name}" colors[${j}]: the name "${ConditionLists.SAME_TYPE}" is reserved (a nesting style color: same as parent).`);
       colorNames.add(c.name);
       if (typeof c.hex !== "string" || !HEX.test(c.hex)) throw new Error(`${where}: color "${c.name}" needs a hex value like #ffffcc.`);
       return { name: c.name, hex: c.hex.toLowerCase() };
