@@ -97,8 +97,8 @@
     ]
   },
   "view": {
-    "name": "Alle referentiecomponentgroepen",
-    "folder": "/_Generated/Referentiecomponenten/Background/Alle referentiecomponenten",
+    "name": "Domeinen",
+    "folder": "/_Generated/Referentiecomponenten/Alle referentiecomponenten",
     "suffix": "",
     "mirrored": false
   },

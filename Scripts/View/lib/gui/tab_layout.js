@@ -486,9 +486,12 @@ function updateAlgorithmControls(ctx) {
   if (!_nestingOn(w, alg))
     for (const k of Defs.LAYOUT_GROUPS.Containers) if (PARAM_WIDGETS[k]) Widgets.enable(w[PARAM_WIDGETS[k].w], false);
   // The background view's On follows its field; off greys the field and what belongs to it.
+  // Without a view named there is nothing to switch: On is unticked and greyed, the field stays open.
   if (w.chkBackgroundOn) {
-    Widgets.enable(w.chkBackgroundOn, w.txtBackgroundView.isEnabled());
-    if (!w.chkBackgroundOn.getSelection())
+    const named = String(w.txtBackgroundView.getText()).trim() !== "";
+    if (!named) { w.chkBackgroundOn.setSelection(false); Widgets.enable(w.chkBackgroundLeavesInPlace, false); }
+    Widgets.enable(w.chkBackgroundOn, named && w.txtBackgroundView.isEnabled());
+    if (named && !w.chkBackgroundOn.getSelection())
       for (const c of [w.txtBackgroundView, w.btnBackgroundView, w.chkBackgroundLeavesInPlace]) Widgets.enable(c, false);
   }
 

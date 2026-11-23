@@ -73,14 +73,14 @@
         "repeat": 3,
         "conditions": [
           {"previous": "application-service", "direction": "incoming", "relation": "realization-relationship", "added": "application-component"},
-          {"previous": "application-service", "direction": "outgoing", "relation": "aggregation-relationship", "added": "application-service"}
+          {"on": false, "previous": "application-service", "direction": "outgoing", "relation": "aggregation-relationship", "added": "application-service"}
         ]
       }
     ]
   },
   "view": {
-    "name": "Sociaal domein AS background",
-    "folder": "/_Generated/Referentiecomponenten/Background/Applicatieservices en referentiecomponenten",
+    "name": "Domeinen",
+    "folder": "/_Generated/Referentiecomponenten/Applicatieservices en referentiecomponenten",
     "suffix": "",
     "mirrored": false
   },
@@ -151,7 +151,7 @@
       },
       {
         "key": "Scope",
-        "value": "",
+        "value": "Gemeente",
         "enabled": false
       },
       {

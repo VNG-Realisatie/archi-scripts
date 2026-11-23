@@ -108,7 +108,7 @@ function open(uiSelection) {
   const w = /** @type {DialogWidgets} */ ({});       // widget map
   const ctx = /** @type {DialogContext} */ ({ config, widgets: w, uiSelection, firstName: "", relBlocks: /** @type {StepBlock[]} */ ([]),
     recount: () => _updateFilteredCount(ctx), markModified: () => PresetRow.markModified(ctx),
-    backgroundChanged: () => { _readBackgroundField(ctx); _updateFilteredCount(ctx); },
+    backgroundChanged: () => { _tickNamedBackground(ctx); _readBackgroundField(ctx); _updateFilteredCount(ctx); },
     nestingStyleChanged: () => TabAppearance.updateNestingStyleCounts(ctx),
     backgroundNames: () => _backgroundNames(ctx),
     saveUI: () => _saveUI(ctx), syncToUI: () => _syncToUI(ctx), refreshAction: () => _refreshAction(ctx) });  // firstName set below
@@ -1332,6 +1332,18 @@ function _backgroundRef(w) {
   const path = String(w.txtBackgroundView.getText()).trim();
   const view = path ? SelectionRead.findBackgroundView({ id: "", path, on: true }) : null;
   return { id: view ? String(view.id) : "", path, on: w.chkBackgroundOn ? w.chkBackgroundOn.getSelection() : true };
+}
+
+/**
+ * A view named in an open Background field (On was unticked because it was empty) switches On on.
+ * @param {DialogContext} ctx
+ */
+function _tickNamedBackground(ctx) {
+  const w = ctx.widgets;
+  if (!w.chkBackgroundOn || !w.txtBackgroundView.isEnabled() || w.chkBackgroundOn.getSelection()) return;
+  if (String(w.txtBackgroundView.getText()).trim() === "") return;
+  w.chkBackgroundOn.setSelection(true);
+  TabLayout.updateAlgorithmControls(ctx);
 }
 
 /**
