@@ -6,6 +6,8 @@ console.log("Loading include_export.js");
 const Selection = require(REPO_ROOT + "_lib/selection.js");
 const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders.js");
 
+const Common = require(REPO_ROOT + "_lib/Common.js");
+const Log = require(REPO_ROOT + "_lib/log");
 const ExportImport = require(__DIR__ + "include_export_import.js");
 const Config = require(__DIR__ + "config.default.js");
 

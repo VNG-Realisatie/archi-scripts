@@ -2,6 +2,7 @@
  * GGM Import configuration for Beleidsdomeinen and Data-objecten
  */
 
+const Common = require(REPO_ROOT + "_lib/Common.js");
 const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders.js");
 const GgmGemma = require(__DIR__ + "include_ggm_gemma.js");
 

@@ -23,6 +23,8 @@
  */
 console.log("Loading include_import.js");
 
+const Common = require(REPO_ROOT + "_lib/Common.js");
+const Log = require(REPO_ROOT + "_lib/log");
 const ExportImport = require(__DIR__ + "include_export_import.js");
 
 // use this value in a property column to remove a property from the object

@@ -1,3 +1,5 @@
+const Common = require(REPO_ROOT + "_lib/Common.js");
+const Log = require(REPO_ROOT + "_lib/log");
 const GEMMA = require(__DIR__ + "../include_GEMMA.js");
 
 console.log("Loading include_ggm_gemma.js");

@@ -28,6 +28,7 @@
  *
  * (c) 2019 Mark Backer
  */
+const Common = require(REPO_ROOT + "_lib/Common.js");
 const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders.js");
 
 const PROP_ID = "Object ID";
