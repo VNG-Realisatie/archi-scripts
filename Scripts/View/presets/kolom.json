@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "name": "kolom",
   "algorithm": "Layered",
   "params": {
@@ -36,9 +36,7 @@
   "appearance": {
     "palette": "Brewer",
     "nestingLevel": {
-      "conditions": [
-        {"darkenStart": 0, "fontStyle": "bold", "child": "same"}
-      ]
+      "conditions": []
     }
   }
 }

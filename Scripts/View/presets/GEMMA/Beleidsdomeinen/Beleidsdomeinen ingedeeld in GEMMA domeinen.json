@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "name": "Beleidsdomeinen/Beleidsdomeinen ingedeeld in GEMMA domeinen",
   "algorithm": "Tiles",
   "params": {
@@ -80,9 +80,7 @@
     "nestingLevel": {
       "conditions": [
         {"color": "Grouping", "lightenPerLevel": 40, "fontSize": 14, "fontStyle": "bold", "child": "same"}
-      ],
-      "fontEnabled": true,
-      "colorEnabled": true
+      ]
     },
     "highlightRepeated": {
       "enabled": true,

@@ -116,7 +116,7 @@ function stylesByName(run) {
   eq(fontOf(fonts, "Beoordeling"), [null], "a leaf with only leaves beside it keeps its font");
   eq(fontOf(fonts, "Klantdossier"), [null, null], "an element no condition selects keeps its font");
   const reset = Appearance.nestingFonts(nodes, nl, true, SYMBOL_FONT);
-  eq(fontOf(reset, "Beoordeling"), [SYMBOL_FONT], "Modify with the font on resets a visual it gives no font to Archi's default view font");
+  eq(fontOf(reset, "Beoordeling"), [SYMBOL_FONT], "Modify resets a visual a condition reaches but gives no font to Archi's default view font");
 }
 
 // ── Equally specific conditions with different styles: the last wins and the conflict is reported ────────────────────
@@ -371,7 +371,7 @@ function standInView(run) {
 
   const run = newView("Bedrijfsfuncties background", "6 GEMMA");
   const { view, visuals } = standInView(run);
-  const nl = { ...run.preset.appearance.nestingLevel, colorEnabled: true, conditions: [cond] };
+  const nl = { ...run.preset.appearance.nestingLevel, conditions: [cond] };
   const preset = { ...run.preset, params: Defs.effectiveParams(run.preset), appearance: { ...run.preset.appearance, nestingLevel: nl } };
   /** @type {string[]} */
   const warnings = [];

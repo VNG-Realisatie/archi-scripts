@@ -21,7 +21,7 @@
  *               lightenPerLevel, fontSize, fontStyle, fontDecreasePerLevel }
  *               (child "same" = the parent's type; color: a color name of the palette or a hex, "" = Type default,
  *               "same" = Same as parent, "background" = Background; fontStyle also "same" = the parent's style; fontSize, fontStyle: the start element;
- *               fontSize 0 = continues from the parent; "background" = the value of the background look)
+ *               fontSize 0 = continues from the parent; "default" = Archi's default font (fontStyle too); "background" = the value of the background look)
  *
  * Empty list: filter lists (global, step) keep everything (emptyMeansAll); feature lists (nesting,
  * reverse, style) select nothing. A condition that is off adds nothing and removes nothing, but an
@@ -47,9 +47,10 @@ const NEST_PROP_OF  = Object.freeze(["child", "parent", "relation"]);
 const FONT_STYLES   = Object.freeze(["normal", "bold", "italic", "bolditalic"]);
 const SAME_TYPE     = "same";         // nestingStyle child: the parent's type; color: Same as parent (the parent's fill color)
 const BACKGROUND    = "background";   // nestingStyle color, fontSize, fontStyle: the value of the background look
+const FONT_DEFAULT  = "default";       // nestingStyle fontSize, fontStyle: Archi's configured default font
 // nestingStyle numbers: [min, max] of a whole number (the dialog's spinners).
 const NEST_NUMBERS  = Object.freeze({ darkenStart: [0, 3], lightenPerLevel: [5, 90], fontDecreasePerLevel: [1, 6] });
-const FONT_SIZES    = Object.freeze([8, 24]);   // fontSize besides 0 (continues) and Background
+const FONT_SIZES    = Object.freeze([8, 24]);   // fontSize besides 0 (continues), Default and Background
 
 // kind → { defaults, types: field → valid-set name, enums: field → allowed values }
 /** @type {Readonly<{ [K in ConditionKind]: ConditionKindSpec<ConditionByKind[K]> }>} */
@@ -85,9 +86,9 @@ const KINDS = Object.freeze({
   nestingStyle: {
     defaults: { on: true, parent: "", direction: "either", relation: "", child: SAME_TYPE,
                 propertyOf: "child", property: "", value: "",
-                color: "", darkenStart: 1, lightenPerLevel: 15, fontSize: 0, fontStyle: "normal", fontDecreasePerLevel: 2 },
+                color: "", darkenStart: 1, lightenPerLevel: 15, fontSize: FONT_DEFAULT, fontStyle: FONT_DEFAULT, fontDecreasePerLevel: 2 },
     types:    { parent: "elements", relation: "relations", child: "elements" },
-    enums:    { direction: DIRECTIONS, propertyOf: NEST_PROP_OF, fontStyle: [...FONT_STYLES, BACKGROUND, SAME_TYPE] },
+    enums:    { direction: DIRECTIONS, propertyOf: NEST_PROP_OF, fontStyle: [...FONT_STYLES, FONT_DEFAULT, BACKGROUND, SAME_TYPE] },
     specials: { child: [SAME_TYPE] },
   },
 });
@@ -135,8 +136,8 @@ function normalizeCondition(kind, raw, valid, where) {
       out[key] = s;
     } else if (key === "fontSize") {
       const n = /** @type {number} */ (val);
-      if (val !== BACKGROUND && val !== 0 && !(Number.isInteger(n) && n >= FONT_SIZES[0] && n <= FONT_SIZES[1]))
-        return bad(`"fontSize" must be 0 (continues from the parent), ${FONT_SIZES[0]} to ${FONT_SIZES[1]} points or "${BACKGROUND}"`);
+      if (val !== BACKGROUND && val !== FONT_DEFAULT && val !== 0 && !(Number.isInteger(n) && n >= FONT_SIZES[0] && n <= FONT_SIZES[1]))
+        return bad(`"fontSize" must be "${FONT_DEFAULT}", 0 (continues from the parent), ${FONT_SIZES[0]} to ${FONT_SIZES[1]} points or "${BACKGROUND}"`);
       out.fontSize = val;
     } else if (key in NEST_NUMBERS) {
       const [min, max] = NEST_NUMBERS[/** @type {keyof typeof NEST_NUMBERS} */ (key)];
@@ -560,7 +561,7 @@ if (typeof module !== "undefined" && module.exports) {
     FILTER_APPLY_TO, filterRows, matchFilterRelation,
     defaultCondition, normalizeCondition, normalizeConditions, serializeCondition, isPassAll,
     evalConditions, matchElement, matchDiagram, matchRelation, matchEveryContainer, relationPropObject, matchStep, matchStepRelation,
-    styleConditionMatchesRelation, detectConditionConflicts, SAME_TYPE, BACKGROUND, FONT_STYLES, NEST_PROP_OF, nestingStyleConditionMatches, nestingStyleConditionMatchesRoot,
+    styleConditionMatchesRelation, detectConditionConflicts, SAME_TYPE, BACKGROUND, FONT_DEFAULT, FONT_STYLES, NEST_PROP_OF, nestingStyleConditionMatches, nestingStyleConditionMatchesRoot,
     compactPreset, stringifyPreset,
   };
 }

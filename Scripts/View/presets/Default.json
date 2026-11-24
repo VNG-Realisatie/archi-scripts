@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "name": "Default",
   "description": "The selection plus every element directly related to it. Start a new preset from here with Save As….",
   "algorithm": "Layered",
@@ -65,11 +65,7 @@
       "lineWidth": 0
     },
     "nestingLevel": {
-      "conditions": [
-        {"fontSize": 14, "child": "same"}
-      ],
-      "fontEnabled": false,
-      "colorEnabled": false
+      "conditions": []
     },
     "highlightRepeated": {
       "enabled": false,

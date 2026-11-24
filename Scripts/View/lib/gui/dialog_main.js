@@ -1202,8 +1202,6 @@ function _fillWidgets(ctx) {
 
   // Feature 4 — Style by nesting level
   if (w.tblNestingStyleConditions) w.tblNestingStyleConditions.setConditions(nl.conditions);
-  if (w.chkNestFont)        w.chkNestFont.setSelection(!!(nl.fontEnabled));
-  if (w.chkNestColor)       w.chkNestColor.setSelection(!!(nl.colorEnabled));
 
   // Feature 5 — Highlight repeated elements
   if (w.chkHighlightRep)       w.chkHighlightRep.setSelection(!!(hr.enabled));
@@ -1264,8 +1262,6 @@ function _saveUI(ctx) {
 
   // Feature 4 — Style by nesting level
   if (w.tblNestingStyleConditions) c.appearance.nestingLevel.conditions = w.tblNestingStyleConditions.getConditions();
-  c.appearance.nestingLevel.fontEnabled  = !!(w.chkNestFont  && w.chkNestFont.getSelection());
-  c.appearance.nestingLevel.colorEnabled = !!(w.chkNestColor && w.chkNestColor.getSelection());
 
   // Feature 5 — Highlight repeated elements
   c.appearance.highlightRepeated.enabled    = !!(w.chkHighlightRep && w.chkHighlightRep.getSelection());

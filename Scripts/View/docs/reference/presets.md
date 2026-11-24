@@ -38,9 +38,7 @@ Preset {
       lineWidth : 0..3               // 0 = no change; 1 Normal, 2 Medium, 3 Heavy
     }
     nestingLevel {
-      conditions : NestingStyleCondition[]   // nesting steps followed from each root; default [{ child: "same", fontSize: 14 }]
-      fontEnabled : boolean
-      colorEnabled : boolean
+      conditions : NestingStyleCondition[]   // nesting steps followed from each root; default []
     }
     highlightRepeated { enabled : boolean, colorRange : string }   // a range name of the palette
   }
@@ -123,7 +121,7 @@ One condition model for every list. A list keeps what matches **any active Inclu
 | relation | on, mode, source, relation, target, propertyOf (`relation`/`source`/`target`), property, value, everyContainer (nesting conditions only) | `params.nestingConditions`, `params.reverseConditions` | nesting / reverse: none |
 | step     | on, mode, previous, direction (`either`/`outgoing`/`incoming`), relation, added, propertyOf (`added`/`relation`/`previous`), property, value | `steps[].conditions` | follow all, as a pass-all condition `{}`; a step without any active Include match adds nothing |
 | style    | on, applyTo (`element`/`relation`/`source`/`target`), source, relation, target, propertyOf (`element`/`relation`/`source`/`target`), property, colorRange (a range name of the palette) | `appearance.styleByProperty.conditions` | no styling |
-| nestingStyle | on, parent, direction (`either`/`outgoing`/`incoming`, seen from the parent), relation, child (a type, `""` = All or `"same"` = the parent's type; default `"same"`), propertyOf (`child`/`parent`/`relation`), property, value, color (a color name of the palette, a hex, `""` = Type default, `"same"` = Same as parent or `"background"` = Background; `"same"` and `"background"` are not palette color names), darkenStart (0–3, levels darker at a nesting type or color change), lightenPerLevel (5–90 %), fontSize (pt of the start element; `0` = same as parent, 8–24, or `"background"`), fontStyle (`normal`, `bold`, `italic`, `bolditalic`, `"same"` = the parent's, `"background"`), fontDecreasePerLevel (1–6 pt) | `appearance.nestingLevel.conditions` | no styling |
+| nestingStyle | on, parent, direction (`either`/`outgoing`/`incoming`, seen from the parent), relation, child (a type, `""` = All or `"same"` = the parent's type; default `"same"`), propertyOf (`child`/`parent`/`relation`), property, value, color (a color name of the palette, a hex, `""` = Type default, `"same"` = Same as parent or `"background"` = Background; `"same"` and `"background"` are not palette color names), darkenStart (0–3, levels darker at a nesting type or color change), lightenPerLevel (5–90 %), fontSize (pt of the start element; `"default"` = Archi's default font size, `0` = same as parent, 8–24, or `"background"`; default `"default"`), fontStyle (`normal`, `bold`, `italic`, `bolditalic`, `"default"` = Archi's default style, `"same"` = the parent's, `"background"`; default `"default"`), fontDecreasePerLevel (1–6 pt) | `appearance.nestingLevel.conditions` | no styling |
 
 **Step conditions are written from the previous step's elements.**
 - `direction`: `outgoing` = the previous-step element is the relation's source; `incoming` = it is the target; `either` (default) = both.

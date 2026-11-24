@@ -1,39 +1,36 @@
 {
-  "schemaVersion": 10,
-  "name": "GEMMA/SaaS",
-  "algorithm": "Tiles",
+  "schemaVersion": 11,
+  "name": "GEMMA/Kernwaarden",
+  "algorithm": "Layered",
   "params": {
     "direction": "Right",
-    "nodePlacement": "Straight lines",
+    "nodePlacement": "Centred",
     "circles": "One circle",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
     "reverseConditions": [
-      {"relation": "association-relationship"},
-      {"relation": "realization-relationship"},
-      {"relation": "serving-relationship"},
-      {"relation": "specialization-relationship"}
+      {"relation": "influence-relationship"}
     ],
     "nestingConditions": [
-      {"relation": "aggregation-relationship", "everyContainer": true}
+      {"relation": "influence-relationship", "everyContainer": true}
     ],
     "padding": 20,
     "diagramPadding": 10,
-    "sort": "Elements",
+    "sort": "Containers, then elements",
     "selectionOrder": "Selection",
     "cycleSelectionOrder": false,
     "sameWidth": "Off",
     "columnsAcrossContainers": false,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Across containers",
-    "layerSpacing": 120,
-    "elementSpacing": 10,
+    "layerSpacing": 180,
+    "elementSpacing": 20,
     "connectionSpacing": 25,
     "connectionElementSpacing": 40,
-    "elementWidth": 350,
-    "elementHeight": 30,
+    "elementWidth": 200,
+    "elementHeight": 60,
     "maxWidth": 0,
     "aspectRatio": 1.78,
     "viewSizeMode": "none",
@@ -42,9 +39,7 @@
     "connectionLabelSpacing": false
   },
   "filter": {
-    "conditions": [
-      {"source": "product"}
-    ],
+    "conditions": [],
     "diagramConditions": []
   },
   "relatedElements": {
@@ -53,19 +48,14 @@
         "name": "",
         "repeat": 1,
         "conditions": [
-          {"relation": "aggregation-relationship"}
+          {"relation": "influence-relationship", "added": "goal"}
         ]
-      },
-      {
-        "name": "",
-        "repeat": 1,
-        "conditions": []
       }
     ]
   },
   "view": {
-    "name": "SaaS - Software as a Service",
-    "folder": "/_Generated/Technische architectuur",
+    "name": "Kernwaarden",
+    "folder": "/_Generated",
     "suffix": "",
     "mirrored": false
   },
@@ -77,11 +67,7 @@
       "lineWidth": 0
     },
     "nestingLevel": {
-      "conditions": [
-        {"darkenStart": 0, "fontSize": 14, "fontStyle": "bold", "child": "same"}
-      ],
-      "fontEnabled": false,
-      "colorEnabled": false
+      "conditions": []
     },
     "highlightRepeated": {
       "enabled": false,
@@ -154,5 +140,5 @@
       }
     ]
   },
-  "description": "Selecteer product SaaS en genereer view"
+  "description": ""
 }

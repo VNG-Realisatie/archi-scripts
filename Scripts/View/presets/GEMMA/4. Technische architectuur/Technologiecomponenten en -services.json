@@ -1,22 +1,23 @@
 {
-  "schemaVersion": 10,
-  "name": "GEMMA/Kernwaarden",
-  "algorithm": "Layered",
+  "schemaVersion": 11,
+  "name": "GEMMA/4. Technische architectuur/Technologiecomponenten en -services",
+  "algorithm": "Tiles",
   "params": {
     "direction": "Right",
-    "nodePlacement": "Centred",
+    "nodePlacement": "Straight lines",
     "circles": "One circle",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
     "reverseConditions": [
-      {"relation": "influence-relationship"}
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"}
     ],
     "nestingConditions": [
-      {"relation": "influence-relationship", "everyContainer": true}
+      {"source": "technology-service", "relation": "aggregation-relationship", "target": "technology-service"}
     ],
-    "padding": 20,
+    "padding": 15,
     "diagramPadding": 10,
     "sort": "Containers, then elements",
     "selectionOrder": "Selection",
@@ -26,17 +27,23 @@
     "containerAlgorithm": "Layered",
     "connectionsMode": "Across containers",
     "layerSpacing": 180,
-    "elementSpacing": 20,
+    "elementSpacing": 15,
     "connectionSpacing": 25,
     "connectionElementSpacing": 40,
-    "elementWidth": 200,
-    "elementHeight": 60,
+    "elementWidth": 300,
+    "elementHeight": 80,
     "maxWidth": 0,
-    "aspectRatio": 1.78,
-    "viewSizeMode": "none",
+    "aspectRatio": 1.33,
+    "viewSizeMode": "aspectRatio",
     "labelSizing": false,
     "labelMaxLineWidth": 400,
-    "connectionLabelSpacing": false
+    "connectionLabelSpacing": false,
+    "backgroundView": {
+      "id": "id-12bbc47d3f0849f4b55bb880718ea914",
+      "path": "/Views/4. Technische architectuur/Technologiecomponenten en -services",
+      "on": true
+    },
+    "backgroundLeavesInPlace": false
   },
   "filter": {
     "conditions": [],
@@ -46,16 +53,23 @@
     "steps": [
       {
         "name": "",
+        "repeat": "untilNothingNew",
+        "conditions": [
+          {"previous": "technology-service", "direction": "outgoing", "relation": "aggregation-relationship", "added": "technology-service"}
+        ]
+      },
+      {
+        "name": "",
         "repeat": 1,
         "conditions": [
-          {"relation": "influence-relationship", "added": "goal"}
+          {"previous": "technology-service", "direction": "incoming", "relation": "realization-relationship", "added": "system-software"}
         ]
       }
     ]
   },
   "view": {
-    "name": "Kernwaarden",
-    "folder": "/_Generated",
+    "name": "Cloud dienstverleningslagen",
+    "folder": "/_Generated/4. Technische architectuur",
     "suffix": "",
     "mirrored": false
   },
@@ -68,10 +82,8 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"darkenStart": 0, "fontStyle": "bold", "child": "same"}
-      ],
-      "fontEnabled": false,
-      "colorEnabled": false
+        {"parent": "technology-service", "direction": "outgoing", "relation": "aggregation-relationship", "darkenStart": 0, "lightenPerLevel": 40, "fontSize": 14, "fontStyle": "bold", "child": "same"}
+      ]
     },
     "highlightRepeated": {
       "enabled": false,

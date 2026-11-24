@@ -92,7 +92,7 @@ function _nestPropObjects(ctx, r) {
 
 /**
  * The counts and ⚠ of the nesting style table, from the nesting of the last recount (Counts.nestingStyleCounts).
- * Cheap: called on every change of the table and of the Color and Font switches.
+ * Cheap: called on every change of the table.
  * @param {DialogContext} ctx
  */
 function updateNestingStyleCounts(ctx) {
@@ -102,8 +102,7 @@ function updateNestingStyleCounts(ctx) {
   const view = ctx.predicted && ctx.counts ? ctx.counts.nestingView : null;
   if (!view) { t.setCounts([]); t.setWarnings(new Map()); return; }
   try {
-    const settings = { colorEnabled: w.chkNestColor.getSelection(), fontEnabled: w.chkNestFont.getSelection() };
-    const r = Counts.nestingStyleCounts(t.displayedConditions(), settings, view, ctx.relationsOf);
+    const r = Counts.nestingStyleCounts(t.displayedConditions(), view, ctx.relationsOf);
     t.setCounts(r.counts);
     t.setWarnings(r.warnings);
   } catch (e) {
@@ -213,23 +212,10 @@ function buildAppearanceTab(tabFolder, ctx) {
     "Deeper levels within a condition become lighter and smaller. With a background view, elements start with their appearance " +
     "from that view. Choose Background to preserve it.");
 
-  // The switches, then the conditions both use.
-  const nestRow = Widgets.formRow(grpNest, "Apply:", formRows);
-  const chkNestColor = Widgets.checkBox(nestRow, "Color");
-  chkNestColor.setToolTipText("Apply the conditions' fill colors. Off: the fill color comes from the background look, else the element type's default.");
-  chkNestColor.addListener(SWT.Selection, () => { updateNestingLevelState(ctx); onChange(); });
-  w.chkNestColor = chkNestColor;
-  const chkNestFont = Widgets.checkBox(nestRow, "Font");
-  chkNestFont.setToolTipText("Apply the conditions' fonts. Off: the font comes from the background look, else Archi's default.");
-  chkNestFont.addListener(SWT.Selection, () => { updateNestingLevelState(ctx); onChange(); });
-  w.chkNestFont = chkNestFont;
-
   const onNestChange = () => { ctx.markModified(); ctx.nestingStyleChanged(); };
   w.tblNestingStyleConditions = conditionTable(grpNest, {
     kind: "nestingStyle", onChange: onNestChange,
-    columns: nestingStyleConditionColumns(paletteColors, {
-      color: () => chkNestColor.getSelection(), font: () => chkNestFont.getSelection(), background: () => !!ctx.backgroundInUse,
-    }),
+    columns: nestingStyleConditionColumns(paletteColors, { background: () => !!ctx.backgroundInUse }),
     onLayout: relayout,
     propItems:  r => Counts.propNames(_nestPropObjects(ctx, r)),
     valueItems: r => Counts.propValues(_nestPropObjects(ctx, r), r.property),
@@ -312,7 +298,7 @@ const PALETTE_NOTE = "Every color and color range on this tab comes from the pal
 /** @param {DialogContext} ctx */
 function updateNestingLevelState(ctx) {
   const w = ctx.widgets;
-  if (!w.chkNestFont) return; // Appearance tab not yet built — skip
+  if (!w.tblNestingStyleConditions) return; // Appearance tab not yet built — skip
 
   const hasNesting = Widgets.hasNestingConditions(w);
 
@@ -327,11 +313,9 @@ function updateNestingLevelState(ctx) {
 
   Widgets.enable(w.nestDescLbl,          hasNesting);
   w.tblNestingStyleConditions.enable(hasNesting);
-  Widgets.enable(w.chkNestFont,          hasNesting);
-  Widgets.enable(w.chkNestColor,         hasNesting);
   Widgets.enable(w.chkHighlightRep,      _hasEveryContainer(w));  // repeats only come from conditions with Every
   updateAppearancePropStates(ctx);
-  updateNestingStyleCounts(ctx);   // the ⚠ follow the Color and Font switches
+  updateNestingStyleCounts(ctx);
 }
 
 if (typeof module !== "undefined" && module.exports) {

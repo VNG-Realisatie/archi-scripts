@@ -1,7 +1,7 @@
 {
-  "schemaVersion": 10,
-  "name": "GEMMA/TAenIA",
-  "algorithm": "Layered",
+  "schemaVersion": 11,
+  "name": "GEMMA/SaaS",
+  "algorithm": "Tiles",
   "params": {
     "direction": "Right",
     "nodePlacement": "Straight lines",
@@ -17,8 +17,7 @@
       {"relation": "specialization-relationship"}
     ],
     "nestingConditions": [
-      {"relation": "access-relationship"},
-      {"relation": "aggregation-relationship"}
+      {"relation": "aggregation-relationship", "everyContainer": true}
     ],
     "padding": 20,
     "diagramPadding": 10,
@@ -30,11 +29,11 @@
     "containerAlgorithm": "Layered",
     "connectionsMode": "Across containers",
     "layerSpacing": 120,
-    "elementSpacing": 15,
+    "elementSpacing": 10,
     "connectionSpacing": 25,
     "connectionElementSpacing": 40,
-    "elementWidth": 270,
-    "elementHeight": 25,
+    "elementWidth": 350,
+    "elementHeight": 30,
     "maxWidth": 0,
     "aspectRatio": 1.78,
     "viewSizeMode": "none",
@@ -44,15 +43,7 @@
   },
   "filter": {
     "conditions": [
-      {"source": "application-component"},
-      {"source": "system-software"},
-      {"source": "technology-service"},
-      {"applyTo": "relation", "relation": "aggregation-relationship"},
-      {"applyTo": "relation", "relation": "association-relationship"},
-      {"applyTo": "relation", "relation": "composition-relationship"},
-      {"applyTo": "relation", "relation": "realization-relationship"},
-      {"applyTo": "relation", "relation": "serving-relationship"},
-      {"applyTo": "relation", "relation": "specialization-relationship"}
+      {"source": "product"}
     ],
     "diagramConditions": []
   },
@@ -62,30 +53,18 @@
         "name": "",
         "repeat": 1,
         "conditions": [
-          {"relation": "aggregation-relationship", "added": "application-component"},
-          {"relation": "aggregation-relationship", "added": "system-software"},
-          {"relation": "aggregation-relationship", "added": "technology-service"},
-          {"relation": "association-relationship", "added": "application-component"},
-          {"relation": "association-relationship", "added": "system-software"},
-          {"relation": "association-relationship", "added": "technology-service"},
-          {"relation": "composition-relationship", "added": "application-component"},
-          {"relation": "composition-relationship", "added": "system-software"},
-          {"relation": "composition-relationship", "added": "technology-service"},
-          {"relation": "realization-relationship", "added": "application-component"},
-          {"relation": "realization-relationship", "added": "system-software"},
-          {"relation": "realization-relationship", "added": "technology-service"},
-          {"relation": "serving-relationship", "added": "application-component"},
-          {"relation": "serving-relationship", "added": "system-software"},
-          {"relation": "serving-relationship", "added": "technology-service"},
-          {"relation": "specialization-relationship", "added": "application-component"},
-          {"relation": "specialization-relationship", "added": "system-software"},
-          {"relation": "specialization-relationship", "added": "technology-service"}
+          {"relation": "aggregation-relationship"}
         ]
+      },
+      {
+        "name": "",
+        "repeat": 1,
+        "conditions": []
       }
     ]
   },
   "view": {
-    "name": "Technologiecomponenten en -services mapping",
+    "name": "SaaS - Software as a Service",
     "folder": "/_Generated/Technische architectuur",
     "suffix": "",
     "mirrored": false
@@ -98,11 +77,7 @@
       "lineWidth": 0
     },
     "nestingLevel": {
-      "conditions": [
-        {"darkenStart": 0, "fontSize": 14, "fontStyle": "bold", "child": "same"}
-      ],
-      "fontEnabled": false,
-      "colorEnabled": false
+      "conditions": []
     },
     "highlightRepeated": {
       "enabled": false,
@@ -175,5 +150,5 @@
       }
     ]
   },
-  "description": "Converted from TAenIA.js (old include_view format)."
+  "description": "Selecteer product SaaS en genereer view"
 }

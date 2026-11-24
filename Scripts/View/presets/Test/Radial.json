@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "name": "Test/Radial",
   "algorithm": "Radial",
   "params": {
@@ -67,11 +67,7 @@
       "lineWidth": 0
     },
     "nestingLevel": {
-      "conditions": [
-        {"darkenStart": 0, "fontSize": 14, "child": "same"}
-      ],
-      "fontEnabled": false,
-      "colorEnabled": false
+      "conditions": []
     },
     "highlightRepeated": {
       "enabled": false,

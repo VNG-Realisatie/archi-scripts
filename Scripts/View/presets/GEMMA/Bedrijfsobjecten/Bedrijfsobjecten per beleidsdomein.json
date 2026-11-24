@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "name": "Bedrijfsobjecten/Bedrijfsobjecten per beleidsdomein",
   "algorithm": "Tiles",
   "params": {
@@ -73,9 +73,7 @@
     "nestingLevel": {
       "conditions": [
         {"direction": "outgoing", "relation": "aggregation-relationship", "darkenStart": 0, "lightenPerLevel": 25, "fontSize": 16, "fontStyle": "bold", "child": "same"}
-      ],
-      "fontEnabled": true,
-      "colorEnabled": true
+      ]
     },
     "highlightRepeated": {
       "enabled": true,

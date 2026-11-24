@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 10,
-  "name": "Bedrijfsobjecten/Bedrijfsobjectmodel",
+  "schemaVersion": 11,
+  "name": "GEMMA/Bedrijfsobjecten/Bedrijfsobjectmodel",
   "algorithm": "Layered",
   "params": {
     "direction": "Right",
@@ -37,7 +37,13 @@
     "viewSizeMode": "none",
     "labelSizing": false,
     "labelMaxLineWidth": 400,
-    "connectionLabelSpacing": true
+    "connectionLabelSpacing": true,
+    "backgroundView": {
+      "id": "",
+      "path": "",
+      "on": true
+    },
+    "backgroundLeavesInPlace": false
   },
   "filter": {
     "conditions": [
@@ -89,9 +95,7 @@
     "nestingLevel": {
       "conditions": [
         {"darkenStart": 0, "fontSize": 10, "fontStyle": "bold", "child": "same"}
-      ],
-      "fontEnabled": true,
-      "colorEnabled": false
+      ]
     },
     "highlightRepeated": {
       "enabled": true,

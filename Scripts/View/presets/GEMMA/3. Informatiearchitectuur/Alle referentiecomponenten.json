@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 10,
-  "name": "GEMMA/Referentiecomponenten/Alle referentiecomponenten background",
+  "schemaVersion": 11,
+  "name": "GEMMA/3. Informatiearchitectuur/Alle referentiecomponenten",
   "algorithm": "Tiles",
   "params": {
     "direction": "Right",
@@ -113,9 +113,7 @@
       "conditions": [
         {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "color": "background", "lightenPerLevel": 40, "fontSize": 16, "fontStyle": "background", "child": "same"},
         {"direction": "outgoing", "relation": "aggregation-relationship", "child": "application-service", "color": "background", "lightenPerLevel": 40, "fontSize": 10, "fontStyle": "background"}
-      ],
-      "fontEnabled": true,
-      "colorEnabled": true
+      ]
     },
     "highlightRepeated": {
       "enabled": false,

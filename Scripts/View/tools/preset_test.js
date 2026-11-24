@@ -99,9 +99,9 @@ for (const file of files(PRESETS)) {
   }
 }
 
-// Schema 10: backgroundView.on (default true); the schema 9 keys are reported, not read.
+// Schema 10 and later: backgroundView.on (default true); the schema 9 keys are reported, not read.
 {
-  const v = Defs.validatePreset({ schemaVersion: 10, algorithm: "Tiles", params: { backgroundView: { id: "x", path: "/Views/X" } } });
+  const v = Defs.validatePreset({ schemaVersion: 11, algorithm: "Tiles", params: { backgroundView: { id: "x", path: "/Views/X" } } });
   eq(v.params.backgroundView, { id: "x", path: "/Views/X", on: true }, "backgroundView.on defaults to true");
   eq(Defs.validatePreset({ algorithm: "Tiles", params: { backgroundView: { id: "x", path: "", on: false } } }).params.backgroundView.on, false, "backgroundView.on false is kept");
   eq(Defs.unknownPresetKeys({ params: { backgroundKeepAppearance: true }, appearance: { nestingLevel: { darkenStart: 1, lightenPerLevel: 15, fontDecreasePerLevel: 2 } } }),
@@ -109,7 +109,7 @@ for (const file of files(PRESETS)) {
      "the schema 9 keys are unknown in schema 10");
   let message = "";
   try { Defs.validatePreset({ schemaVersion: 9, algorithm: "Tiles" }); } catch (e) { message = String(e.message); }
-  eq(message.includes("expected 10"), true, "a schema 9 preset is refused: migrate it (tools/migrate_presets_nesting_style.js)");
+  eq(message.includes("expected 11"), true, "a schema 9 preset is refused: migrate it (tools/migrate_presets_nesting_style.js, then migrate_presets_nesting_enabled.js)");
 }
 
 // The names "same" and "background" are reserved for a nesting style fill color (Same as parent, Background): a palette may not hold a color of that name.
@@ -124,6 +124,10 @@ for (const file of files(PRESETS)) {
   eq(/reserved/.test(refused), true, "a palette color named like the nesting style's Background is refused");
   eq(Palettes.validatePalettes(palette([{ name: "Blue", hex: "#ffffcc" }])).length, 1, "a palette with ordinary color names is accepted");
 }
+
+// Schema 11: the nesting level's Color and Font switches are gone (reported, not read).
+eq(Defs.unknownPresetKeys({ appearance: { nestingLevel: { colorEnabled: true, fontEnabled: false } } }),
+   ["appearance.nestingLevel.colorEnabled", "appearance.nestingLevel.fontEnabled"], "the schema 10 switches are unknown in schema 11");
 
 if (failed) { _log(`preset_test: ${failed} failed`); process.exitCode = 1; }
 else _log("preset_test: all passed");

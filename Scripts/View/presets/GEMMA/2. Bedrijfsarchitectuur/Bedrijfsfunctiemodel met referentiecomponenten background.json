@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 10,
-  "name": "GEMMA/Referentiecomponenten/Bedrijfsfunctiemodel met referentiecomponenten background",
+  "schemaVersion": 11,
+  "name": "GEMMA/2. Bedrijfsarchitectuur/Bedrijfsfunctiemodel met referentiecomponenten background",
   "algorithm": "Tiles",
   "params": {
     "direction": "Right",
@@ -102,11 +102,9 @@
     "nestingLevel": {
       "conditions": [
         {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "color": "background", "darkenStart": 2, "lightenPerLevel": 30, "fontSize": 16, "fontStyle": "bold", "child": "same"},
-        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "child": "business-function", "color": "Bedrijf gedrag", "darkenStart": 2, "lightenPerLevel": 30, "fontStyle": "bold"},
-        {"parent": "business-function", "direction": "incoming", "relation": "serving-relationship", "child": "application-service", "color": "Applicatie gedrag", "darkenStart": 0, "lightenPerLevel": 30}
-      ],
-      "fontEnabled": true,
-      "colorEnabled": true
+        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "child": "business-function", "color": "Bedrijf gedrag", "darkenStart": 2, "lightenPerLevel": 30, "fontSize": 0, "fontStyle": "bold"},
+        {"parent": "business-function", "direction": "incoming", "relation": "serving-relationship", "child": "application-service", "color": "Applicatie gedrag", "darkenStart": 0, "lightenPerLevel": 30, "fontSize": 0, "fontStyle": "normal"}
+      ]
     },
     "highlightRepeated": {
       "enabled": false,

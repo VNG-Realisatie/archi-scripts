@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "name": "View script/ApplicationProces",
   "algorithm": "Layered",
   "params": {
@@ -89,10 +89,8 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"parent": "application-process", "direction": "outgoing", "relation": "composition-relationship", "lightenPerLevel": 25, "fontSize": 14, "child": "same"}
-      ],
-      "fontEnabled": true,
-      "colorEnabled": true
+        {"parent": "application-process", "direction": "outgoing", "relation": "composition-relationship", "lightenPerLevel": 25, "fontSize": 14, "fontStyle": "normal", "child": "same"}
+      ]
     },
     "highlightRepeated": {
       "enabled": false,

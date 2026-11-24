@@ -770,7 +770,7 @@ const BUTTON_WIDTH = 100;   // px of OK and Cancel, as the dialog's Cancel
 /**
  * @param {Swt.Control} control  the control the cell belongs to
  * @param {Swt.Rectangle} cell  the cell in display coordinates
- * @param {{ title: string, columns: number, onOk: () => void, onCancel: () => void, onClose: () => void }} opts
+ * @param {{ title: string, columns: number, rowGap?: number, minWidth?: number, onOk: () => void, onCancel: () => void, onClose: () => void }} opts
  * @returns {{ body: Swt.Composite, open: (focus: Swt.Control | null) => void }}
  *   body: the parent of the fields; open: place and show the window
  */
@@ -779,8 +779,8 @@ function openFieldsWindow(control, cell, opts) {
   win.setText(opts.title);
   GridLayoutFactory.fillDefaults().numColumns(1).margins(GROUP_MARGIN_H, GROUP_MARGIN_V).spacing(0, 10).applyTo(win);
   const body = new CompositeWidget(win, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(opts.columns).spacing(GAP_PAIR, 4).applyTo(body);
-  GridDataFactory.fillDefaults().grab(true, true).applyTo(body);
+  GridLayoutFactory.fillDefaults().numColumns(opts.columns).spacing(GAP_PAIR, opts.rowGap || 4).applyTo(body);
+  GridDataFactory.fillDefaults().grab(true, true).hint(opts.minWidth || SWT.DEFAULT, SWT.DEFAULT).applyTo(body);
 
   // OK and Cancel, bottom right, as wide as the dialog's Cancel.
   const buttons = new CompositeWidget(win, SWT.NONE);

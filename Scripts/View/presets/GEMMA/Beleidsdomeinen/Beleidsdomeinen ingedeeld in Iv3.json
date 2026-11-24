@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "name": "Beleidsdomeinen/Beleidsdomeinen ingedeeld in Iv3",
   "algorithm": "Tiles",
   "params": {
@@ -74,9 +74,7 @@
     "nestingLevel": {
       "conditions": [
         {"lightenPerLevel": 40, "fontSize": 13, "fontStyle": "bold", "child": "same"}
-      ],
-      "fontEnabled": true,
-      "colorEnabled": true
+      ]
     },
     "highlightRepeated": {
       "enabled": false,

@@ -35,8 +35,6 @@ const ConditionLists = require(REPO_ROOT + "View/lib/rel_filter");
 const Defs = require(REPO_ROOT + "View/lib/defs");
 /** @type {typeof import("./widgets")} */
 const Widgets = require(REPO_ROOT + "View/lib/gui/widgets");
-/** @type {typeof import("../appearance")} */
-const Appearance = require(REPO_ROOT + "View/lib/appearance");
 
 const { RELATION_TYPE_IDS, RELATION_TYPE_LABELS, ELEMENT_TYPES, ELEMENT_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, compareNames } = Defs;
 
@@ -71,6 +69,8 @@ const EMPTY      = "(empty)";   // the empty item of a value list: the property 
 const LIST_FIELD_WIDTH = 200;   // px of a property or value list in a pop-up
 const LIST_FIELD_ROWS  = 10;    // visible items of that list
 const NOTE_WIDTH = 220;  // px a field's note wraps at in a pop-up
+const STACKED_NOTE_WIDTH = 310;   // the same in a pop-up with its fields one below the other: wider
+const STACKED_ROW_GAP = 16;       // px between its fields
 const TIP_DELAY  = 500;  // ms the mouse rests on a cell before its tooltip shows
 const TIP_OFFSET = 20;   // px between the mouse and the tooltip below it
 /** Column width when the column gives none. */
@@ -490,7 +490,7 @@ function conditionTable(parent, opts) {
   };
 
   /**
-   * The window of a compound cell: its fields side by side; OK applies them and recounts, Cancel undoes them.
+   * The window of a compound cell: its fields side by side, or one below the other (stacked); OK applies them and recounts, Cancel undoes them.
    * @param {{ row: number, col: number }} cell
    * @param {ConditionTableCompoundColumn<ConditionByKind[K]>} col
    * @param {ConditionByKind[K] & Record<string, any>} condition
@@ -499,7 +499,9 @@ function conditionTable(parent, opts) {
     const before = Object.assign({}, condition);
     const panel = Widgets.openFieldsWindow(table, cellOnScreen(cell.row, cell.col), {
       title: windowTitle(col, cell.row, condition),
-      columns: col.fields.filter(f => !f.visible || f.visible(condition)).length,
+      rowGap: col.stacked ? STACKED_ROW_GAP : undefined,
+      minWidth: col.stacked ? STACKED_NOTE_WIDTH : undefined,
+      columns: col.stacked ? 1 : col.fields.filter(f => !f.visible || f.visible(condition)).length,
       onOk: () => afterChange(col, condition),
       onCancel: () => { Object.assign(condition, before); table.redraw(); },
       onClose: () => { if (!table.isDisposed()) table.setFocus(); },
@@ -534,7 +536,7 @@ function conditionTable(parent, opts) {
               : _listField(box, field, condition, cell.row, commit);
       f.controls.forEach(c => { if (field.tooltip) c.setToolTipText(field.tooltip); });
       const note = field.note ? Widgets.noteLabel(box, "") : null;
-      if (note) GridDataFactory.fillDefaults().hint(NOTE_WIDTH, SWT.DEFAULT).applyTo(note);
+      if (note) GridDataFactory.fillDefaults().hint(col.stacked ? STACKED_NOTE_WIDTH : NOTE_WIDTH, SWT.DEFAULT).applyTo(note);
       const update = () => {
         f.update();
         const on = !field.enabled || field.enabled(condition);
@@ -1052,10 +1054,11 @@ const SAME_AS_PARENT = Object.freeze({ value: ConditionLists.SAME_TYPE, label: "
 const CHILD_ITEMS = Object.freeze([SAME_AS_PARENT, ...ELEMENT_ITEMS]);
 /** The fill color's items before the palette's: the background look, the child type's default fill, and the parent's fill color. */
 const COLOR_LEADING = Object.freeze([BACKGROUND_ITEM, { value: "", label: "Type default" }, SAME_AS_PARENT]);
+const FONT_DEFAULT_ITEM = Object.freeze({ value: ConditionLists.FONT_DEFAULT, label: "Default" });
 /** @type {readonly ConditionTableItem[]} */
-const FONT_SIZE_ITEMS = Object.freeze([BACKGROUND_ITEM, { value: 0, label: "Same as parent" }, ...Array.from({ length: 17 }, (_, i) => ({ value: i + 8, label: String(i + 8) }))]);
+const FONT_SIZE_ITEMS = Object.freeze([BACKGROUND_ITEM, FONT_DEFAULT_ITEM, { value: 0, label: "Same as parent" }, ...Array.from({ length: 17 }, (_, i) => ({ value: i + 8, label: String(i + 8) }))]);
 /** @type {readonly ConditionTableItem[]} */
-const FONT_STYLE_ITEMS = Object.freeze([BACKGROUND_ITEM, SAME_AS_PARENT, { value: "normal", label: "Normal" }, { value: "bold", label: "Bold" },
+const FONT_STYLE_ITEMS = Object.freeze([BACKGROUND_ITEM, FONT_DEFAULT_ITEM, SAME_AS_PARENT, { value: "normal", label: "Normal" }, { value: "bold", label: "Bold" },
   { value: "italic", label: "Italic" }, { value: "bolditalic", label: "Bold italic" }]);
 const NEST_PROP_OF_ITEMS = Object.freeze([
   { value: "child", label: "Child element", short: "Child" }, { value: "parent", label: "Parent element", short: "Parent" },
@@ -1076,16 +1079,16 @@ function _shown(background) {
   return {
     standIn,
     color:     (/** @type {NestingStyleCondition} */ r) => (standIn(r.color) ? "" : r.color),
-    fontSize:  (/** @type {NestingStyleCondition} */ r) => (standIn(r.fontSize) ? Appearance.DEFAULT_FONT_SIZE : r.fontSize),
-    fontStyle: (/** @type {NestingStyleCondition} */ r) => (standIn(r.fontStyle) ? Appearance.DEFAULT_FONT_STYLE : r.fontStyle),
+    fontSize:  (/** @type {NestingStyleCondition} */ r) => (standIn(r.fontSize) ? ConditionLists.FONT_DEFAULT : r.fontSize),
+    fontStyle: (/** @type {NestingStyleCondition} */ r) => (standIn(r.fontStyle) ? ConditionLists.FONT_DEFAULT : r.fontStyle),
   };
 }
 const NOTE_STAND_IN = "Background, but the background view is off (Layout tab): this default is used. The preset keeps Background.";
 
 /**
- * The Color cell of a nesting style condition: the fill color, Start darker and Lighter per level.
+ * The Color cell of a nesting style condition: the fill color, Darken start container and Child lighter per level.
  * @param {() => readonly { name: string, hex: string }[]} colors
- * @param {{ color: () => boolean, background: () => boolean }} switches
+ * @param {{ background: () => boolean }} switches
  * @returns {ConditionTableCompoundColumn<NestingStyleCondition>}
  */
 function _nestColorCol(colors, switches) {
@@ -1099,22 +1102,22 @@ function _nestColorCol(colors, switches) {
   const lighter = (/** @type {NestingStyleCondition} */ r) => ` +${r.lightenPerLevel}%`;
   const label   = (/** @type {NestingStyleCondition} */ r) => Widgets.colorItemFor(choice, shown.color(r)).item.label;
   return {
-    key: "color", header: "Color", kind: "compound", width: 170, enabled: () => switches.color(),
-    tooltip: "Fill color applied to the child. Click to configure.",
+    key: "color", header: "Color", kind: "compound", width: 170, stacked: true,
+    tooltip: "Fill color of the start element of the nesting this condition selects (the parent, with Darken start container applied);\nits children get the color lighter per level. Click to configure.",
     note: r => (shown.standIn(r.color) ? NOTE_STAND_IN : ""),
     fields: [
-      Object.assign({ key: "color", header: "Fill color", kind: /** @type {"color"} */ ("color"), width: 190,
-        tooltip: "Fill color applied to the child.", get: shown.color,
+      Object.assign({ key: "color", header: "Parent and child fill color", kind: /** @type {"color"} */ ("color"), width: 190,
+        tooltip: "Fill color of the start element (the parent); its children get it lighter per level.", get: shown.color,
         note: (/** @type {NestingStyleCondition} */ r) => shown.standIn(r.color) ? NOTE_STAND_IN
           : r.color === BG ? NOTE_BACKGROUND
           : r.color === ConditionLists.SAME_TYPE ? "Use the parent's fill color, one step lighter."
           : r.color === "" ? "Use the default fill color defined for the element type in Archi." : "" }, choice),
-      { key: "darkenStart", header: "Start darker", kind: "spin", min: 0, max: 3, unit: "levels",
+      { key: "darkenStart", header: "Darken start container", kind: "spin", min: 0, max: 3, unit: "levels",
         enabled: r => shown.color(r) !== BG && r.color !== ConditionLists.SAME_TYPE,
-        tooltip: "Darken the fill color by this many levels where the type or the fill color changes from parent to child." },
-      { key: "lightenPerLevel", header: "Lighter per level", kind: "spin", min: 5, max: 90, step: 5, unit: "%",
+        tooltip: "Darken the start element's fill color by this many levels where the type or the fill color changes from parent to child." },
+      { key: "lightenPerLevel", header: "Child lighter per level", kind: "spin", min: 5, max: 90, step: 5, unit: "%",
         enabled: r => shown.color(r) !== BG,
-        tooltip: "Move the fill color this percentage closer to white at each deeper level." },
+        tooltip: "Move the fill color of the children this percentage closer to white at each deeper level below the start element." },
     ],
     summary: r => shown.color(r) === BG ? label(r)
       : r.color === ConditionLists.SAME_TYPE ? label(r) + lighter(r)
@@ -1124,41 +1127,45 @@ function _nestColorCol(colors, switches) {
 }
 
 /**
- * The Font cell of a nesting style condition: font size, font style (Background, Bold, Italic) and Smaller per level.
- * @param {{ font: () => boolean, background: () => boolean }} switches
+ * The Font cell of a nesting style condition: font size, font style (Background, Bold, Italic) and Child smaller per level.
+ * @param {{ background: () => boolean }} switches
  * @returns {ConditionTableCompoundColumn<NestingStyleCondition>}
  */
 function _nestFontCol(switches) {
   const BG = ConditionLists.BACKGROUND;
+  const DEF = ConditionLists.FONT_DEFAULT;
   const shown = _shown(switches.background);
   const STYLE_WORDS = { normal: "normal", bold: "bold", italic: "italic", bolditalic: "bold italic" };
-  const STYLE_TIP = "Font style applied to the start element. Deeper levels use normal style.";
+  const STYLE_TIP = "Font style of the start element (the parent). Its children use normal style.";
   return {
-    key: "fontSize", header: "Font", kind: "compound", width: 210, enabled: () => switches.font(),
-    tooltip: "Font applied to the child. Click to configure.",
+    key: "fontSize", header: "Font", kind: "compound", width: 210, stacked: true,
+    tooltip: "Font of the start element of the nesting this condition selects (the parent);\nits children get the size smaller per level. Click to configure.",
     note: r => (shown.standIn(r.fontSize) || shown.standIn(r.fontStyle) ? NOTE_STAND_IN : ""),
     fields: [
-      { key: "fontSize", header: "Font size", kind: "choice", get: shown.fontSize,
+      { key: "fontSize", header: "Parent font size", kind: "choice", get: shown.fontSize,
         get items() { return switches.background() ? FONT_SIZE_ITEMS : FONT_SIZE_ITEMS.filter(it => it !== BACKGROUND_ITEM); },
-        tooltip: "Font size applied to the start element.",
+        tooltip: "Font size of the start element (the parent).",
         note: r => shown.standIn(r.fontSize) ? NOTE_STAND_IN : r.fontSize === BG ? NOTE_BACKGROUND
-          : r.fontSize === 0 ? "Use the parent's font size, smaller by Smaller per level." : "" },
-      { key: "fontStyle", header: "Font style", kind: "choice", tooltip: STYLE_TIP,
+          : shown.fontSize(r) === DEF ? "Use the default font size configured in Archi."
+          : r.fontSize === 0 ? "Use the parent's font size, smaller by Child smaller per level." : "" },
+      { key: "fontStyle", header: "Parent font style", kind: "choice", tooltip: STYLE_TIP,
         get: shown.fontStyle,
         get items() { return switches.background() ? FONT_STYLE_ITEMS : FONT_STYLE_ITEMS.filter(it => it !== BACKGROUND_ITEM); },
         note: r => shown.standIn(r.fontStyle) && !shown.standIn(r.fontSize) ? NOTE_STAND_IN : r.fontStyle === BG ? NOTE_BACKGROUND
+          : r.fontStyle === DEF ? "Use the default font style configured in Archi."
           : r.fontStyle === ConditionLists.SAME_TYPE ? "Use the parent's font style." : "" },
-      { key: "fontDecreasePerLevel", header: "Smaller per level", kind: "spin", min: 1, max: 6, unit: "pt",
-        enabled: r => shown.fontSize(r) !== BG,
-        tooltip: "Reduce the font size by this many points at each deeper level, down to a minimum of 9 pt." },
+      { key: "fontDecreasePerLevel", header: "Child smaller per level", kind: "spin", min: 1, max: 6, unit: "pt",
+        enabled: r => shown.fontSize(r) !== BG && shown.fontSize(r) !== DEF,
+        tooltip: "Reduce the font size of the children by this many points at each deeper level below the start element, down to a minimum of 9 pt." },
     ],
     summary: r => {
       const size = shown.fontSize(r), style = shown.fontStyle(r);
       if (size === BG && style === BG) return "Background";
-      const sizeText = size === BG ? "Background" : size ? String(size) : "Same as parent";
-      const smaller = size === BG ? "" : ` −${r.fontDecreasePerLevel}`;
-      // A chosen style is the cell's own font (textStyle); Background and Same as parent are named.
-      const named = style === BG ? ", Background style" : style === ConditionLists.SAME_TYPE ? ", style Same as parent" : "";
+      if (size === DEF && style === DEF) return "Default";
+      const sizeText = size === BG ? "Background" : size === DEF ? "Default" : size ? String(size) : "Same as parent";
+      const smaller = size === BG || size === DEF ? "" : ` −${r.fontDecreasePerLevel}`;
+      // A chosen style is the cell's own font (textStyle); Background, Default and Same as parent are named.
+      const named = style === BG ? ", Background style" : style === DEF ? ", style Default" : style === ConditionLists.SAME_TYPE ? ", style Same as parent" : "";
       if (size === 0 && style === ConditionLists.SAME_TYPE) return "Same as parent" + smaller;
       return `${sizeText}${smaller}${named}`;
     },
@@ -1168,9 +1175,9 @@ function _nestFontCol(switches) {
 
 /**
  * Columns of the nesting style table (Color and font by nesting level): the nesting step, the property match,
- * and the Color and Font cells, greyed while their switch (Color, Font) is off.
+ * and the Color and Font cells.
  * @param {() => readonly { name: string, hex: string }[]} colors  the colors of the chosen palette
- * @param {{ color: () => boolean, font: () => boolean, background: () => boolean }} switches  background: a background view is chosen and on
+ * @param {{ background: () => boolean }} switches  background: a background view is chosen and on
  * @returns {readonly ConditionTableColumn<NestingStyleCondition>[]}
  */
 function nestingStyleConditionColumns(colors, switches) {

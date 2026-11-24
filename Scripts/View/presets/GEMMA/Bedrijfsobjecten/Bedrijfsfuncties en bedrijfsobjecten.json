@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "name": "Bedrijfsobjecten/Bedrijfsfuncties en bedrijfsobjecten",
   "algorithm": "Tiles",
   "params": {
@@ -82,9 +82,7 @@
     "nestingLevel": {
       "conditions": [
         {"darkenStart": 0, "lightenPerLevel": 25, "fontSize": 12, "fontStyle": "bold", "child": "same"}
-      ],
-      "fontEnabled": true,
-      "colorEnabled": true
+      ]
     },
     "highlightRepeated": {
       "enabled": false,

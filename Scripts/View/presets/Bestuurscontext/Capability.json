@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "name": "Bestuurscontext/Capability",
   "algorithm": "Layered",
   "params": {
@@ -94,10 +94,8 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"parent": "business-process", "direction": "outgoing", "relation": "composition-relationship", "lightenPerLevel": 25, "fontSize": 14, "child": "same"}
-      ],
-      "fontEnabled": true,
-      "colorEnabled": true
+        {"parent": "business-process", "direction": "outgoing", "relation": "composition-relationship", "lightenPerLevel": 25, "fontSize": 14, "fontStyle": "normal", "child": "same"}
+      ]
     },
     "highlightRepeated": {
       "enabled": false,

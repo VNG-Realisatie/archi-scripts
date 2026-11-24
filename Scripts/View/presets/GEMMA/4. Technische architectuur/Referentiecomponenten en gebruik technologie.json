@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "name": "gemma/Referentiecomponenten en gebruik technische architectuur",
   "algorithm": "Layered",
   "params": {
@@ -64,9 +64,7 @@
     "nestingLevel": {
       "conditions": [
         {"darkenStart": 0, "fontSize": 14, "fontStyle": "bold", "child": "same"}
-      ],
-      "fontEnabled": true,
-      "colorEnabled": false
+      ]
     },
     "highlightRepeated": {
       "enabled": false,

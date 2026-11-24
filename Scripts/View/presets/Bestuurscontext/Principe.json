@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "name": "Bestuurscontext/Principe",
   "algorithm": "Layered",
   "params": {
@@ -79,10 +79,8 @@
     "nestingLevel": {
       "conditions": [
         {"parent": "principle", "direction": "outgoing", "relation": "composition-relationship", "lightenPerLevel": 25, "fontSize": 12, "fontStyle": "bold", "child": "same"},
-        {"parent": "goal", "lightenPerLevel": 25, "fontSize": 12, "child": "same"}
-      ],
-      "fontEnabled": true,
-      "colorEnabled": true
+        {"parent": "goal", "lightenPerLevel": 25, "fontSize": 12, "fontStyle": "normal", "child": "same"}
+      ]
     },
     "highlightRepeated": {
       "enabled": false,

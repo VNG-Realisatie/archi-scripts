@@ -151,8 +151,7 @@ eq(counts("2 Edited", expandSnapshot).expandView,
   const c = Counts.dialogCounts(input);
   console.log = quiet;
   const nl = gemma.appearance.nestingLevel;
-  const settings = { colorEnabled: true, fontEnabled: true };
-  const got = Counts.nestingStyleCounts(nl.conditions, settings, c.nestingView, sel.relationsOf);
+  const got = Counts.nestingStyleCounts(nl.conditions, c.nestingView, sel.relationsOf);
 
   // The same chains on the New view the pipeline plans.
   console.log = () => {};
@@ -176,13 +175,11 @@ eq(counts("2 Edited", expandSnapshot).expandView,
   eq(got.counts.every(x => x.children > 0), true, "nesting style: every condition of the GEMMA preset styles something");
 
   const bgConditions = nl.conditions.map((r, i) => (i === 2 ? { ...r, color: "background" } : r));
-  const bg = Counts.nestingStyleCounts(bgConditions, settings, c.nestingView, sel.relationsOf);
+  const bg = Counts.nestingStyleCounts(bgConditions, c.nestingView, sel.relationsOf);
   eq([...bg.warnings.keys()], [2], "nesting style: ⚠ on Background for elements not on the background view (the services)");
-  const noBg = Counts.nestingStyleCounts(bgConditions, settings, { ...c.nestingView, background: null }, sel.relationsOf);
+  const noBg = Counts.nestingStyleCounts(bgConditions, { ...c.nestingView, background: null }, sel.relationsOf);
   eq(noBg.warnings.size, 0, "nesting style: no ⚠ on Background without a background view in use (the dialog shows the fallback)");
-  const off = Counts.nestingStyleCounts(bgConditions, { colorEnabled: false, fontEnabled: true }, c.nestingView, sel.relationsOf);
-  eq(off.warnings.size, 0, "nesting style: no ⚠ for a fill color while Color is off");
-  const same = Counts.nestingStyleCounts(nl.conditions.map((r, i) => (i === 0 ? { ...r, color: "same" } : r)), settings, c.nestingView, sel.relationsOf);
+  const same = Counts.nestingStyleCounts(nl.conditions.map((r, i) => (i === 0 ? { ...r, color: "same" } : r)), c.nestingView, sel.relationsOf);
   eq(/root container/.test(same.warnings.get(0) || ""), true, "nesting style: ⚠ on Same as parent for a root container");
 }
 

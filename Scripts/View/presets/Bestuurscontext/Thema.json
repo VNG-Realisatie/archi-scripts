@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "name": "Bestuurscontext/Thema",
   "algorithm": "Layered",
   "params": {
@@ -76,10 +76,8 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "lightenPerLevel": 25, "fontSize": 14, "child": "same"}
-      ],
-      "fontEnabled": true,
-      "colorEnabled": true
+        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "lightenPerLevel": 25, "fontSize": 14, "fontStyle": "normal", "child": "same"}
+      ]
     },
     "highlightRepeated": {
       "enabled": false,

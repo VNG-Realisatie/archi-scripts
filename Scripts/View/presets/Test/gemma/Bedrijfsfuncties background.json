@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "name": "Test/gemma/Bedrijfsfuncties background",
   "algorithm": "Tiles",
   "params": {
@@ -103,10 +103,8 @@
       "conditions": [
         {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "color": "#ffffff", "darkenStart": 2, "lightenPerLevel": 30, "fontSize": 16, "fontStyle": "bold", "child": "same"},
         {"direction": "outgoing", "relation": "aggregation-relationship", "child": "business-function", "color": "Bedrijf gedrag", "darkenStart": 2, "lightenPerLevel": 30, "fontSize": 14, "fontStyle": "bold"},
-        {"parent": "business-function", "direction": "incoming", "relation": "serving-relationship", "child": "application-service", "color": "Applicatie gedrag", "darkenStart": 2, "lightenPerLevel": 30}
-      ],
-      "fontEnabled": true,
-      "colorEnabled": true
+        {"parent": "business-function", "direction": "incoming", "relation": "serving-relationship", "child": "application-service", "color": "Applicatie gedrag", "darkenStart": 2, "lightenPerLevel": 30, "fontSize": 0, "fontStyle": "normal"}
+      ]
     },
     "highlightRepeated": {
       "enabled": false,

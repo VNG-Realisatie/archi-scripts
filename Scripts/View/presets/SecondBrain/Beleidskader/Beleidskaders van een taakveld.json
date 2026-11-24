@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "name": "Beleidskader/Beleidskaders van een taakveld",
   "algorithm": "Layered",
   "params": {
@@ -76,11 +76,7 @@
       "lineWidth": 0
     },
     "nestingLevel": {
-      "conditions": [
-        {"darkenStart": 0, "fontSize": 14, "fontStyle": "bold", "child": "same"}
-      ],
-      "fontEnabled": false,
-      "colorEnabled": false
+      "conditions": []
     },
     "highlightRepeated": {
       "enabled": false,

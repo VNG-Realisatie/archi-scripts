@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 10,
-  "name": "Bedrijfsfuncties/Bedrijfsfunctiemodel",
+  "schemaVersion": 11,
+  "name": "GEMMA/2. Bedrijfsarchitectuur/Bedrijfsfunctiemodel",
   "algorithm": "Tiles",
   "params": {
     "direction": "Right",
@@ -39,7 +39,13 @@
     "viewSizeMode": "none",
     "labelSizing": false,
     "labelMaxLineWidth": 400,
-    "connectionLabelSpacing": false
+    "connectionLabelSpacing": false,
+    "backgroundView": {
+      "id": "",
+      "path": "",
+      "on": true
+    },
+    "backgroundLeavesInPlace": false
   },
   "filter": {
     "conditions": [
@@ -51,6 +57,7 @@
   "relatedElements": {
     "steps": [
       {
+        "name": "",
         "repeat": 3,
         "conditions": [
           {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-function", "property": "GEMMA type", "value": "Bedrijfsfunctie"},
@@ -75,9 +82,7 @@
     "nestingLevel": {
       "conditions": [
         {"parent": "business-function", "child": "business-function", "darkenStart": 0, "fontSize": 14, "fontStyle": "bold"}
-      ],
-      "fontEnabled": true,
-      "colorEnabled": false
+      ]
     },
     "highlightRepeated": {
       "enabled": false,

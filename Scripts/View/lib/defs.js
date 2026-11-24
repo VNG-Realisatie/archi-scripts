@@ -752,7 +752,7 @@ const SPLINE_SAMPLE_POINTS = 8;
 // ── Preset schema defaults ────────────────────────────────────────────────────
 
 const DEFAULT_PRESET = Object.freeze({
-  schemaVersion: 10,   // 2 = condition lists (rel_filter.js); 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions; 5 = nesting style conditions + palette; 6 = font size and bold per nesting style condition; 7 = sameWidth replaces alignWidthSameType, backgroundLeavesInPlace replaces backgroundEveryBox; 8 = filter.conditions (element and relation rows, applyTo) replaces filter.elementConditions and filter.relationConditions; 9 = view.folder is the whole path under Views and replaces view.underGenerated (the root of Mirrored too); 10 = per nesting style condition its numbers, font style and property match, Background, backgroundView.on, backgroundKeepAppearance removed; older presets are migrated offline
+  schemaVersion: 11,   // 2 = condition lists (rel_filter.js); 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions; 5 = nesting style conditions + palette; 6 = font size and bold per nesting style condition; 7 = sameWidth replaces alignWidthSameType, backgroundLeavesInPlace replaces backgroundEveryBox; 8 = filter.conditions (element and relation rows, applyTo) replaces filter.elementConditions and filter.relationConditions; 9 = view.folder is the whole path under Views and replaces view.underGenerated (the root of Mirrored too); 10 = per nesting style condition its numbers, font style and property match, Background, backgroundView.on, backgroundKeepAppearance removed; 11 = nestingLevel.colorEnabled and fontEnabled removed, fontSize and fontStyle value "default" (Archi's font); older presets are migrated offline
   name:      "",
   algorithm: "Layered",
   params: {
@@ -818,9 +818,7 @@ const DEFAULT_PRESET = Object.freeze({
     },
     nestingLevel: {
       // Nesting style conditions (kind "nestingStyle"): the nesting steps styling follows from each root container.
-      conditions:         [{ child: "same", fontSize: 14 }],
-      fontEnabled:        false,
-      colorEnabled:       false,
+      conditions:         [],
     },
     highlightRepeated: { enabled: false, colorRange: "Pastel1" },
   },
@@ -1127,8 +1125,6 @@ function validatePreset(raw) {
     if (ra.nestingLevel && typeof ra.nestingLevel === "object") {
       const rn = ra.nestingLevel;
       if (Array.isArray(rn.conditions)) pa.nestingLevel.conditions = conditions("nestingStyle", rn.conditions, "appearance.nestingLevel.conditions");
-      if (typeof rn.fontEnabled  === "boolean") pa.nestingLevel.fontEnabled  = rn.fontEnabled;
-      if (typeof rn.colorEnabled === "boolean") pa.nestingLevel.colorEnabled = rn.colorEnabled;
     }
 
     if (ra.highlightRepeated && typeof ra.highlightRepeated === "object") {

@@ -157,12 +157,11 @@ function dialogCounts(input) {
  * an element without a background look (a background view in use), or Same as parent a root container. A condition that is off
  * gets no counts.
  * @param {NestingStyleCondition[]} conditions  the rows as shown
- * @param {{ colorEnabled: boolean, fontEnabled: boolean }} settings  the Color and Font switches
  * @param {NestingView}   view
  * @param {RelationIndex} relationsOf
  * @returns {NestingStyleCounts}
  */
-function nestingStyleCounts(conditions, settings, view, relationsOf) {
+function nestingStyleCounts(conditions, view, relationsOf) {
   const nodes = _nestingNodes(view, relationsOf);
   const { styles, parentlessRoots, withoutLook } = Appearance.followNestingChains(nodes, conditions);
   const byId = new Map(nodes.map(n => [n.id, n]));
@@ -183,16 +182,14 @@ function nestingStyleCounts(conditions, settings, view, relationsOf) {
   /** @type {Map<number, string>} */
   const warnings = new Map();
   const add = (/** @type {number} */ nr, /** @type {string} */ text) => warnings.set(nr - 1, warnings.has(nr - 1) ? `${warnings.get(nr - 1)}\n${text}` : text);
-  if (settings.colorEnabled) {
-    /** @type {Map<number, number>} */
-    const roots = new Map();
-    for (const id of parentlessRoots) { const nr = /** @type {{ nr: number }} */ (styles.get(id)).nr; roots.set(nr, (roots.get(nr) || 0) + 1); }   // Cast: a parentless root is styled
-    roots.forEach((n, nr) => add(nr, `Same as parent on ${n} root container${n === 1 ? "" : "s"}: there is no parent to take the fill color from. ` +
-      "They keep their background look, else Type default."));
-  }
+  /** @type {Map<number, number>} */
+  const roots = new Map();
+  for (const id of parentlessRoots) { const nr = /** @type {{ nr: number }} */ (styles.get(id)).nr; roots.set(nr, (roots.get(nr) || 0) + 1); }   // Cast: a parentless root is styled
+  roots.forEach((n, nr) => add(nr, `Same as parent on ${n} root container${n === 1 ? "" : "s"}: there is no parent to take the fill color from. ` +
+    "They keep their background look, else Type default."));
   // Without a background view in use the dialog shows Background's fallback itself: no ⚠ for it.
   if (view.background) {
-    Appearance.withoutLookCounts(withoutLook, settings).forEach((n, nr) => add(nr, `${n} element${n === 1 ? "" : "s"} styled by this condition ${n === 1 ? "is" : "are"} not on the background view. ` +
+    Appearance.withoutLookCounts(withoutLook).forEach((n, nr) => add(nr, `${n} element${n === 1 ? "" : "s"} styled by this condition ${n === 1 ? "is" : "are"} not on the background view. ` +
       "They use default values instead (Type default, 9 pt, normal). The count reflects the predicted view and the configured property match."));
   }
   return { counts, warnings };

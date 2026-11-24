@@ -81,10 +81,10 @@ type NestingStyleCondition = {
   darkenStart: number;
   /** Percentage closer to white per deeper nesting level within the condition. */
   lightenPerLevel: number;
-  /** Font size (pt) of the start element; 0 = continues from the parent; "background" = Background. */
-  fontSize: number | "background";
+  /** Font size (pt) of the start element; 0 = continues from the parent; "default" = Archi's default font; "background" = Background. */
+  fontSize: number | "background" | "default";
   /** Font style of the start element. */
-  fontStyle: "normal" | "bold" | "italic" | "bolditalic" | "background" | "same";
+  fontStyle: "normal" | "bold" | "italic" | "bolditalic" | "background" | "default" | "same";
   /** Points smaller per deeper nesting level within the condition, never below 9 pt. */
   fontDecreasePerLevel: number;
 };
@@ -345,8 +345,6 @@ type Preset = {
     styleByProperty: { conditions: StyleCondition[]; mixedValuesColor: string; lineWidth: number };
     nestingLevel: {
       conditions: NestingStyleCondition[];
-      fontEnabled: boolean;
-      colorEnabled: boolean;
     };
     highlightRepeated: { enabled: boolean; colorRange: string };
   };
@@ -875,6 +873,8 @@ interface ConditionTableCompoundColumn<R = AnyCondition> extends ConditionTableC
   kind: "compound";
   /** The fields of the pop-up, in order: choice (a combo), prop and value (a filtered list), color (the palette menu), spin (a number), check (a checkbox). */
   fields: readonly ConditionTableField<R>[];
+  /** The pop-up shows the fields one below the other instead of side by side. */
+  stacked?: boolean;
   summary: (condition: R) => string;
   /** The font style the summary is drawn in (normal, bold, italic, bolditalic); absent: the table's font. */
   textStyle?: (condition: R) => string;

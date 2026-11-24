@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "name": "Test/gemma/Applicatieservices",
   "algorithm": "Tiles",
   "params": {
@@ -89,9 +89,7 @@
       "conditions": [
         {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "color": "Grouping", "lightenPerLevel": 40, "fontSize": 16, "fontStyle": "bold", "child": "same"},
         {"direction": "outgoing", "relation": "aggregation-relationship", "child": "application-service", "color": "Applicatie gedrag", "lightenPerLevel": 40, "fontSize": 10, "fontStyle": "bold"}
-      ],
-      "fontEnabled": true,
-      "colorEnabled": true
+      ]
     },
     "highlightRepeated": {
       "enabled": false,

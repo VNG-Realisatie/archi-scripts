@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 10,
-  "name": "GEMMA/Referentiecomponenten/Applicatieservices met referentiecomponenten background",
+  "schemaVersion": 11,
+  "name": "GEMMA/2. Bedrijfsarchitectuur/Bedrijfsfunctiemodel met referentiecomponenten",
   "algorithm": "Tiles",
   "params": {
     "direction": "Right",
@@ -16,32 +16,33 @@
     ],
     "nestingConditions": [
       {"relation": "aggregation-relationship", "everyContainer": true},
-      {"relation": "realization-relationship", "everyContainer": true}
+      {"relation": "realization-relationship", "everyContainer": true},
+      {"relation": "serving-relationship", "everyContainer": true}
     ],
-    "padding": 15,
+    "padding": 20,
     "diagramPadding": 20,
     "sort": "All together",
     "selectionOrder": "Selection",
     "cycleSelectionOrder": false,
-    "sameWidth": "Per level and type",
+    "sameWidth": "Per level",
     "columnsAcrossContainers": true,
     "containerAlgorithm": "Pack",
     "connectionsMode": "Between containers",
     "layerSpacing": 180,
-    "elementSpacing": 15,
+    "elementSpacing": 20,
     "connectionSpacing": 25,
     "connectionElementSpacing": 9,
-    "elementWidth": 260,
-    "elementHeight": 80,
+    "elementWidth": 300,
+    "elementHeight": 60,
     "maxWidth": 2400,
-    "aspectRatio": 1,
-    "viewSizeMode": "aspectRatio",
+    "aspectRatio": 1.25,
+    "viewSizeMode": "maxWidth",
     "labelSizing": false,
     "labelMaxLineWidth": 400,
     "connectionLabelSpacing": false,
     "backgroundView": {
-      "id": "id-e3defc7db98b4103aab7af54eb1b86b4",
-      "path": "/Views/Beheer/Background views/Background applicatieservices",
+      "id": "",
+      "path": "",
       "on": true
     },
     "backgroundLeavesInPlace": false
@@ -53,34 +54,41 @@
   "relatedElements": {
     "steps": [
       {
-        "name": "Domein en doelgroep",
-        "repeat": 4,
-        "conditions": [
-          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping"},
-          {"on": false, "previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping", "property": "GEMMA subtype", "value": "Domein en doelgroep"}
-        ]
-      },
-      {
         "name": "",
         "repeat": 1,
         "conditions": [
-          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "application-service"},
-          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "application-component"}
+          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "business-function"},
+          {"mode": "exclude", "previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping", "property": "GEMMA subtype", "value": "Domein en doelgroep"},
+          {"mode": "exclude", "previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping", "property": "GEMMA type", "value": "Beleidsdomein"},
+          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping"}
         ]
       },
       {
         "name": "",
-        "repeat": 3,
+        "repeat": 4,
         "conditions": [
-          {"previous": "application-service", "direction": "incoming", "relation": "realization-relationship", "added": "application-component"},
-          {"on": false, "previous": "application-service", "direction": "outgoing", "relation": "aggregation-relationship", "added": "application-service"}
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-function"}
+        ]
+      },
+      {
+        "name": "",
+        "repeat": 4,
+        "conditions": [
+          {"direction": "incoming", "relation": "serving-relationship", "added": "application-service"}
+        ]
+      },
+      {
+        "name": "",
+        "repeat": 2,
+        "conditions": [
+          {"direction": "incoming", "relation": "realization-relationship", "added": "application-component"}
         ]
       }
     ]
   },
   "view": {
-    "name": "Domeinen",
-    "folder": "/_Generated/Referentiecomponenten/Applicatieservices en referentiecomponenten",
+    "name": "Ondersteuning",
+    "folder": "/_Generated/Referentiecomponenten/Bedrijfsfuncties en referentiecomponenten",
     "suffix": "",
     "mirrored": false
   },
@@ -93,12 +101,10 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "child": "grouping", "color": "background", "darkenStart": 0, "lightenPerLevel": 50, "fontSize": 16, "fontStyle": "bold"},
-        {"direction": "outgoing", "relation": "aggregation-relationship", "child": "application-service", "color": "same", "darkenStart": 0, "lightenPerLevel": 50, "fontStyle": "italic"},
-        {"on": false, "parent": "application-service", "direction": "outgoing", "relation": "aggregation-relationship", "color": "background", "darkenStart": 0, "lightenPerLevel": 50, "fontStyle": "background", "child": "same"}
-      ],
-      "fontEnabled": true,
-      "colorEnabled": true
+        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "color": "Grouping", "darkenStart": 2, "lightenPerLevel": 30, "fontSize": 16, "fontStyle": "bold", "child": "same"},
+        {"direction": "outgoing", "relation": "aggregation-relationship", "child": "business-function", "color": "Bedrijf gedrag", "darkenStart": 2, "lightenPerLevel": 30, "fontSize": 14, "fontStyle": "bold"},
+        {"parent": "business-function", "direction": "incoming", "relation": "serving-relationship", "child": "application-service", "color": "Applicatie gedrag", "darkenStart": 2, "lightenPerLevel": 30, "fontSize": 0, "fontStyle": "normal"}
+      ]
     },
     "highlightRepeated": {
       "enabled": false,
@@ -151,7 +157,7 @@
       },
       {
         "key": "Scope",
-        "value": "Gemeente",
+        "value": "",
         "enabled": false
       },
       {
@@ -171,5 +177,5 @@
       }
     ]
   },
-  "description": "Selecteer een domein en genereer de GEMMA informatiearchitectuur platen\n"
+  "description": "Toont ook applicatieservices, deze zijn weggelaten in GEMMA views bedrijfsfuncties met referentiecomponenten\n"
 }
