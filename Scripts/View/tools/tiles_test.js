@@ -444,5 +444,14 @@ const tableOf = (rows, columns, cells) => ({ rows, columns, cells });
   eq(by.K1.x - by.P.x, right(by.P) - right(by.K1), "blocks on the grid: its contents centred in it");
 }
 
+// A table with more than FULL_SEARCH_MAX children outside its cells: they are tiled in chunks, below the cells.
+{
+  const many = graph(1, 60);
+  many.tables = { "": tableOf(1, 1, [cell(["G0"], 0, 0)]) };
+  many.nodes.push(...Array.from({ length: 60 }, (_, i) => ({ id: `R${i}`, label: `Rest ${i}`, elementType: "business-function", width: 300, height: 60, parent: null })));
+  const rm = boxes(run(many));
+  ok(rm.R0 && rm.R59 && rm.R59.y >= bottom(rm.G0), "tabled: more than 48 children outside the cells come below the cells");
+}
+
 if (failed) { console.log(`${failed} tiles test(s) failed`); process.exit(1); }
 console.log("all tiles tests passed");

@@ -297,7 +297,7 @@ function shapesOf(floorplan) {
  */
 function _stackTile(tiles, gap, widthCap) {
   const floorplan = buildFloorplan(tiles, gap, widthCap, MAX_SHAPES, Infinity, true);
-  return { id: "", chunk: true, floorplan, shapes: floorplan.best[0][tiles.length - 1].map((s, child) => ({ w: s.w, h: s.h, child })) };
+  return { id: "", chunk: true, floorplan, shapes: shapesOf(floorplan).map((s, child) => ({ w: s.w, h: s.h, child })) };
 }
 
 /**
@@ -342,7 +342,7 @@ function tableFloorplan(tiles, table, gap, widthCap, finalShapes = MAX_SHAPES) {
   const rest = tiles.filter(t => !placed.has(t));
   if (rest.length) {
     const floorplan = buildFloorplan(rest, gap, widthCap);
-    cells.push({ tile: { id: "", chunk: true, floorplan, shapes: floorplan.best[0][rest.length - 1].map((s, child) => ({ w: s.w, h: s.h, child })) },
+    cells.push({ tile: { id: "", chunk: true, floorplan, shapes: shapesOf(floorplan).map((s, child) => ({ w: s.w, h: s.h, child })) },
       c0: 0, c1: columns - 1, r0: rows, r1: rows });
     rows++;
   }
