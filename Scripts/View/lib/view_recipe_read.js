@@ -175,23 +175,23 @@ function readScope(uiSelection) {
 }
 
 /**
- * Every view generate made from a recipe: those with View last generated.
- * @returns {(GeneratedView & { view: ArchimateView })[]}
+ * Every view with View last generated (made from a recipe) or an Object ID.
+ * @returns {(ViewFacts & { view: ArchimateView })[]}
  */
-function readGeneratedViews() {
-  /** @type {(GeneratedView & { view: ArchimateView })[]} */
+function readViews() {
+  /** @type {(ViewFacts & { view: ArchimateView })[]} */
   const out = [];
   $("view").each(v => {
     const view = /** @type {ArchimateView} */ (v);   // Cast: selected by "view"
-    const last = view.prop(Defs.PROP_LAST_GENERATED);
-    if (last === null) return;
-    const record = GenerationRecord.read(view);
-    out.push({ id: String(view.id), label: _label(view), lastGenerated: String(last), objectId: String(view.prop(Defs.PROP_ID) || ""),
+    const last = view.prop(Defs.PROP_LAST_GENERATED), objectId = view.prop(Defs.PROP_ID);
+    if (last === null && !objectId) return;
+    const record = last === null ? null : GenerationRecord.read(view);
+    out.push({ id: String(view.id), label: _label(view), lastGenerated: last === null ? "" : String(last), objectId: String(objectId || ""),
       recipeId: record && record.recipe ? record.recipe.id : "", view });
   });
   return out;
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { readFacts, readPresetLinks, readStart, startSelection, linkedName, writeViewPreset, readScope, readGeneratedViews };
+  module.exports = { readFacts, readPresetLinks, readStart, startSelection, linkedName, writeViewPreset, readScope, readViews };
 }

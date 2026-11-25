@@ -375,9 +375,10 @@ function _starts(recipes, presets, scope) {
 /**
  * The views generate made before and this run left behind, in name order. A view is stale when it was
  * not written in this run and its recipe was, or when its recipe or preset is gone and the run covered
- * every linked preset. A view whose recipe this run skipped, or that is out of scope, stays.
- * @template {GeneratedView} T
- * @param {T[]}                 views    every view with View last generated, read after the run
+ * every linked preset. A view whose recipe this run skipped, or that is out of scope, stays. A view
+ * without View last generated was not made from a recipe and is never stale.
+ * @template {ViewFacts} T
+ * @param {T[]}                 views    every view with View last generated or an Object ID, read after the run
  * @param {Map<string, Recipe>} recipes  read after the run
  * @param {PresetLink[]}        presets
  * @param {Set<string>}         written  the views this run wrote, by id
@@ -395,11 +396,28 @@ function staleViews(views, recipes, presets, written, all) {
     return r ? made(r, recipes).map(m => m.grouping.id) : [];
   }));
   return views.filter(v => {
-    if (written.has(v.id)) return false;
+    if (written.has(v.id) || !v.lastGenerated) return false;
     const r = recipeOf(v);
     if (r && writtenRecipes.has(r)) return true;
     return all && !(r && linked.has(r));
   }).sort((a, b) => Defs.compareNames(a.label, b.label));
+}
+
+/**
+ * The views not made from a recipe that carry the Object ID of a view this run wrote, in name order.
+ * Stale views are listed apart.
+ * @template {ViewFacts} T
+ * @param {T[]}         views    every view with View last generated or an Object ID, read after the run
+ * @param {Set<string>} written  the views this run wrote, by id
+ * @returns {{ view: T, generated: T }[]}
+ */
+function sharedObjectIds(views, written) {
+  /** @type {Map<string, T>} Object ID → the view written with it */
+  const byObjectId = new Map();
+  for (const v of views) if (written.has(v.id) && v.objectId) byObjectId.set(v.objectId, v);
+  return views.filter(v => !v.lastGenerated && byObjectId.has(v.objectId))
+    .sort((a, b) => Defs.compareNames(a.label, b.label))
+    .map(view => ({ view, generated: /** @type {T} */ (byObjectId.get(view.objectId)) }));   // Cast: filtered on it
 }
 
 // ── Report ────────────────────────────────────────────────────────────────────
@@ -432,5 +450,5 @@ function _labels(named) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { KINDS, SECTIONS, recognise, linkedThrough, made, startOf, check, generateRuns, staleViews, logFindings };
+  module.exports = { KINDS, SECTIONS, recognise, linkedThrough, made, startOf, check, generateRuns, staleViews, sharedObjectIds, logFindings };
 }

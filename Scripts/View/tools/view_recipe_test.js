@@ -302,5 +302,14 @@ const stale = (facts, presets, views, written, all) => ViewRecipe.staleViews(
   eq(stale(facts, presets, views, ["A"], true), ["Ad hoc gone", "C new", "C old"], "staleViews: a recipe whose preset is gone");
 }
 
+{
+  const { facts, presets } = fixture();
+  const v = (id, objectId, lastGenerated = "") => ({ id, label: "/Views/" + id, lastGenerated, objectId, recipeId: "" });
+  const views = [v("New", "oid-1", "t"), v("Old copy", "oid-1"), v("Other", "oid-2"), v("Stale", "oid-1", "t0")];
+  eq(ViewRecipe.sharedObjectIds(views, new Set(["New"])).map(x => [x.view.id, x.generated.id]), [["Old copy", "New"]],
+    "sharedObjectIds: a view not made from a recipe with the Object ID of a view written now; a stale view is listed apart");
+  eq(ViewRecipe.staleViews([v("Hand made", "")], ViewRecipe.recognise(facts), presets, new Set(), true), [], "staleViews: a view without last generated is never stale");
+}
+
 if (failed) { console.log(`${failed} failed`); process.exit(1); }
 console.log("view_recipe_test: all passed");

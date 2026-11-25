@@ -371,7 +371,22 @@ function _generateRecipes(scope) {
     Log.endItem("skipped", `Skipped: "${s.subject}"`);
   }
   const lastGenerated = _timestamp();
-  return runs.flatMap(run => _runRecipe(run, lastGenerated));
+  const written = runs.flatMap(run => _runRecipe(run, lastGenerated));
+  _warnSharedObjectIds(written);
+  return written;
+}
+
+/**
+ * Warn about each view not made from a recipe that carries the Object ID of a view this run wrote.
+ * @param {ArchimateView[]} written
+ */
+function _warnSharedObjectIds(written) {
+  const shared = ViewRecipe.sharedObjectIds(ViewRecipeRead.readViews(), new Set(written.map(v => String(v.id))));
+  if (shared.length) Log.info("");
+  for (const { view, generated } of shared)
+    Log.warn(`View "${view.label}" has the ${Defs.PROP_ID} of the generated view "${generated.label}".`, {
+      effect: "two views share one Object ID, so a link or a release by Object ID can take either.",
+      action: "delete the view when the generated one replaces it, else give it a new Object ID." });
 }
 
 /**
@@ -422,7 +437,7 @@ function _regenerateRecipes(views) {
  */
 function _syncStale(written, all, deleteStale) {
   const recipes = ViewRecipe.recognise(ViewRecipeRead.readFacts());
-  const stale = ViewRecipe.staleViews(ViewRecipeRead.readGeneratedViews(), recipes, ViewRecipeRead.readPresetLinks(), new Set(written.map(v => String(v.id))), all);
+  const stale = ViewRecipe.staleViews(ViewRecipeRead.readViews(), recipes, ViewRecipeRead.readPresetLinks(), new Set(written.map(v => String(v.id))), all);
   Log.info("");
   if (!stale.length) { Log.info("Stale views: none."); return; }
   Log.info(`Stale views: ${stale.length} (made from a recipe before; this run did not write them)`);

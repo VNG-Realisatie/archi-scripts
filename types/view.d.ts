@@ -649,11 +649,12 @@ interface RecipeRun { preset: string; start: RecipeStart }
 /** A recipe generate leaves out, and why. */
 interface RecipeSkip { subject: string; reason: string; action: string }
 
-/** A view with View last generated, as sync reads it. */
-interface GeneratedView {
+/** A view with View last generated or an Object ID, as sync and the Object ID warning read it. */
+interface ViewFacts {
   id: string;
   /** Folder path and name. */
   label: string;
+  /** View last generated; "" without it: not made from a recipe. */
   lastGenerated: string;
   objectId: string;
   /** The recipe in its generation record, by grouping id; "" without one. */

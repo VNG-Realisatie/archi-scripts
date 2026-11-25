@@ -115,7 +115,7 @@ A view that must be made the same way every time — by anyone, for publication 
 | `_view_recipes_check.ajs` | Reports every inconsistency in the recipes, view templates, links and Object IDs, with what to do; writes nothing |
 | `_view_recipes_generate.ajs` | Generates the views: with nothing selected, or *View recipes* selected, of every linked preset; else of the selected recipes. The check runs first and a recipe it reports is skipped |
 
-After generating, the console lists the **stale views**: views made from a recipe that this run did not write, for example the old view of a renamed recipe. One confirmation deletes them. A generated view carries `View last generated`; views made otherwise are never touched.
+After generating, the console lists the **stale views**: views made from a recipe that this run did not write, for example the old view of a renamed recipe. One confirmation deletes them. A generated view carries `View last generated`; views made otherwise are never touched. A view made otherwise that has the Object ID of a generated view, such as an old version under another name, gets a warning: delete it, or give it a new Object ID.
 
 On Archi's command line (`Scripts/View/tools/archi_cli.sh Scripts/View/_view_recipes_generate.ajs <model.archimate>`, Linux) the script asks nothing: stale views are only listed unless `DELETE_STALE=true` is set, and the model is saved.
 
