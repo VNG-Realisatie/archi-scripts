@@ -252,5 +252,55 @@ const sections = (facts, presets) => findings(facts, presets).map(f => f[0] + ":
   eq(findings(facts, presets).map(f => f[2]), [`The View Object ID of recipe "${F}C" is also the Object ID of "${F}A".`], "a View Object ID that an element carries");
 }
 
+// ── Generate ──────────────────────────────────────────────────────────────────
+
+/** The runs as [preset, action, views], and the skipped subjects. */
+const runs = (facts, presets, scope = null) => {
+  const r = ViewRecipe.generateRuns(ViewRecipe.recognise(facts), presets, ViewRecipe.check(facts, presets), scope);
+  return { runs: r.runs.map(x => [x.preset, x.start.action, x.start.views.map(v => v.grouping.id)]), skipped: r.skipped.map(s => s.subject.replace(F, "")) };
+};
+{
+  const { facts, presets } = fixture();
+  eq(runs(facts, presets), { runs: [["P", Defs.ACTION.ONE_EACH.id, ["A", "B"]], ["Q", Defs.ACTION.NEW_VIEW.id, ["C"]]], skipped: [] }, "generateRuns: every linked preset, in name order");
+  eq(runs(facts, presets, ["C"]).runs, [["Q", Defs.ACTION.NEW_VIEW.id, ["C"]]], "generateRuns: a selected view recipe");
+  eq(runs(facts, presets, ["B"]).runs, [["P", Defs.ACTION.ONE_EACH.id, ["B"]]], "generateRuns: a view recipe in a group, only its view, the group's way");
+  eq(runs(facts, presets, ["B", "G", "A"]).runs, [["P", Defs.ACTION.ONE_EACH.id, ["A", "B"]]], "generateRuns: a group and its view recipes selected: one run, in the group's order");
+  eq(runs(facts, presets, ["B", "A"]).runs, [["P", Defs.ACTION.ONE_EACH.id, ["A", "B"]]], "generateRuns: two view recipes of a group: one run");
+}
+{
+  const { facts, presets } = fixture();
+  g(facts, "A").objectId = "";
+  eq(runs(facts, presets), { runs: [["P", Defs.ACTION.ONE_EACH.id, ["B"]], ["Q", Defs.ACTION.NEW_VIEW.id, ["C"]]], skipped: ["A"] }, "generateRuns: a view recipe the check reports is skipped, its group's others run");
+  g(facts, "G").objectId = "";
+  eq(runs(facts, presets), { runs: [["Q", Defs.ACTION.NEW_VIEW.id, ["C"]]], skipped: ["G"] }, "generateRuns: a group the check reports is skipped whole");
+}
+{
+  const { facts, presets } = fixture();
+  presets[1].recipe.name = "Old name";
+  g(facts, "C").viewPreset = "";
+  eq(runs(facts, presets).skipped, [], "generateRuns: a stale label or View preset blocks nothing");
+}
+{
+  const { facts, presets } = fixture();
+  presets.splice(1, 1);
+  eq(runs(facts, presets, ["C"]), { runs: [], skipped: ["C"] }, "generateRuns: a selected recipe without a preset is skipped");
+}
+
+/** Stale views: [view id, recipe id or "", Object ID]. */
+const stale = (facts, presets, views, written, all) => ViewRecipe.staleViews(
+  views.map(([id, recipeId, objectId]) => ({ id, label: "/Views/" + id, lastGenerated: "2026-11-25 10:00:00", objectId: objectId || "", recipeId })),
+  ViewRecipe.recognise(facts), presets, new Set(written), all).map(v => v.id);
+{
+  const { facts, presets } = fixture();
+  g(facts, "C").viewObjectId = "vid-C";
+  const views = [["C new", "C", "vid-C"], ["C old", "C", "vid-C"], ["A", "A"], ["Ad hoc gone", "Z"]];
+  eq(stale(facts, presets, views, ["C new", "A"], true), ["Ad hoc gone", "C old"], "staleViews: a renamed recipe's old view, and a view whose recipe is gone");
+  eq(stale(facts, presets, views, ["C new"], false), ["C old"], "staleViews: a partial run: only the old views of the recipes it wrote");
+  eq(stale(facts, presets, views, ["A"], true), ["Ad hoc gone"], "staleViews: a recipe that was not written (skipped, failed) keeps its views");
+  eq(stale(facts, presets, [["C old", "Recreated", "vid-C"], ["C new", "C", "vid-C"]], ["C new"], false), ["C old"], "staleViews: a recipe that is gone, found by the View Object ID of its successor");
+  presets.splice(1, 1);
+  eq(stale(facts, presets, views, ["A"], true), ["Ad hoc gone", "C new", "C old"], "staleViews: a recipe whose preset is gone");
+}
+
 if (failed) { console.log(`${failed} failed`); process.exit(1); }
 console.log("view_recipe_test: all passed");

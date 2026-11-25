@@ -639,12 +639,35 @@ interface RecipeStart {
 interface RecipeView {
   element: ArchiElement;
   viewTemplate: RecipeNamed | null;
+  /** The run's date and time, written on the view as View last generated. */
+  lastGenerated: string;
+}
+
+/** What generate runs for one linked preset (ViewRecipe.generateRuns). */
+interface RecipeRun { preset: string; start: RecipeStart }
+
+/** A recipe generate leaves out, and why. */
+interface RecipeSkip { subject: string; reason: string; action: string }
+
+/** A view with View last generated, as sync reads it. */
+interface GeneratedView {
+  id: string;
+  /** Folder path and name. */
+  label: string;
+  lastGenerated: string;
+  objectId: string;
+  /** The recipe in its generation record, by grouping id; "" without one. */
+  recipeId: string;
 }
 
 type RecipeSection = "Recipes" | "View template" | "Links" | "Duplicates";
 
 /** One inconsistency: what is wrong, what it means for generate, what the user does. */
-interface RecipeFinding { section: RecipeSection; subject: string; text: string; effect: string; action: string }
+interface RecipeFinding {
+  section: RecipeSection; subject: string; text: string; effect: string; action: string;
+  /** The recipes generate skips for it, by grouping id. */
+  blocks: string[];
+}
 
 // ── Write plan (Scripts/View/lib/write_plan.js → view_writer.js) ─────────────────────────────────
 

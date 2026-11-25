@@ -78,7 +78,7 @@ The first four keep their change in the session: changes stack, and the dialog s
 
 | Script | Action |
 |---|---|
-| `_regenerate.ajs` | The selected views, or the views in a selected folder, where they stand; a view of *One view each* regenerates only itself |
+| `_regenerate.ajs` | The selected views, or the views in a selected folder, where they stand; a view of *One view each* regenerates only itself; a view made from a recipe is made again through its recipe ([View recipes](#view-recipes)) |
 | `_regenerate_siblings.ajs` | The selected view of *One view each* with its siblings: a new element gets a view, a view whose element left the start is reported and stays |
 
 The console says what a regenerate uses and does not use. Hand edits on the view are lost.
@@ -101,6 +101,23 @@ Log.finish();
 - `<direction>` — `right`, `left`, `down` or `up`; overrides the preset's direction
 
 Example: `TAenIA_layout_down.ajs` lays out the selected view with preset `GEMMA views/TAenIA`, top to bottom. Use `{ preset: "folder/name" }` to name the preset explicitly (see `Scripts/GEMMA/GGM/ggmBO_layout_right.ajs`), and `{ edit: preset => { … } }` to change the preset in the script before it runs (e.g. `preset.view.folder = "/Generated"`).
+
+## View recipes
+
+A view that must be made the same way every time — by anyone, for publication — is described by a **view recipe** in the model and a preset linked to it. Terms: [SPEC § 2](docs/SPEC.md#2-vocabulary).
+
+- **Recipe**: a grouping with the property `View recipe` = `view`. Its relations to the content are the start of the view; the view is named after it and gets its `View Object ID`. A grouping with `View recipe` = `group` aggregates view recipes and makes one view per view recipe.
+- **View template**: on the view *View recipes*, a view reference inside the recipe's visual (or its group's).
+- **Link**: select the recipe, open `_gui.ajs`, choose the preset and press *Save*. The preset then holds the recipe; *View preset* on the recipe shows which preset makes it.
+
+| Script | What it does |
+|---|---|
+| `_view_recipes_check.ajs` | Reports every inconsistency in the recipes, view templates, links and Object IDs, with what to do; writes nothing |
+| `_view_recipes_generate.ajs` | Generates the views: with nothing selected, or *View recipes* selected, of every linked preset; else of the selected recipes. The check runs first and a recipe it reports is skipped |
+
+After generating, the console lists the **stale views**: views made from a recipe that this run did not write, for example the old view of a renamed recipe. One confirmation deletes them. A generated view carries `View last generated`; views made otherwise are never touched.
+
+On Archi's command line (`Scripts/View/tools/archi_cli.sh Scripts/View/_view_recipes_generate.ajs <model.archimate>`, Linux) the script asks nothing: stale views are only listed unless `DELETE_STALE=true` is set, and the model is saved.
 
 ## Scripting
 

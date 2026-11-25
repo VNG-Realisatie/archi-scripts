@@ -20,6 +20,8 @@
  * Regenerate runs what a view remembers instead (fromView, fromViewSiblings):
  *   RunPreset.fromView($(selection));
  * A recipe as the start sets the action, the start, and each view's view template and Object ID (fromRecipe).
+ * Generate view recipes runs every linked preset, or the selected recipes, and removes stale views (fromRecipes):
+ *   RunPreset.fromRecipes($(selection), { deleteStale: false });
  */
 
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
@@ -40,6 +42,8 @@ const Pipeline = require(REPO_ROOT + "View/lib/selection_pipeline");
 const GenerationRecord = require(REPO_ROOT + "View/lib/generation_record");
 /** @type {typeof import("./view_recipe_read")} */
 const ViewRecipeRead = require(REPO_ROOT + "View/lib/view_recipe_read");
+/** @type {typeof import("./view_recipe")} */
+const ViewRecipe = require(REPO_ROOT + "View/lib/view_recipe");
 /** @type {typeof import("../../_lib/selection")} */
 const Selection = require(REPO_ROOT + "_lib/selection");
 /** @type {typeof import("../../_lib/archi_folders")} */
@@ -169,12 +173,15 @@ function fromView(selection) {
     const logFile = Log.name();
     if (logFile) Log.info(Log.field("Log file:", logFile, 2));
     Log.info("");
+    const fromRecipe = views.filter(v => { const r = GenerationRecord.read(v); return !!(r && r.recipe); });
     for (const view of views) {
+      if (fromRecipe.includes(view)) continue;
       Log.beginItem("view", view.name);   // generate_view goes on with it
       const run = _regeneration(view);
       if (!run) { Log.endItem("skipped", `Skipped: "${view.name}"`); continue; }
       done.push(...GenView.generate_view(run.preset, run.start, ACTION.NEW_VIEW.id, { regenerate: { view, generationRecord: run.generationRecord } }));
     }
+    if (fromRecipe.length) done.push(..._regenerateRecipes(fromRecipe));
     Log.debug(`Regenerated ${done.length} of ${views.length} views.`);
     return done;
   });
@@ -304,11 +311,148 @@ function _recordPreset(record, subject) {
  * @returns {ArchimateView[]}
  */
 function fromRecipe(preset, start, record) {
-  const selection = ViewRecipeRead.startSelection(start);
-  if (!confirmViewCount(selection, start.action, preset.filter)) { cancelled(); return []; }
+  if (!confirmViewCount(ViewRecipeRead.startSelection(start), start.action, preset.filter)) { cancelled(); return []; }
+  return _generateRecipe(preset, start, record, _timestamp());
+}
+
+/**
+ * @param {PresetFile}  preset
+ * @param {RecipeStart} start
+ * @param {RunRecord}   record
+ * @param {string}      lastGenerated  the run's date and time
+ * @returns {ArchimateView[]}
+ */
+function _generateRecipe(preset, start, record, lastGenerated) {
   /** @type {Map<string, RecipeView>} */
-  const recipes = new Map(start.views.map(v => [v.grouping.id, { element: v.grouping.element, viewTemplate: v.viewTemplate }]));
-  return GenView.generate_view(preset, selection, start.action, { generationRecord: record, recipes });
+  const recipes = new Map(start.views.map(v => [v.grouping.id, { element: v.grouping.element, viewTemplate: v.viewTemplate, lastGenerated }]));
+  return GenView.generate_view(preset, ViewRecipeRead.startSelection(start), start.action, { generationRecord: record, recipes });
+}
+
+/**
+ * Generate view recipes: the check, then per linked preset in name order its recipe as the start, then
+ * the stale views. Nothing selected, or View recipes, is every linked preset; else the selected recipes.
+ * In Archi one confirmation deletes the stale views; on Archi's command line nobody is asked: they are
+ * listed, deleted only with deleteStale, and the model is saved.
+ * @param {ArchiCollection<ArchiObject>} selection  usually $(selection)
+ * @param {{ deleteStale?: boolean }}    [opts]
+ * @returns {ArchimateView[]} the views written
+ */
+function fromRecipes(selection, opts = {}) {
+  return _reported(() => {
+    const { scope, ignored } = ViewRecipeRead.readScope(selection);
+    Log.info("");
+    Log.info("View generation: Generate view recipes");
+    Log.info(Log.field("Selection:", scope ? `${scope.length} recipe${scope.length === 1 ? "" : "s"}` : "every linked preset", 2));
+    const logFile = Log.name();
+    if (logFile) Log.info(Log.field("Log file:", logFile, 2));
+    Log.info("");
+    for (const name of ignored) Log.warn(`"${name}" is no recipe.`, { effect: "generate leaves it out.", action: "select recipes, the view or folder View recipes, or nothing for every linked preset." });
+    if (scope && !scope.length) throw new Error("The selection holds no recipe. Select recipes, the view or folder View recipes, or nothing for every linked preset.");
+    const written = _generateRecipes(scope);
+    _syncStale(written, scope === null, opts.deleteStale === true);
+    if (!_workbench()) { model.save(); Log.info(`Model saved: ${model.getPath()}`); }
+    return written;
+  });
+}
+
+/**
+ * The check on the console, then each run it leaves; one date and time for all views.
+ * @param {string[] | null} scope  recipe grouping ids; null: every linked preset
+ * @returns {ArchimateView[]}
+ */
+function _generateRecipes(scope) {
+  const facts = ViewRecipeRead.readFacts(), presets = ViewRecipeRead.readPresetLinks();
+  const findings = ViewRecipe.check(facts, presets);
+  ViewRecipe.logFindings(facts, presets, findings);
+  const { runs, skipped } = ViewRecipe.generateRuns(ViewRecipe.recognise(facts), presets, findings, scope);
+  for (const s of skipped) {
+    Log.beginItem("recipe", s.subject);
+    Log.warn(s.reason, { action: s.action });
+    Log.endItem("skipped", `Skipped: "${s.subject}"`);
+  }
+  const lastGenerated = _timestamp();
+  return runs.flatMap(run => _runRecipe(run, lastGenerated));
+}
+
+/**
+ * One linked preset with its recipe as the start; it writes View preset first. A failed preset is
+ * reported and the others go on: its recipes' views stay, sync leaves them alone.
+ * @param {RecipeRun} run
+ * @param {string}    lastGenerated
+ * @returns {ArchimateView[]}
+ */
+function _runRecipe(run, lastGenerated) {
+  try {
+    const preset = PresetIO.readPreset(run.preset);
+    ViewRecipeRead.writeViewPreset(run.start, run.preset);
+    return _generateRecipe(preset, run.start, { preset: run.preset }, lastGenerated);
+  } catch (error) {
+    const e = /** @type {Error} */ (error);   // Cast: an Error, or a Java exception from Archi
+    Log.beginItem("preset", run.preset);
+    Log.error(`Preset "${run.preset}" failed: ${String(e.message || e).trim()}`, { effect: "its recipes get no view now; their views stay as they are.",
+      action: "see the reason; details in the log file (search for ERROR)." });
+    Log.detail("ERROR", String(e.stack || e));
+    Log.endItem("failed", `Failed: preset "${run.preset}"`);
+    return [];
+  }
+}
+
+/**
+ * Regenerate of views made from a recipe: their recipes, through generate (one route), without sync.
+ * @param {ArchimateView[]} views  each with a recipe in its generation record
+ * @returns {ArchimateView[]}
+ */
+function _regenerateRecipes(views) {
+  const recipes = ViewRecipe.recognise(ViewRecipeRead.readFacts());
+  /** @type {string[]} */
+  const scope = [];
+  for (const view of views) {
+    const recipe = /** @type {RecordedObject} */ (/** @type {GenerationRecord} */ (GenerationRecord.read(view)).recipe);   // Cast: the caller selected them on it
+    if (!recipes.has(recipe.id)) _skip(view, `Its recipe "${recipe.name}" is gone from the model.`, "run Generate view recipes with nothing selected: it reports the view as stale.");
+    else if (!scope.includes(recipe.id)) scope.push(recipe.id);
+  }
+  return scope.length ? _generateRecipes(scope) : [];
+}
+
+/**
+ * List the stale views and delete them: in Archi after one confirmation, on the command line only with deleteStale.
+ * @param {ArchimateView[]} written  this run's views
+ * @param {boolean}         all      the run covered every linked preset
+ * @param {boolean}         deleteStale
+ */
+function _syncStale(written, all, deleteStale) {
+  const recipes = ViewRecipe.recognise(ViewRecipeRead.readFacts());
+  const stale = ViewRecipe.staleViews(ViewRecipeRead.readGeneratedViews(), recipes, ViewRecipeRead.readPresetLinks(), new Set(written.map(v => String(v.id))), all);
+  Log.info("");
+  if (!stale.length) { Log.info("Stale views: none."); return; }
+  Log.info(`Stale views: ${stale.length} (made from a recipe before; this run did not write them)`);
+  const column = 20;   // past "Last generated:"
+  stale.forEach((v, i) => {
+    Log.info("");
+    Log.info(`${i + 1}. ${v.view.name}`);
+    Log.info(Log.field("Folder:", ArchiFolders.printFolderPath(v.view), 3, column));
+    Log.info(Log.field("Last generated:", v.lastGenerated, 3, column));
+    Log.info(Log.field("Object ID:", v.objectId || "none", 3, column));
+  });
+  Log.info("");
+  const remove = _workbench() ? window.confirm(`Delete the ${stale.length} stale views listed on the console?`) : deleteStale;
+  if (!remove) {
+    Log.info(_workbench() ? "Stale views kept." : "Stale views kept: run with DELETE_STALE=true to delete them.");
+    return;
+  }
+  for (const v of stale) v.view.delete();
+  Log.info(`Stale views deleted: ${stale.length}.`);
+}
+
+/** @returns {boolean} Archi's window runs: false on Archi's command line */
+function _workbench() {
+  return Java.type("org.eclipse.ui.PlatformUI").isWorkbenchRunning();
+}
+
+/** @returns {string} now, as View last generated holds it: "2026-11-25 14:03:12", local time */
+function _timestamp() {
+  const d = new Date(), p = (/** @type {number} */ n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
 /**
@@ -434,7 +578,7 @@ function _logFileLine() {
  * @param {string} message
  */
 function _messageBox(kind, title, message) {
-  if (!Java.type("org.eclipse.ui.PlatformUI").isWorkbenchRunning()) return;
+  if (!_workbench()) return;
   const MessageDialog = Java.type("org.eclipse.jface.dialogs.MessageDialog");
   if (kind === "error") MessageDialog.openError(shell, title, message);
   else MessageDialog.openWarning(shell, title, message);
@@ -470,5 +614,5 @@ function cycleSelectionOrder(params, actionId) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { fromFilename, fromDefault, fromSession, fromSessionCycling, fromView, fromViewSiblings, fromRecipe, parkNesting, restoreNesting, showFailure, reportOutcome, cancelled, requireModel, confirmViewCount, cycleSelectionOrder, parseFilename, FILENAME_ACTIONS, FILENAME_DIRECTIONS };
+  module.exports = { fromFilename, fromDefault, fromSession, fromSessionCycling, fromView, fromViewSiblings, fromRecipe, fromRecipes, parkNesting, restoreNesting, showFailure, reportOutcome, cancelled, requireModel, confirmViewCount, cycleSelectionOrder, parseFilename, FILENAME_ACTIONS, FILENAME_DIRECTIONS };
 }

@@ -25,6 +25,8 @@ const PROP_ID = "Object ID";
 const PROP_MANAGED_OCCURRENCE = "Managed occurrence";
 // View property with how the view was made (lib/generation_record.js).
 const PROP_GENERATION_RECORD = "View generation record";
+// View property with the date and time of the recipe run that last wrote the view (lib/view_recipe.js: stale views).
+const PROP_LAST_GENERATED = "View last generated";
 // Grouping properties of a view recipe (lib/view_recipe.js): its kind, the Object ID of its view, the preset
 // that makes it (information only), and the view on which the recipes record their view templates.
 const PROP_VIEW_RECIPE = "View recipe";
@@ -1166,7 +1168,7 @@ function validatePreset(raw) {
     if (typeof rv.addObjectId === "boolean") preset.viewProperties.addObjectId = rv.addObjectId;
     if (Array.isArray(rv.properties)) {
       preset.viewProperties.properties = rv.properties
-        .filter((/** @type {PresetFile} */ p) => p && typeof p.key === "string" && p.key !== PROP_ID && p.key !== PROP_MANAGED_OCCURRENCE && p.key !== PROP_GENERATION_RECORD)
+        .filter((/** @type {PresetFile} */ p) => p && typeof p.key === "string" && p.key !== PROP_ID && p.key !== PROP_MANAGED_OCCURRENCE && p.key !== PROP_GENERATION_RECORD && p.key !== PROP_LAST_GENERATED)
         .map((/** @type {PresetFile} */ p) => ({
           key:     String(p.key),
           value:   p.value !== undefined ? String(p.value) : "",
@@ -1237,7 +1239,7 @@ if (typeof module !== "undefined" && module.exports) {
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
     DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID, VISUAL_ATTRIBUTES,
-    PROP_ID, PROP_MANAGED_OCCURRENCE, PROP_GENERATION_RECORD, PROP_VIEW_RECIPE, PROP_VIEW_OBJECT_ID, PROP_VIEW_PRESET, RECIPES_VIEW,
+    PROP_ID, PROP_MANAGED_OCCURRENCE, PROP_GENERATION_RECORD, PROP_LAST_GENERATED, PROP_VIEW_RECIPE, PROP_VIEW_OBJECT_ID, PROP_VIEW_PRESET, RECIPES_VIEW,
     GENERATED_VIEW_FOLDER, SESSION_FILENAME, ONE_EACH_CONFIRM_ABOVE, viewFolderPath,
     SPLINE_SAMPLE_POINTS,
     DEFAULT_PRESET,

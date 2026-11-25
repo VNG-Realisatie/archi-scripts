@@ -260,7 +260,7 @@ function _logStart(preset, rawParams, action, uiSelection, options) {
   Log.info(Log.field("Selection:", selection, 2));
   Log.info(Log.field("Settings:", settings, 2));
   if (hidden.length) Log.info(Log.field("", `also active, not in the dialog: ${hidden.join(" · ")}`, 2));
-  Log.info(Log.field("Target:", _describeTarget(preset, action, uiSelection), 2));
+  Log.info(Log.field("Target:", _describeTarget(preset, action, uiSelection, options), 2));
   const logFile = Log.name(presetName);
   if (logFile) Log.info(Log.field("Log file:", logFile, 2));
   Log.info("");
@@ -314,15 +314,19 @@ function _describeSelection(uiSelection) {
  * @param {MaskedPreset}                 preset
  * @param {string}                       action
  * @param {ArchiCollection<ArchiObject>} uiSelection
+ * @param {GenerateOptions}              options
  * @returns {string}
  */
-function _describeTarget(preset, action, uiSelection) {
+function _describeTarget(preset, action, uiSelection, options) {
   if (action === ACTION.EXPAND_VIEW.id || action === ACTION.LAYOUT_ONLY.id) {
     const o = uiSelection.first();
     const view = o && (o.view || (String(o.type).endsWith("-model") ? o : null));
     return view ? `the selected view "${view.name}" (in place)` : "the selected view (in place)";
   }
-  const what = action === ACTION.ONE_EACH.id ? "a view per element" : `new view${preset.view.name ? ` "${preset.view.name}"` : ""}`;
+  const recipe = options.recipes && [...options.recipes.values()][0];   // a view recipe names its view
+  const what = action === ACTION.ONE_EACH.id ? "a view per element"
+    : recipe ? `new view "${recipe.element.name}" (named after its recipe)`
+    : `new view${preset.view.name ? ` "${preset.view.name}"` : ""}`;
   const path = Defs.viewFolderPath(preset.view);
   const root = `/Views${path === "/" ? "" : path}`;
   return preset.view.mirrored ? `${what}, in its element's folder below ${root}` : `${what} in ${root}`;
@@ -503,7 +507,10 @@ function _generateSingle(preset, uiSelection, actionId, target, runtime) {
   }
   Appearance.applyAppearance(view, preset, actionId, TextMeasure.defaultViewFont(), keep,
     { elements: Table.elementsOf(planned.objectSet.tables), looks: planned.objectSet.templateLooks || new Map() });
-  if (target.recipe) _applyRecipeObjectId(view, target.recipe.element);
+  if (target.recipe) {
+    _applyRecipeObjectId(view, target.recipe.element);
+    view.prop(Defs.PROP_LAST_GENERATED, target.recipe.lastGenerated);
+  }
   applyViewProperties(view, preset);
   _writeGenerationRecord(view, actionId, target);
   timer.lap("appearance");
@@ -940,7 +947,7 @@ function _targetView(preset, elements, target) {
     return { view: target.view, status: "Updated" };
   }
   const folder = target.folder ? target.folder() : _resolveFolder(preset.view);
-  return _getOrCreateView(folder, target.name || _resolveViewName(preset, elements));
+  return _getOrCreateView(folder, target.name || _resolveViewName(preset, elements), target.recipe);
 }
 
 /**
@@ -1003,10 +1010,17 @@ function _emptyView(view) {
 /**
  * @param {Folder} folder
  * @param {string} viewName
- * @returns {{ view: ArchimateView, status: string }}  status: New or Overwritten
+ * @param {RecipeView} [recipe]  the view recipe of the run: its own view is updated without a warning
+ * @returns {{ view: ArchimateView, status: string }}  status: New, Updated (a recipe's own view) or Overwritten
  */
-function _getOrCreateView(folder, viewName) {
+function _getOrCreateView(folder, viewName, recipe) {
   let existing = $(folder).children("view").filter(`.${viewName}`).first();
+  const record = existing && recipe ? GenerationRecord.read(existing) : null;
+  if (existing && record && record.recipe && record.recipe.id === String(recipe && recipe.element.id)) {
+    Log.debug(`  Updating the view of its recipe: "${viewName}" in ${ArchiFolders.printFolderPath(existing)}`);
+    _emptyView(existing);
+    return { view: existing, status: "Updated" };
+  }
   if (existing) {
     Log.debug(`  Overwriting view: "${viewName}" in ${ArchiFolders.printFolderPath(existing)}`);
     Log.warn("A view of this name was there already and is overwritten; its properties are kept.", {

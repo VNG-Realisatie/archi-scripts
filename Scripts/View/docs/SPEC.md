@@ -89,6 +89,8 @@ One name per concept across UI, docs, logs and code, grouped by subject.
 - **view recipe group**: a grouping with `View recipe` = `group`. It aggregates view recipes, carries the view template for all of them and makes one view per view recipe (*One view each*). A view recipe outside a group makes one view (*New view*). The action follows from the kind.
 - **View recipes** (the folder and the view): containers in which the user finds and maintains the recipes. The view also records each recipe's view template, as a view reference inside the recipe's visual. The property makes a grouping a recipe; the folder does not.
 - **recipe link**: the link from a preset to one recipe: its identity, and its name as a label. `View preset` on the recipe names the preset, as information only.
+- **last generated**: the date and time of the recipe run that last wrote a view (`View last generated`). Only a view made from a recipe has it.
+- **stale view**: a view made from a recipe that the last run over that recipe did not write: its recipe was renamed, or its recipe or preset is gone.
 
 **Appearance**
 - **palette**: a named set of colors and color ranges that belong together, shared by the presets; a preset always names one, and every color of its styling comes from it, but for the fill colors a condition takes from the template look.
@@ -167,6 +169,7 @@ The conceptual entities and how they relate. Cardinalities use `1`, `0..N`, `1..
 | **view recipe group** | view recipe | 1 → 1..N | by aggregation; a view recipe is in at most one group |
 | view recipe, view recipe group | view template | N → 0..1 | a view reference inside its visual on *View recipes*; a view recipe without one takes its group's |
 | **Preset** | recipe | 0..1 → 0..1 | the recipe link; a recipe in a group is made through its group's preset |
+| **view** | view recipe | N → 0..1 | through the recipe in its generation record, else its Object ID = the recipe's `View Object ID`; more than one: the others are stale |
 
 **Closed enumerations.** Element and relation types come from the modelling language; the **diagram-object types** are a fixed canvas set. Extending any of them is a deliberate change. Each relation type carries a layout weight that some algorithms use.
 
@@ -208,7 +211,7 @@ A model-tree selection can drive only the Create group, because nothing identifi
 The console names the folder of every view written. An element the preset's element filter drops gets no view, so no view stays empty.
 
 **Regenerate.** *New view* and *One view each* leave a **generation record** on the view: the start, the preset by name, the action, the recipe it came from and, for *One view each*, the element and where its views went. The start is what was selected: a folder stays a folder, so new elements in it join; an object selected on a view is kept with the objects nested in it, as the run takes them; a view is kept as the elements on it at that moment, so a view that replaced itself does not grow with every regenerate, and its diagram objects do not come back. Objects are found by their identity, which survives a rename and a move; their readable path is a label, never used to find them.
-- *Regenerate* makes the selected views, or the views in a selected folder, again where they stand, with the saved preset; hand edits are lost. A view of *One view each* regenerates only itself.
+- *Regenerate* makes the selected views, or the views in a selected folder, again where they stand, with the saved preset; hand edits are lost. A view of *One view each* regenerates only itself. A view made from a recipe is made again through its recipe, as *Generate view recipes* does for that view alone, without removing stale views; a recipe that is gone is reported.
 - *Regenerate with siblings* runs the start and action again: siblings are updated wherever they are now, a new element gets a view, and a view whose element left the start is reported and stays.
 - A view with a missing object or preset is reported and not written. A renamed preset is such a case; a new run repairs the view. A view made by a script that works on after the run is refused, naming the script.
 - A view made with unsaved settings, or changed by *Expand view* since, is marked; Regenerate says the result can differ. Each run reports what it uses and what it does not.
@@ -220,7 +223,7 @@ The console names the folder of every view written. An element the preset's elem
 - *Links*: a preset whose recipe is not in the model; a recipe linked from several presets, or from none; a preset linked to a view recipe that its group makes; a label that no longer matches the recipe's name; `View preset` differing from the linked preset.
 - *Duplicates*: a recipe's Object ID that another concept carries; a `View Object ID` on two recipes, or equal to a concept's Object ID.
 
-Each finding names objects by folder path and name, never by identity, and says its effect and what to do. One cause gives one finding: a missing *View recipes* view, an ambiguous view template, or a view recipe in several groups is not reported again per consequence, and while no preset is linked at all that is one finding.
+Each finding names objects by folder path and name, never by identity, and says its effect and what to do. One cause gives one finding: a missing *View recipes* view, an ambiguous view template, or a view recipe in several groups is not reported again per consequence, and while no preset is linked at all that is one finding. A finding says when generate skips a recipe for it; an old label, a differing `View preset` and a recipe without a preset block nothing.
 
 **A recipe as the start.** When the start is exactly one recipe, in the model tree or on a view, the recipe sets what it describes; any other start is ad hoc, with the preset's own settings.
 - *Action and start*: a view recipe on its own makes one view (*New view*), named after it. A group makes one view per view recipe (*One view each*); a view recipe in a group makes only its own view, the group's way. The start is the view recipes, never what was clicked around them.
@@ -228,7 +231,14 @@ Each finding names objects by folder path and name, never by identity, and says 
 - *Object ID*: each view gets its recipe's `View Object ID`. A recipe without one takes the view's Object ID, or a new one, so a view made before keeps its Object ID.
 - *Recipe link*: Save links the preset to the recipe and writes `View preset` on every recipe the preset makes. A preset linked to another recipe asks first: move the link, or save as a new preset. Save As links the new preset to the recipe of the start, else to none. With any other start Save leaves the link as it is and refreshes its label.
 
-**Many views.** Before *One view each* writes more than 20 views, the entry point asks the user to confirm; the count is what passes the filter. Selected elements of more than one type give a warning on the console; the run goes on.
+**Generate view recipes.** One run makes the views of the recipes, the same way every time, by anyone, in Archi or on its command line.
+- *Scope*: nothing selected, or the view or folder *View recipes*, is every preset linked to a recipe in the open model; otherwise the selected recipes, where a view recipe in a group makes only its own view. Other selected objects are reported and left out.
+- *Order*: the check runs first; then each linked preset, by name, runs with its recipe as the start, as the dialog does. A recipe the check blocks is skipped and its views stay; a failed preset does not stop the others.
+- *Written*: `View preset` on its recipes, and on every view its Object ID, its last generated (one date and time for the whole run) and its generation record. A view of the same name in the folder is replaced: silently when it is the view of the same recipe, with a warning otherwise.
+- *Stale views*: after the run, the views made from a recipe that it wrote anew under another name, and, when it covered every linked preset, those whose recipe or preset is gone. They are listed by name, folder, last generated and Object ID, and one confirmation deletes them. Nobody is asked on the command line: there they are only listed unless deleting is asked for when it starts, and the model is saved.
+- A published release keeps last generated; it drops the recipes with the other elements that are on no published view.
+
+**Many views.** Before *One view each* writes more than 20 views, the entry point asks the user to confirm (a recipe run from the dialog too; *Generate view recipes* never asks); the count is what passes the filter. Selected elements of more than one type give a warning on the console; the run goes on.
 
 Only `NEW_VIEW` overwrites a view's contents, onto a matching name. A Modify action never copies, renames or replaces its view, ignores the preset's view name and folder, and deletes only what rule 10 allows.
 

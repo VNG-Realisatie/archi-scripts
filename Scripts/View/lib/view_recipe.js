@@ -140,9 +140,10 @@ function check(facts, presets) {
  * @param {string}        text     what is wrong
  * @param {string}        effect   what it means for generate
  * @param {string}        action   what the user does
+ * @param {string[]}      [blocks] the recipes generate skips for it, by grouping id
  * @returns {RecipeFinding}
  */
-const _finding = (section, subject, text, effect, action) => ({ section, subject, text, effect, action });
+const _finding = (section, subject, text, effect, action, blocks = []) => ({ section, subject, text, effect, action, blocks });
 
 const P = Defs.PROP_VIEW_RECIPE, V = Defs.RECIPES_VIEW;
 
@@ -162,12 +163,12 @@ function _checkRecipes(facts, recipes) {
   for (const r of recipes.values()) {
     const g = r.grouping;
     if (!g.objectId)
-      out.push(_finding("Recipes", g.label, `Recipe "${g.label}" has no ${Defs.PROP_ID}.`, "The model repository requires one on every element.", `Give it an ${Defs.PROP_ID} of its own.`));
+      out.push(_finding("Recipes", g.label, `Recipe "${g.label}" has no ${Defs.PROP_ID}.`, "Generate skips it: the model repository requires one on every element.", `Give it an ${Defs.PROP_ID} of its own.`, [g.id]));
     if (r.kind === "view" && r.groups.length > 1)
-      out.push(_finding("Recipes", g.label, `View recipe "${g.label}" is in ${r.groups.length} groups: ${_labels(r.groups)}.`, "It has no one group to be made with.", "Keep the aggregation from one group and remove the others."));
+      out.push(_finding("Recipes", g.label, `View recipe "${g.label}" is in ${r.groups.length} groups: ${_labels(r.groups)}.`, "Generate skips it: it has no one group to be made with.", "Keep the aggregation from one group and remove the others.", [g.id]));
     if (r.kind !== "group") continue;
     if (!r.members.length)
-      out.push(_finding("Recipes", g.label, `Recipe group "${g.label}" aggregates no view recipe.`, "It makes no view.", `Aggregate its view recipes from it, or set ${P} to "view".`));
+      out.push(_finding("Recipes", g.label, `Recipe group "${g.label}" aggregates no view recipe.`, "It makes no view.", `Aggregate its view recipes from it, or set ${P} to "view".`, [g.id]));
     for (const a of g.aggregates) {
       const target = recipes.get(a.id);
       if (!target || target.kind !== "view")
@@ -186,17 +187,17 @@ function _checkRecipes(facts, recipes) {
 function _checkViewTemplates(facts, recipes) {
   if (facts.recipesViews !== 1)
     return [_finding("View template", V, facts.recipesViews ? `${facts.recipesViews} views are named "${V}".` : `No view is named "${V}".`,
-      "No recipe has a view template.", `Keep one view "${V}" with the recipes on it.`)];
+      "No recipe has a view template; generate skips every recipe.", `Keep one view "${V}" with the recipes on it.`, [...recipes.keys()])];
   /** @type {RecipeFinding[]} */
   const out = [];
   for (const r of recipes.values()) {
     const g = r.grouping;
     if (!r.visuals)
-      out.push(_finding("View template", g.label, `Recipe "${g.label}" is not on the view "${V}".`, "Its view template is not known.", `Add it to "${V}", with its view template as a view reference inside it.`));
+      out.push(_finding("View template", g.label, `Recipe "${g.label}" is not on the view "${V}".`, "Its view template is not known; generate skips it.", `Add it to "${V}", with its view template as a view reference inside it.`, [g.id]));
     else if (r.visuals > 1)
-      out.push(_finding("View template", g.label, `Recipe "${g.label}" is on "${V}" ${r.visuals} times.`, "Its view references are read from each.", "Keep it there once."));
+      out.push(_finding("View template", g.label, `Recipe "${g.label}" is on "${V}" ${r.visuals} times.`, "Its view references are read from each; generate skips it.", "Keep it there once.", [g.id]));
     if (r.templates.length > 1)
-      out.push(_finding("View template", g.label, `Recipe "${g.label}" holds ${r.templates.length} view references: ${_labels(r.templates)}.`, "It has no view template.", "Keep the view reference to its view template and remove the others."));
+      out.push(_finding("View template", g.label, `Recipe "${g.label}" holds ${r.templates.length} view references: ${_labels(r.templates)}.`, "It has no view template; generate skips it.", "Keep the view reference to its view template and remove the others.", [g.id]));
   }
   return out;
 }
@@ -223,7 +224,7 @@ function _checkLinks(facts, recipes, presets) {
     }
     linked.set(r.grouping.id, [...(linked.get(r.grouping.id) || []), p.preset]);
     if (r.groups.length)
-      out.push(_finding("Links", p.preset, `Preset "${p.preset}" is linked to view recipe "${r.grouping.label}", which its group ${_labels(r.groups)} makes.`, "The view recipe has two presets.", "Link the preset to the group, or take the view recipe out of the group."));
+      out.push(_finding("Links", p.preset, `Preset "${p.preset}" is linked to view recipe "${r.grouping.label}", which its group ${_labels(r.groups)} makes.`, "The view recipe has two presets; generate skips it.", "Link the preset to the group, or take the view recipe out of the group.", [r.grouping.id]));
     else out.push(..._checkLinkedPreset(facts, p, r, recipes));
   }
   if (!presets.some(p => p.recipe))
@@ -231,7 +232,7 @@ function _checkLinks(facts, recipes, presets) {
   for (const r of recipes.values()) {
     const g = r.grouping, names = linked.get(g.id) || [];
     if (names.length > 1)
-      out.push(_finding("Links", g.label, `Recipe "${g.label}" is linked from ${names.length} presets: ${names.map(n => `"${n}"`).join(", ")}.`, "It has no one preset.", "Keep one; save the others with another recipe as the start, or as new presets."));
+      out.push(_finding("Links", g.label, `Recipe "${g.label}" is linked from ${names.length} presets: ${names.map(n => `"${n}"`).join(", ")}.`, "It has no one preset; generate skips it.", "Keep one; save the others with another recipe as the start, or as new presets.", [g.id]));
     if (!names.length && r.groups.length < 2 && !linked.has(linkedThrough(r, recipes).grouping.id))
       out.push(_finding("Links", g.label, `No preset is linked to recipe "${g.label}".`, "Generate makes no view for it.", "Open the dialog with the recipe as the start, choose its preset and save it."));
   }
@@ -258,11 +259,11 @@ function _checkLinkedPreset(facts, p, r, recipes) {
     if (m.grouping.viewPreset !== p.preset)
       out.push(_finding("Links", m.grouping.label, `Recipe "${m.grouping.label}" has ${Defs.PROP_VIEW_PRESET} "${m.grouping.viewPreset}", but preset "${p.preset}" is linked to it.`, "The model shows the wrong preset; generate is not affected.", "Generate, or save the preset; both write the property."));
     if (p.viewTemplateOn && facts.recipesViews === 1 && _referencesNone(m, recipes))
-      out.push(_finding("View template", m.grouping.label, `Preset "${p.preset}" uses a view template, but recipe "${m.grouping.label}" has none on "${V}".`, "Generate skips the recipe.", "Put a view reference to its view template inside the recipe's visual, or inside its group's."));
+      out.push(_finding("View template", m.grouping.label, `Preset "${p.preset}" uses a view template, but recipe "${m.grouping.label}" has none on "${V}".`, "Generate skips the recipe.", "Put a view reference to its view template inside the recipe's visual, or inside its group's.", [m.grouping.id]));
   }
   for (const m of byPreset.slice(1).map(x => x.grouping)) {
     if (!ConditionLists.matchElement(p.filter, m.element))
-      out.push(_finding("Recipes", m.label, `The element filter of preset "${p.preset}" drops view recipe "${m.label}".`, "Its group makes no view for it.", "Change the preset's element filter, or take the view recipe out of the group."));
+      out.push(_finding("Recipes", m.label, `The element filter of preset "${p.preset}" drops view recipe "${m.label}".`, "Its group makes no view for it.", "Change the preset's element filter, or take the view recipe out of the group.", [m.id]));
   }
   return out;
 }
@@ -288,24 +289,117 @@ function _referencesNone(r, recipes) {
 function _checkDuplicates(facts, recipes) {
   /** @type {RecipeFinding[]} */
   const out = [];
-  /** @type {Map<string, string[]>} View Object ID → labels of the recipes that carry it */
+  /** @type {Map<string, RecipeGrouping[]>} View Object ID → the recipes that carry it */
   const viewIds = new Map();
   for (const r of recipes.values()) {
     const g = r.grouping;
     const others = (facts.objectIds.get(g.objectId) || []).filter(l => l !== g.label);
     if (g.objectId && others.length)
-      out.push(_finding("Duplicates", g.label, `Recipe "${g.label}" has the ${Defs.PROP_ID} of ${others.map(l => `"${l}"`).join(", ")}.`, "Two elements share one Object ID.", `Give the recipe a new ${Defs.PROP_ID} of its own.`));
-    if (g.viewObjectId) viewIds.set(g.viewObjectId, [...(viewIds.get(g.viewObjectId) || []), g.label]);
+      out.push(_finding("Duplicates", g.label, `Recipe "${g.label}" has the ${Defs.PROP_ID} of ${others.map(l => `"${l}"`).join(", ")}.`, "Two elements share one Object ID; generate skips the recipe.", `Give the recipe a new ${Defs.PROP_ID} of its own.`, [g.id]));
+    if (g.viewObjectId) viewIds.set(g.viewObjectId, [...(viewIds.get(g.viewObjectId) || []), g]);
   }
-  for (const [id, labels] of viewIds) {
+  for (const [id, carriers] of viewIds) {
     const concepts = facts.objectIds.get(id) || [];
-    if (labels.length < 2 && !concepts.length) continue;
-    for (const label of labels) {
-      const others = [...labels.filter(l => l !== label).map(l => `the ${Defs.PROP_VIEW_OBJECT_ID} of recipe "${l}"`), ...concepts.map(l => `the ${Defs.PROP_ID} of "${l}"`)];
-      out.push(_finding("Duplicates", label, `The ${Defs.PROP_VIEW_OBJECT_ID} of recipe "${label}" is also ${others.join(", ")}.`, "Its view would share an Object ID with another object.", `Give the recipe a new ${Defs.PROP_VIEW_OBJECT_ID}, or remove it so generate writes one.`));
+    if (carriers.length < 2 && !concepts.length) continue;
+    for (const c of carriers) {
+      const others = [...carriers.filter(o => o !== c).map(o => `the ${Defs.PROP_VIEW_OBJECT_ID} of recipe "${o.label}"`), ...concepts.map(l => `the ${Defs.PROP_ID} of "${l}"`)];
+      out.push(_finding("Duplicates", c.label, `The ${Defs.PROP_VIEW_OBJECT_ID} of recipe "${c.label}" is also ${others.join(", ")}.`, "Its view would share an Object ID with another object; generate skips the recipe.",
+        `Give the recipe a new ${Defs.PROP_VIEW_OBJECT_ID}, or remove it so generate writes one.`, [c.id]));
     }
   }
   return out;
+}
+
+// ── Generate ──────────────────────────────────────────────────────────────────
+
+/**
+ * What generate runs: per linked preset, in name order, the start of its recipe without the recipes a
+ * finding blocks; what it leaves out, with the reason.
+ * @param {Map<string, Recipe>} recipes
+ * @param {PresetLink[]}        presets
+ * @param {RecipeFinding[]}     findings  the check's
+ * @param {string[] | null}     scope     the selected recipes by grouping id; null: every linked preset
+ * @returns {{ runs: RecipeRun[], skipped: RecipeSkip[] }}
+ */
+function generateRuns(recipes, presets, findings, scope) {
+  const blocked = new Set(findings.flatMap(f => f.blocks));
+  /** @type {RecipeSkip[]} */
+  const skipped = [];
+  /** @type {RecipeRun[]} */
+  const runs = [];
+  for (const start of _starts(recipes, presets, scope)) {
+    const linked = start.linked.grouping;
+    const own = presets.filter(p => p.recipe && p.recipe.id === linked.id);
+    if (!own.length) { skipped.push({ subject: linked.label, reason: "No preset is linked to it.", action: "open the dialog with the recipe as the start, choose its preset and save it." }); continue; }
+    if (blocked.has(linked.id)) { skipped.push(_blockedSkip(linked)); continue; }
+    const views = start.views.filter(v => !blocked.has(v.grouping.id));
+    for (const v of start.views) if (blocked.has(v.grouping.id)) skipped.push(_blockedSkip(v.grouping));
+    if (views.length) runs.push({ preset: own[0].preset, start: { ...start, views } });
+  }
+  runs.sort((a, b) => Defs.compareNames(a.preset, b.preset));
+  return { runs, skipped };
+}
+
+/**
+ * @param {RecipeGrouping} g
+ * @returns {RecipeSkip}
+ */
+const _blockedSkip = g => ({ subject: g.label, reason: "The check reports it; its view stays as it is.", action: "repair what the check reports above." });
+
+/**
+ * The starts in scope, one per linked recipe: every linked preset's recipe, or the selected recipes,
+ * where a group and its view recipes merge into one start.
+ * @param {Map<string, Recipe>} recipes
+ * @param {PresetLink[]}        presets
+ * @param {string[] | null}     scope
+ * @returns {RecipeStart[]}
+ */
+function _starts(recipes, presets, scope) {
+  const ids = scope || presets.flatMap(p => {
+    const r = p.recipe && recipes.get(p.recipe.id);
+    return r && !r.groups.length ? [r.grouping.id] : [];   // a link to a view recipe in a group: the check reports it
+  });
+  /** @type {Map<string, RecipeStart>} linked recipe id → its start */
+  const byLinked = new Map();
+  for (const id of ids) {
+    const start = startOf(recipes, id);
+    if (!start) continue;
+    const key = start.linked.grouping.id, known = byLinked.get(key);
+    if (!known) { byLinked.set(key, start); continue; }
+    const order = made(start.linked, recipes);   // a group's view recipes in its order
+    byLinked.set(key, { ...known, views: order.filter(m => m.kind === "view" && (known.views.includes(m) || start.views.includes(m))) });
+  }
+  return [...byLinked.values()];
+}
+
+/**
+ * The views generate made before and this run left behind, in name order. A view is stale when it was
+ * not written in this run and its recipe was, or when its recipe or preset is gone and the run covered
+ * every linked preset. A view whose recipe this run skipped, or that is out of scope, stays.
+ * @template {GeneratedView} T
+ * @param {T[]}                 views    every view with View last generated, read after the run
+ * @param {Map<string, Recipe>} recipes  read after the run
+ * @param {PresetLink[]}        presets
+ * @param {Set<string>}         written  the views this run wrote, by id
+ * @param {boolean}             all      the run covered every linked preset
+ * @returns {T[]}
+ */
+function staleViews(views, recipes, presets, written, all) {
+  /** @type {Map<string, string>} View Object ID → recipe id */
+  const byObjectId = new Map();
+  for (const r of recipes.values()) if (r.grouping.viewObjectId) byObjectId.set(r.grouping.viewObjectId, r.grouping.id);
+  const recipeOf = (/** @type {T} */ v) => recipes.has(v.recipeId) ? v.recipeId : byObjectId.get(v.objectId) || "";
+  const writtenRecipes = new Set(views.filter(v => written.has(v.id)).map(recipeOf));
+  const linked = new Set(presets.flatMap(p => {
+    const r = p.recipe && recipes.get(p.recipe.id);
+    return r ? made(r, recipes).map(m => m.grouping.id) : [];
+  }));
+  return views.filter(v => {
+    if (written.has(v.id)) return false;
+    const r = recipeOf(v);
+    if (r && writtenRecipes.has(r)) return true;
+    return all && !(r && linked.has(r));
+  }).sort((a, b) => Defs.compareNames(a.label, b.label));
 }
 
 // ── Report ────────────────────────────────────────────────────────────────────
@@ -338,5 +432,5 @@ function _labels(named) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { KINDS, SECTIONS, recognise, linkedThrough, made, startOf, check, logFindings };
+  module.exports = { KINDS, SECTIONS, recognise, linkedThrough, made, startOf, check, generateRuns, staleViews, logFindings };
 }

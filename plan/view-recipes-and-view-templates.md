@@ -17,7 +17,7 @@
 >
 > **Plan contents:** terms with definitions (quote the current SPEC); objective; requirements; what is stored where, one carrier per row; dialog behaviour; check, generate, sync, Regenerate; how it connects to existing code; blocks with model and user checks, following the order of change; verification.
 
-Status: approved 2026-11-25; blocks 0–5 done.
+Status: approved 2026-11-25; blocks 0–6 done.
 
 ## Context
 
@@ -297,11 +297,7 @@ The user is asked only for checks in Archi and for that approval. After each blo
 
 ## Handoff
 
-- Done: blocks 0–5. Block 5: `recipe` in the preset (schema 12, default null); `ViewRecipe.startOf`, `ViewRecipeRead.readStart` / `startSelection` / `writeViewPreset`; `RunPreset.fromRecipe` with `GenerateOptions.recipes` (per view recipe its view template, name for *New view*, Object ID, `recipe` in the generation record); dialog: Recipe line, fixed action, view template and Object ID notes, Save / Save As link, move-or-new question; `gui_check.ajs` suite `recipe` (`LINK_ID`). Checked on a GEMMA copy headless: the lone recipe overwrote *Alle referentiecomponenten* and kept its Object ID; the Applicatieservices group made 8 new views, because the existing views have other names.
-- Open for block 6:
-  - The old GEMMA views with other names have no `View last generated`, so sync does not find them: after the first generate-all the agent lists the views in the recipes' folders that the run did not write, and the user deletes them (decision 2026-11-25).
-  - Regenerate of a view with `recipe` in its generation record still runs the record, not the recipe (Known gaps 19).
-  - `RunPreset.fromRecipe` asks before *One view each* writes more than 20 views; headless generate must not.
-- Pre-existing, not from blocks 1–5: `write_plans --variants` 2 lines (Tiles, columnsAcrossContainers); baseline views `2 Edited` expand/layout differ from the committed baseline by a `Segoe UI Symbol` font; with nothing selected the nesting style windows show the "view template is off" note while On is ticked.
-- GEMMA model (`.git/temp.archimate` of 13:54): 18 view recipes, 2 groups, 5 linked presets; the check reports no inconsistencies (*Buitengemeentelijke voorzieningen* is no recipe). Save with a recipe start no longer writes the recipe's name into the preset's `view.name`.
-- Next: block 6 in a new session, with the prompt in § Blocks and way of working (N = 6).
+- Done: blocks 0–6. Block 6: `_view_recipes_generate.ajs` (`RunPreset.fromRecipes`): check first, findings name the recipes they block; runs per linked preset in name order; `View last generated` per run; stale views listed and deleted after confirmation (headless: `DELETE_STALE=true`, model saved); Regenerate of a recipe view runs its recipe. Verified headless on a GEMMA copy: Object IDs unchanged, a second run identical but for `View last generated`, a renamed recipe gives a new view with the same Object ID and the old one is stale and deleted. The user ran selected recipes, the rename and both answers to the confirmation in Archi, and deleted the old GEMMA views.
+- Not done, left to decide: generate does not warn about a view of another origin that carries the Object ID of a view it wrote.
+- Pre-existing, not from this plan: `write_plans --variants` 2 lines (Tiles, columnsAcrossContainers); baseline views `2 Edited` expand/layout differ from the committed baseline by a `Segoe UI Symbol` font; with nothing selected the nesting style windows show the "view template is off" note while On is ticked.
+- Next: none in this plan. The user generates all once in Archi with nothing selected and commits the model (coArchi).

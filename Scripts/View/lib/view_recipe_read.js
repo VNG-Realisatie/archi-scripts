@@ -15,6 +15,8 @@ const Defs = require(REPO_ROOT + "View/lib/defs");
 const ViewRecipe = require(REPO_ROOT + "View/lib/view_recipe");
 /** @type {typeof import("./preset_io")} */
 const PresetIO = require(REPO_ROOT + "View/lib/preset_io");
+/** @type {typeof import("./generation_record")} */
+const GenerationRecord = require(REPO_ROOT + "View/lib/generation_record");
 
 /**
  * @param {ArchiObject} object
@@ -149,6 +151,47 @@ function writeViewPreset(start, preset) {
   return changed;
 }
 
+// ── Generate ──────────────────────────────────────────────────────────────────
+
+/**
+ * What generate covers: nothing selected, or the view or folder View recipes, is every linked preset
+ * (null); else the recipe groupings selected, in the model tree or on a view.
+ * @param {ArchiCollection<ArchiObject>} uiSelection
+ * @returns {{ scope: string[] | null, ignored: string[] }}  ignored: the names of selected objects that are no recipe
+ */
+function readScope(uiSelection) {
+  /** @type {string[]} */
+  const scope = [];
+  /** @type {string[]} */
+  const ignored = [];
+  let all = uiSelection.size() === 0;
+  uiSelection.each(o => {
+    if ((o.type === "folder" || o.type === "archimate-diagram-model") && o.name === Defs.RECIPES_VIEW) { all = true; return; }
+    const g = o.view ? o.concept : o;
+    if (g && g.type === "grouping" && g.prop(Defs.PROP_VIEW_RECIPE) !== null) { if (!scope.includes(String(g.id))) scope.push(String(g.id)); }
+    else ignored.push(String(o.name));
+  });
+  return { scope: all ? null : scope, ignored: all ? [] : ignored };
+}
+
+/**
+ * Every view generate made from a recipe: those with View last generated.
+ * @returns {(GeneratedView & { view: ArchimateView })[]}
+ */
+function readGeneratedViews() {
+  /** @type {(GeneratedView & { view: ArchimateView })[]} */
+  const out = [];
+  $("view").each(v => {
+    const view = /** @type {ArchimateView} */ (v);   // Cast: selected by "view"
+    const last = view.prop(Defs.PROP_LAST_GENERATED);
+    if (last === null) return;
+    const record = GenerationRecord.read(view);
+    out.push({ id: String(view.id), label: _label(view), lastGenerated: String(last), objectId: String(view.prop(Defs.PROP_ID) || ""),
+      recipeId: record && record.recipe ? record.recipe.id : "", view });
+  });
+  return out;
+}
+
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { readFacts, readPresetLinks, readStart, startSelection, linkedName, writeViewPreset };
+  module.exports = { readFacts, readPresetLinks, readStart, startSelection, linkedName, writeViewPreset, readScope, readGeneratedViews };
 }
