@@ -35,8 +35,8 @@ const Defs     = require(REPO_ROOT + "View/lib/defs");
 const SelectionRead = require(REPO_ROOT + "View/lib/selection_read");
 /** @type {typeof import("./selection_pipeline")} */
 const Pipeline = require(REPO_ROOT + "View/lib/selection_pipeline");
-/** @type {typeof import("./view_origin")} */
-const ViewOrigin = require(REPO_ROOT + "View/lib/view_origin");
+/** @type {typeof import("./generation_record")} */
+const GenerationRecord = require(REPO_ROOT + "View/lib/generation_record");
 /** @type {typeof import("../../_lib/selection")} */
 const Selection = require(REPO_ROOT + "_lib/selection");
 /** @type {typeof import("../../_lib/archi_folders")} */
@@ -83,16 +83,16 @@ function fromFilename(file, selection, opts = {}) {
     const parsed = parseFilename(file);
     const name   = opts.preset || (opts.folder ? `${opts.folder}/${parsed.preset}` : parsed.preset);
     const preset = PresetIO.readPreset(name);
-    /** @type {RunOrigin} */
-    const origin = { preset: name };
+    /** @type {RunRecord} */
+    const record = { preset: name };
     if (parsed.direction && parsed.direction !== preset.params.direction) {
       Log.debug(`Direction ${parsed.direction} from the script name overrules ${preset.params.direction} of the preset.`);
-      origin.direction = parsed.direction;
+      record.direction = parsed.direction;
     }
     if (parsed.direction) preset.params.direction = parsed.direction;
-    if (opts.edit) { opts.edit(preset); origin.modified = true; }
+    if (opts.edit) { opts.edit(preset); record.modified = true; }
     Log.debug(`Preset "${name}"  action ${parsed.actionId}${parsed.direction ? `  direction ${parsed.direction}` : ""}`);
-    return _run(preset, selection, parsed.actionId, origin);
+    return _run(preset, selection, parsed.actionId, record);
   });
 }
 
@@ -150,7 +150,7 @@ function fromSession(selection, actionId, change) {
 }
 
 /**
- * Regenerate: make the selected views, or the views in a selected folder, again from their origin.
+ * Regenerate: make the selected views, or the views in a selected folder, again from their generation record.
  * A view stays where it is; a view of One view each regenerates only itself.
  * @param {ArchiCollection<ArchiObject>} selection  usually $(selection)
  * @returns {ArchimateView[]} regenerated views
@@ -170,7 +170,7 @@ function fromView(selection) {
       Log.beginItem("view", view.name);   // generate_view goes on with it
       const run = _regeneration(view);
       if (!run) { Log.endItem("skipped", `Skipped: "${view.name}"`); continue; }
-      done.push(...GenView.generate_view(run.preset, run.start, ACTION.NEW_VIEW.id, { regenerate: { view, origin: run.origin } }));
+      done.push(...GenView.generate_view(run.preset, run.start, ACTION.NEW_VIEW.id, { regenerate: { view, generationRecord: run.generationRecord } }));
     }
     Log.debug(`Regenerated ${done.length} of ${views.length} views.`);
     return done;
@@ -186,46 +186,46 @@ function fromView(selection) {
  */
 function fromViewSiblings(selection) {
   return _reported(() => {
-    /** @type {Map<string, ViewOrigin>} */
+    /** @type {Map<string, GenerationRecord>} */
     const groups = new Map();
     for (const view of _selectedViews(selection)) {
-      const origin = ViewOrigin.read(view);
-      if (origin && origin.action === ACTION.ONE_EACH.id) groups.set(ViewOrigin.siblingKey(origin), origin);
+      const record = GenerationRecord.read(view);
+      if (record && record.action === ACTION.ONE_EACH.id) groups.set(GenerationRecord.siblingKey(record), record);
       else _skip(view, "It was not made by One view each, so it has no siblings.", "use Regenerate for this view.");
     }
-    return [...groups.entries()].flatMap(([key, origin]) => _regenerateSiblings(key, origin));
+    return [...groups.entries()].flatMap(([key, record]) => _regenerateSiblings(key, record));
   });
 }
 
 /**
- * @param {string}     key     ViewOrigin.siblingKey
- * @param {ViewOrigin} origin  of one of the siblings
+ * @param {string}           key     GenerationRecord.siblingKey
+ * @param {GenerationRecord} record  of one of the siblings
  * @returns {ArchimateView[]}
  */
-function _regenerateSiblings(key, origin) {
-  const preset = _originPreset(origin, `Siblings of "${origin.element && origin.element.name}"`);
+function _regenerateSiblings(key, record) {
+  const preset = _recordPreset(record, `Siblings of "${record.element && record.element.name}"`);
   if (!preset) return [];
-  const { start, missing } = ViewOrigin.resolve(origin.selection || []);
+  const { start, missing } = GenerationRecord.resolve(record.selection || []);
   for (const object of missing) Log.warn(`Part of the start is gone from the model: ${object.name}.`, { effect: "the siblings are made from the rest of the start." });
-  // The origin keeps where the views went: their folder under Views, and whether they mirror the model tree below it.
-  preset.view.mirrored = origin.mirrored === true;
-  preset.view.folder = origin.folder === undefined ? preset.view.folder : origin.folder;
-  _logRegeneration(`siblings of "${origin.element && origin.element.name}"`, origin, origin.selection || [],
-    `New views: ${origin.mirrored ? "in the folder of their element below " : "in "}/Views${preset.view.folder === "/" ? "" : preset.view.folder}`);
+  // The record keeps where the views went: their folder under Views, and whether they mirror the model tree below it.
+  preset.view.mirrored = record.mirrored === true;
+  preset.view.folder = record.folder === undefined ? preset.view.folder : record.folder;
+  _logRegeneration(`siblings of "${record.element && record.element.name}"`, record, record.selection || [],
+    `New views: ${record.mirrored ? "in the folder of their element below " : "in "}/Views${preset.view.folder === "/" ? "" : preset.view.folder}`);
 
   /** @type {Map<string, ArchimateView>} */
   const views = new Map();
   $("view").each(v => {
     const view = /** @type {ArchimateView} */ (v);   // Cast: selected by "view"
-    const o = ViewOrigin.read(view);
-    if (o && o.element && ViewOrigin.siblingKey(o) === key) views.set(o.element.id, view);
+    const o = GenerationRecord.read(view);
+    if (o && o.element && GenerationRecord.siblingKey(o) === key) views.set(o.element.id, view);
   });
   const seeds = new Set(SelectionRead.getSeedElements(start).map(e => String(e.id)));
   for (const [id, view] of views) if (!seeds.has(id)) Log.warn(`"${view.name}": its element is gone from the start.`, { effect: "the view stays as it is.", action: "delete it when it is no longer needed." });
 
   if (!confirmViewCount(start, ACTION.ONE_EACH.id, preset.filter)) { cancelled(); return []; }
   return GenView.generate_view(preset, start, ACTION.ONE_EACH.id, {
-    origin: { preset: origin.preset, ...(origin.direction ? { direction: origin.direction } : {}) },
+    generationRecord: { preset: record.preset, ...(record.direction ? { direction: record.direction } : {}) },
     siblings: { views },
   });
 }
@@ -241,54 +241,54 @@ function _selectedViews(selection) {
 /**
  * What it takes to regenerate one view; what is in the way is reported and nothing is written.
  * @param {ArchimateView} view
- * @returns {{ preset: Preset, start: ArchiCollection<ArchiObject>, origin: ViewOrigin } | null}
+ * @returns {{ preset: Preset, start: ArchiCollection<ArchiObject>, generationRecord: GenerationRecord } | null}
  */
 function _regeneration(view) {
-  const origin = ViewOrigin.read(view);
-  if (!origin) { Log.warn("It has no origin: it was not generated, or before views kept one.", { action: "make it again with New view." }); return null; }
-  const preset = _originPreset(origin, `"${view.name}"`);
+  const record = GenerationRecord.read(view);
+  if (!record) { Log.warn("It has no generation record: it was not generated, or before views kept one.", { action: "make it again with New view." }); return null; }
+  const preset = _recordPreset(record, `"${view.name}"`);
   if (!preset) return null;
-  const objects = origin.element ? [origin.element] : origin.selection || [];
-  const { start, missing } = ViewOrigin.resolve(objects);
+  const objects = record.element ? [record.element] : record.selection || [];
+  const { start, missing } = GenerationRecord.resolve(objects);
   if (missing.length) { Log.warn(`Its start is gone from the model: ${missing.map(o => o.name).join(", ")}.`, { action: "make it again with New view from another selection." }); return null; }
-  _logRegeneration(`"${view.name}"`, origin, objects, `Stays in:  ${ArchiFolders.printFolderPath(view)}`);
-  const { modified, ...kept } = origin;
-  const refreshed = objects.map(o => ViewOrigin.describeObject(/** @type {ArchiObject} */ (ViewOrigin.findObject(o))));   // Cast: resolved above
-  return { preset, start, origin: origin.element ? { ...kept, element: refreshed[0] } : { ...kept, selection: refreshed } };
+  _logRegeneration(`"${view.name}"`, record, objects, `Stays in:  ${ArchiFolders.printFolderPath(view)}`);
+  const { modified, ...kept } = record;
+  const refreshed = objects.map(o => GenerationRecord.describeObject(/** @type {ArchiObject} */ (GenerationRecord.findObject(o))));   // Cast: resolved above
+  return { preset, start, generationRecord: record.element ? { ...kept, element: refreshed[0] } : { ...kept, selection: refreshed } };
 }
 
 /**
  * What a regenerate uses and does not use, so the run explains itself on the console.
- * @param {string}         subject
- * @param {ViewOrigin}     origin
- * @param {OriginObject[]} start
- * @param {string}         destination  a line on where the views go
+ * @param {string}           subject
+ * @param {GenerationRecord} record
+ * @param {RecordedObject[]}   start
+ * @param {string}           destination  a line on where the views go
  */
-function _logRegeneration(subject, origin, start, destination) {
+function _logRegeneration(subject, record, start, destination) {
   Log.debug(`\nRegenerate ${subject}`);
   const names = start.map(o => o.name);
-  Log.info(Log.field("Preset:", `${origin.preset} (saved settings)${origin.direction ? `, direction ${origin.direction}` : ""}`, 0, Log.DETAIL_COLUMN));
+  Log.info(Log.field("Preset:", `${record.preset} (saved settings)${record.direction ? `, direction ${record.direction}` : ""}`, 0, Log.DETAIL_COLUMN));
   Log.info(Log.field("Start:", names.length > 3 ? `${names.length} objects: ${names.slice(0, 3).join(", ")}, …` : names.join(", "), 0, Log.DETAIL_COLUMN));
   Log.debug(`  Start:     ${names.join(", ")}`);
   Log.debug(`  ${destination}`);
   Log.debug(`  Not used:  the dialog's settings, Folder, Name`);
-  if (origin.modified) Log.warn("It was made with unsaved settings, or expanded since.", { effect: "the result can differ from the view as it was." });
+  if (record.modified) Log.warn("It was made with unsaved settings, or expanded since.", { effect: "the result can differ from the view as it was." });
 }
 
 /**
- * The preset of an origin, with the direction of the run; a script's view or a missing preset is reported.
- * @param {ViewOrigin} origin
+ * The preset of a generation record, with the direction of the run; a script's view or a missing preset is reported.
+ * @param {GenerationRecord} record
  * @param {string}     subject  for the message
  * @returns {Preset | null}
  */
-function _originPreset(origin, subject) {
-  if (origin.script) { Log.warn(`${subject} was made by a script that works on after the run.`, { action: `run ${origin.script}.` }); return null; }
-  if (!PresetIO.listPresets().includes(String(origin.preset))) {
-    Log.warn(`${subject}: preset "${origin.preset}" is not found.`, { action: "if it was renamed, a new run with the new name repairs the view." });
+function _recordPreset(record, subject) {
+  if (record.script) { Log.warn(`${subject} was made by a script that works on after the run.`, { action: `run ${record.script}.` }); return null; }
+  if (!PresetIO.listPresets().includes(String(record.preset))) {
+    Log.warn(`${subject}: preset "${record.preset}" is not found.`, { action: "if it was renamed, a new run with the new name repairs the view." });
     return null;
   }
-  const preset = PresetIO.readPreset(String(origin.preset));
-  if (origin.direction) preset.params.direction = origin.direction;
+  const preset = PresetIO.readPreset(String(record.preset));
+  if (record.direction) preset.params.direction = record.direction;
   return preset;
 }
 
@@ -332,13 +332,13 @@ function confirmViewCount(selection, actionId, filter) {
  * @param {PresetFile} preset
  * @param {ArchiCollection<ArchiObject>} selection
  * @param {string} actionId
- * @param {RunOrigin} [origin]  what the run leaves on a new view
- * @param {string}    [presetName]  for the console and the log file when the run leaves no origin
+ * @param {RunRecord} [record]  what the run leaves on a new view
+ * @param {string}    [presetName]  for the console and the log file when the run leaves no generation record
  * @returns {ArchimateView[]}
  */
-function _run(preset, selection, actionId, origin, presetName) {
+function _run(preset, selection, actionId, record, presetName) {
   if (!confirmViewCount(selection, actionId, preset.filter)) { cancelled(); return []; }
-  return GenView.generate_view(preset, selection, actionId, { origin, presetName });
+  return GenView.generate_view(preset, selection, actionId, { generationRecord: record, presetName });
 }
 
 /**

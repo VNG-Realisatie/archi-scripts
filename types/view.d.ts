@@ -921,29 +921,29 @@ interface ConditionTable<K extends ConditionKind> {
 // ── Dialog (Scripts/View/lib/gui) ────────────────────────────────────────────────────────────────
 
 /** The dialog's settings: a validated preset plus dialog-state fields ("_…", kept by preset_io). */
-/** An object of the start of a view: found by id; name is a label (lib/view_origin.js). */
-type OriginObject = { id: string; name: string };
-/** How a view was made, in its property PROP_ORIGIN (lib/view_origin.js). */
-type ViewOrigin = {
+/** An object of the start of a view: found by id; name is a label (lib/generation_record.js). */
+type RecordedObject = { id: string; name: string };
+/** How a view was made, in its property PROP_GENERATION_RECORD (lib/generation_record.js). */
+type GenerationRecord = {
   preset?: string;
   action?: string;
-  selection?: OriginObject[];
+  selection?: RecordedObject[];
   folder?: string;
   mirrored?: boolean;
-  element?: OriginObject;
+  element?: RecordedObject;
   direction?: string;
   modified?: boolean;
   script?: string;
 };
-/** What a run adds to the origin it writes: an entry point's part. */
-type RunOrigin = Pick<ViewOrigin, "preset" | "direction" | "modified" | "script">;
-/** Where a Create action writes: by default the preset's folder; origin: left on the view. */
-type ViewTarget = { name?: string; folder?: () => Folder; view?: ArchimateView; origin?: ViewOrigin };
+/** What a run adds to the generation record it writes: an entry point's part. */
+type RunRecord = Pick<GenerationRecord, "preset" | "direction" | "modified" | "script">;
+/** Where a Create action writes: by default the preset's folder; generationRecord: left on the view. */
+type ViewTarget = { name?: string; folder?: () => Folder; view?: ArchimateView; generationRecord?: GenerationRecord };
 type GenerateOptions = {
-  origin?: RunOrigin;
-  /** The preset's name for the console and the log file, when the run leaves no origin (a session run). */
+  generationRecord?: RunRecord;
+  /** The preset's name for the console and the log file, when the run leaves no generation record (a session run). */
   presetName?: string;
-  /** Regenerate: this view, with this origin. */
+  /** Regenerate: this view, with this generation record. */
   regenerate?: ViewTarget;
   /** Regenerate with siblings: the views of the group by element id. */
   siblings?: { views: Map<string, ArchimateView> };
@@ -1072,7 +1072,7 @@ type DialogWidgets = {
   /** "View:" and the view a Modify action changes. */
   modifyView: { title: Swt.Label; text: Swt.Label };
   lblCreateNote: Swt.Label;
-  lblOriginNote: Swt.Label;
+  lblRecordNote: Swt.Label;
   btnRun: Swt.Button;
 };
 

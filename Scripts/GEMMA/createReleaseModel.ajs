@@ -12,7 +12,7 @@
  * - Creates a releaseModel (a copy of the model)
  * - Filters the releaseModel:
  *   - Only keeps views with the property `publicatie=GEMMA online`
- *   - Removes the View origin from the kept views
+ *   - Removes the View generation record from the kept views
  *   - Deletes unused elements and relation
  *   - Deletes empty folders
  *
@@ -30,7 +30,7 @@ const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf(
 const Log    = require(REPO_ROOT + "_lib/log");
 const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders.js");
 const Gemma = require(__DIR__ + "include_GEMMA.js");
-const { PROP_ORIGIN } = require(REPO_ROOT + "View/lib/defs");
+const { PROP_GENERATION_RECORD } = require(REPO_ROOT + "View/lib/defs");
 
 Log.start(__FILE__, true);
 
@@ -114,8 +114,8 @@ function filterReleaseModel() {
     view.delete();
   });
 
-  // The origin of a view is working data, not publication content
-  viewsToPublish.each((view) => view.removeProp(PROP_ORIGIN));
+  // The generation record of a view is working data, not publication content
+  viewsToPublish.each((view) => view.removeProp(PROP_GENERATION_RECORD));
 
   // Delete elements not used in any view
   let elementsToDelete = $("element").filter((element) => $(element).viewRefs().size() === 0);

@@ -98,8 +98,8 @@ Shared (Layers 1–2) ───────────────────�
 | Module | Layer | Responsibility | Uses |
 |---|---|---|---|
 | `View/_*.ajs`, `shortcuts/**/<preset>_<action>_<direction>.ajs` | 1 | Entry scripts: `Default`, session or named preset + fixed overrides → API | `run_preset` |
-| `lib/run_preset.js` | 1 | Preset, action and direction from the file name, the preset `Default`, the session, or the origin of a view | `preset_io`, `generate_view`, `view_origin`, `defs` |
-| `lib/view_origin.js` | 2 | The origin of a view: describe the start, read, write, find its objects | `selection_read`, `defs` |
+| `lib/run_preset.js` | 1 | Preset, action and direction from the file name, the preset `Default`, the session, or the generation record of a view | `preset_io`, `generate_view`, `generation_record`, `defs` |
+| `lib/generation_record.js` | 2 | The generation record of a view: describe the start, read, write, find its objects | `selection_read`, `defs` |
 | `lib/gui/dialog_main.js` | 1 | Generate View dialog: opening, action area, settings ↔ widgets sync, putting the counts on the widgets | the gui modules, `preset_io`, `generate_view`, `selection_read`, `defs` |
 | `lib/gui/preset_row.js` | 1 | Preset row: picker, modified indicator, Save, Save As, Rename (the OS save dialog), Delete, description and Edit…; loading a preset | `preset_io`, `widgets` |
 | `lib/gui/tab_selection.js`, `tab_layout.js`, `tab_appearance.js`, `tab_properties.js` | 1 | One tab each: Selection (filters, step blocks), Layout (algorithm, nesting, containers, flow, elements, connections, view size; the param → widget table `PARAM_WIDGETS`; controls that follow the algorithm), Appearance, Properties (Object ID, view properties) | `widgets`, `condition_table`, `counts`, `defs`, `appearance`, `rel_filter`, `palettes` |
@@ -170,7 +170,7 @@ Code outside the subsystem uses only these exports (SPEC § 3); everything else 
 
 | Export | Contract | Callers |
 |---|---|---|
-| `generate_view.generate_view(preset, selection, actionId?, options?)` | Validates the preset, runs the action (default `NEW_VIEW`), returns the written views; `options.origin` leaves an origin on a new view, without it none | `run_preset`, the dialog, `Scripts/GEMMA/GGM/4_ggm_gemma_views.ajs` |
+| `generate_view.generate_view(preset, selection, actionId?, options?)` | Validates the preset, runs the action (default `NEW_VIEW`), returns the written views; `options.generationRecord` leaves a generation record on a new view, without it none | `run_preset`, the dialog, `Scripts/GEMMA/GGM/4_ggm_gemma_views.ajs` |
 | `run_preset.fromFilename(file, selection, opts?)` | Preset, action and direction from the script's file name; `opts.folder`, `opts.preset`, `opts.edit` | `shortcuts/**`, `Scripts/GEMMA/GGM/*_<action>_<Dir>.ajs` |
 | `run_preset.fromDefault(selection, actionId, params?)` | The preset `Default` with params replaced | `View/_default_*.ajs` |
 | `run_preset.fromSession(selection, actionId, change)` | The session with one change, kept in the session | `View/_session_*.ajs` |
@@ -334,14 +334,14 @@ Dialog (live counts, before the run) — gui/counts · dialogCounts calls the sa
 | The set of diagram-object types is closed. | Each type needs explicit handling in filtering, traversal and rendering; the filter UI and iteration rely on a closed set. |
 | Relations, VisualRelations and diagram-model-connections are kept apart from positional objects throughout the pipeline. | An edge has endpoints, not coordinates; as a node it would corrupt the layout graph. One rule covers all three kinds. |
 | Action is a runtime parameter, not preset content. | A preset is a *configuration*, an action a *verb*; sharing presets across selections needs action-agnosticism. |
-| The origin of *One view each* keeps where its views went: the folder as its full path under Views, with `mirrored` for Mirrored. | Regenerate puts new siblings where the old ones went, whatever the preset says now. An origin written before schema 9 (Mirrored without `folder`, with `underGenerated`) is read as the folder and `mirrored` it stands for (`view_origin.read`): the views are in the model and cannot be migrated by a tool. |
+| The generation record of *One view each* keeps where its views went: the folder as its full path under Views, with `mirrored` for Mirrored. | Regenerate puts new siblings where the old ones went, whatever the preset says now. A generation record written before schema 9 (Mirrored without `folder`, with `underGenerated`) is read as the folder and `mirrored` it stands for (`generation_record.read`): the views are in the model and cannot be migrated by a tool. |
 | The view name is one user-controlled field; `view.suffix` applies to One view each only. | An algorithm-derived suffix once rewrote the typed name on algorithm switch. The suffix is a fixed preset value appended to each element name (e.g. `" (GGM)"`); the Name field is never changed. |
-| The start of a view is kept on the view, in its origin, not in a preset, script or named session. | A start holds in one model, so it travels with the model and the view; a preset stays reusable across models. A named session would copy the settings and drift from the preset. |
-| The origin refers to the preset by name, not by a copy. | A better preset reaches every view. A view made with unsaved settings cannot come back exactly; it is marked, and Regenerate says so. |
-| An origin finds objects by id; the readable path beside it is a label. | An id survives a rename and a move, a name need not be unique, and a match on a name can silently find another object. |
+| The start of a view is kept on the view, in its generation record, not in a preset, script or named session. | A start holds in one model, so it travels with the model and the view; a preset stays reusable across models. A named session would copy the settings and drift from the preset. |
+| The generation record refers to the preset by name, not by a copy. | A better preset reaches every view. A view made with unsaved settings cannot come back exactly; it is marked, and Regenerate says so. |
+| A generation record finds objects by id; the readable path beside it is a label. | An id survives a rename and a move, a name need not be unique, and a match on a name can silently find another object. |
 | A view in the selection is kept as its elements at that moment. | A view that replaced itself would otherwise be its own start and grow with every regenerate. |
 | Regenerate is an entry point, not a fifth action. | It runs *New view* on the existing view, through the one write path (View rule 9). |
-| `generate_view` writes an origin only when the caller gives one. | Only an entry point knows the preset's name. A raw API call and the baseline stay as they were. |
+| `generate_view` writes a generation record only when the caller gives one. | Only an entry point knows the preset's name. A raw API call and the baseline stay as they were. |
 | Expand view's target comes from the existing visuals, not from the preset name. | The preset name is for *creating* a view; expanding acts on that specific view (View rule 10). |
 
 ### Selection
@@ -775,7 +775,7 @@ What is remembered where, and why:
 | Settings: filter, steps, layout, appearance, default folder | preset | Reusable across models, so it holds nothing of one model. Shared and versioned. |
 | Last dialog state: settings, open tab, chosen action, size and position | session | Belongs to the user's last work. Never a source for a repeatable run. |
 | Fixed preset, action and direction | script | A named task, one key, on the current selection. |
-| How a view was made: start, destination, preset name, action | origin, on the view | A start only holds in one model, so it travels with the model and with the view it describes. |
+| How a view was made: start, destination, preset name, action | generation record, on the view | A start only holds in one model, so it travels with the model and with the view it describes. |
 | A start by a rule, work after the run | script | A rule (all policy domains with a status) is not a list of objects, and styling after the run is not a preset setting. |
 
 | What | Where | Notes |
@@ -788,7 +788,7 @@ What is remembered where, and why:
 | Log files | `logs/archi-scripts/` in Archi's workspace folder | One per run, the newest 20 kept ([Logging](#logging)); outside the repo |
 | View properties | the generated view | From the Properties tab; optional object-id property |
 | Managed-occurrence records | view property `Managed occurrence` | Rewritten by every run; not for editing |
-| Origin | view property `View origin` | Written by *New view* and *One view each* through an entry point; removed from a release by `createReleaseModel.ajs` |
+| Generation record | view property `View generation record` | Written by *New view* and *One view each* through an entry point; removed from a release by `createReleaseModel.ajs` |
 
 Overwriting a view by name (`NEW_VIEW`) empties it but keeps the view and its properties.
 

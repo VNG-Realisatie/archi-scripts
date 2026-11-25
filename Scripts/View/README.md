@@ -74,7 +74,7 @@ Run a saved preset without the dialog.
 
 The first four keep their change in the session: changes stack, and the dialog shows them with `*`, so Save keeps them.
 
-**Regenerate** — make a view again from its origin, which *New view* and *One view each* leave on it:
+**Regenerate** — make a view again from its generation record, which *New view* and *One view each* leave on it:
 
 | Script | Action |
 |---|---|

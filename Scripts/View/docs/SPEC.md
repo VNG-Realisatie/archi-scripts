@@ -16,13 +16,13 @@ Starting with a selection, generate or modify the layout of ArchiMate **views**.
 - quickly generate a starting point for a new view
 - generate context views: one view per element with its related elements (*One view each*), e.g. a view per GGM data object
 - analyse your model by generating different views; use nesting to find unexpected relations, see double relations, etc.
-- generate complex views from one preset — filter, steps, layout, appearance and view properties — and regenerate them from what each view remembers (its origin) when the model changes, e.g. the GEMMA publication views
+- generate complex views from one preset — filter, steps, layout, appearance and view properties — and regenerate them from what each view remembers (its generation record) when the model changes, e.g. the GEMMA publication views
 - lay out a hand-made view again (*Layout only*) or extend it (*Expand view*), keeping what the user put there: legends, notes, hand-placed duplicates
 - drive view generation from other scripts through the API, e.g. the GGM pipeline that generates, styles and sets the properties of the views per policy domain
 
 ### Scope
 
-In scope: generating or modifying views with different layouts; storing and reusing selection and layout configurations (presets); making a generated view again from its origin; a configuration UI; session continuity.
+In scope: generating or modifying views with different layouts; storing and reusing selection and layout configurations (presets); making a generated view again from its generation record; a configuration UI; session continuity.
 
 Out of scope: model authoring beyond what layout implies; editing element properties; exporting to image formats; view diff/merge; real-time collaborative editing.
 
@@ -79,8 +79,8 @@ One name per concept across UI, docs, logs and code, grouped by subject.
 - **condition / condition list**: a condition is a pattern over element and relation types (*All* = any), either *Include* or *Exclude*. A list keeps any Include match minus any Exclude match.
 - **Action**: a runtime verb (create / per-element / expand / re-layout); never stored in a preset.
 - **Session**: the last-used configuration and dialog state (open tab, chosen action, window size and position), restored when the UI opens.
-- **Origin**: how a generated view was made (start, destination, preset, action), kept on the view, so it can be made again.
-- **Regenerate**: making a view again from its origin, where it stands.
+- **Generation record**: what a run records on the view it generated: the preset by name, the action, the start and the destination (folder, mirrored); for *One view each* its element; marks such as modified settings. It is the result afterwards, so the view can be made again.
+- **Regenerate**: making a view again from its generation record, where it stands.
 - **Siblings**: the views of one *One view each* run: the same start, preset and action.
 - **VisualSet**: the existing visual objects of one target view, captured before a run.
 
@@ -111,7 +111,7 @@ Layer 1 — Entry points      produce (preset, selection, action), call the API
   • Generate View dialog  — defines selection/layout/styling; live counts; only editor of presets
   • Preset-bound scripts  — headless: load a preset, call the API, exit
   • Session scripts      — headless: run the session with one change, kept in the session
-  • Regenerate scripts   — headless: run what the origin of a view holds
+  • Regenerate scripts   — headless: run what the generation record of a view holds
 Layer 2 — View-generation API   sole orchestrator and sole writer to views
   validate preset → run selection → build layout graph → call engine → write → style
 Layer 3 — Engine adapters   one per engine: layout graph in, positions out; nothing else
@@ -198,12 +198,12 @@ A model-tree selection can drive only the Create group, because nothing identifi
 
 The console names the folder of every view written. An element the preset's element filter drops gets no view, so no view stays empty.
 
-**Regenerate.** *New view* and *One view each* leave an **origin** on the view: the start, the preset by name, the action and, for *One view each*, the element and where its views went. The start is what was selected: a folder stays a folder, so new elements in it join; a view is kept as the elements on it at that moment, so a view that replaced itself does not grow with every regenerate, and its diagram objects do not come back. Objects are found by their identity, which survives a rename and a move; their readable path is a label, never used to find them.
+**Regenerate.** *New view* and *One view each* leave a **generation record** on the view: the start, the preset by name, the action and, for *One view each*, the element and where its views went. The start is what was selected: a folder stays a folder, so new elements in it join; a view is kept as the elements on it at that moment, so a view that replaced itself does not grow with every regenerate, and its diagram objects do not come back. Objects are found by their identity, which survives a rename and a move; their readable path is a label, never used to find them.
 - *Regenerate* makes the selected views, or the views in a selected folder, again where they stand, with the saved preset; hand edits are lost. A view of *One view each* regenerates only itself.
 - *Regenerate with siblings* runs the start and action again: siblings are updated wherever they are now, a new element gets a view, and a view whose element left the start is reported and stays.
 - A view with a missing object or preset is reported and not written. A renamed preset is such a case; a new run repairs the view. A view made by a script that works on after the run is refused, naming the script.
 - A view made with unsaved settings, or changed by *Expand view* since, is marked; Regenerate says the result can differ. Each run reports what it uses and what it does not.
-- A published release does not carry origins: they are working data.
+- A published release does not carry generation records: they are working data.
 
 **Many views.** Before *One view each* writes more than 20 views, the entry point asks the user to confirm; the count is what passes the filter. Selected elements of more than one type give a warning on the console; the run goes on.
 

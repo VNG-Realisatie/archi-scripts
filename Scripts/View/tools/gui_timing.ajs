@@ -46,7 +46,7 @@ const MODULES = [
   "View/lib/layout_graph.js", "View/lib/process_runner.js", "View/lib/engines/registry.js",
   "View/lib/node_layout.js", "View/config.default.js", "View/lib/view_config.js",
   "View/lib/text_measure.js", "View/lib/write_plan.js", "View/lib/view_writer.js",
-  "View/lib/view_origin.js", "View/lib/generate_view.js", "View/lib/run_preset.js",
+  "View/lib/generation_record.js", "View/lib/generate_view.js", "View/lib/run_preset.js",
   "View/lib/gui/counts.js", "View/lib/gui/widgets.js", "View/lib/gui/condition_table.js",
   "View/lib/gui/tab_selection.js", "View/lib/gui/tab_appearance.js", "View/lib/gui/tab_layout.js",
   "View/lib/gui/tab_properties.js", "View/lib/gui/preset_row.js",

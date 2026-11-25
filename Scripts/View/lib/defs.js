@@ -23,8 +23,8 @@ const ConditionLists = require(REPO_ROOT + "View/lib/rel_filter");
 const PROP_ID = "Object ID";
 // View property recording one managed occurrence: "<element id> in <container id> [in …]".
 const PROP_MANAGED_OCCURRENCE = "Managed occurrence";
-// View property with how the view was made (lib/view_origin.js).
-const PROP_ORIGIN = "View origin";
+// View property with how the view was made (lib/generation_record.js).
+const PROP_GENERATION_RECORD = "View generation record";
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
@@ -1144,7 +1144,7 @@ function validatePreset(raw) {
     if (typeof rv.addObjectId === "boolean") preset.viewProperties.addObjectId = rv.addObjectId;
     if (Array.isArray(rv.properties)) {
       preset.viewProperties.properties = rv.properties
-        .filter((/** @type {PresetFile} */ p) => p && typeof p.key === "string" && p.key !== PROP_ID && p.key !== PROP_MANAGED_OCCURRENCE && p.key !== PROP_ORIGIN)
+        .filter((/** @type {PresetFile} */ p) => p && typeof p.key === "string" && p.key !== PROP_ID && p.key !== PROP_MANAGED_OCCURRENCE && p.key !== PROP_GENERATION_RECORD)
         .map((/** @type {PresetFile} */ p) => ({
           key:     String(p.key),
           value:   p.value !== undefined ? String(p.value) : "",
@@ -1215,7 +1215,7 @@ if (typeof module !== "undefined" && module.exports) {
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
     DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID, VISUAL_ATTRIBUTES,
-    PROP_ID, PROP_MANAGED_OCCURRENCE, PROP_ORIGIN,
+    PROP_ID, PROP_MANAGED_OCCURRENCE, PROP_GENERATION_RECORD,
     GENERATED_VIEW_FOLDER, SESSION_FILENAME, ONE_EACH_CONFIRM_ABOVE, viewFolderPath,
     SPLINE_SAMPLE_POINTS,
     DEFAULT_PRESET,

@@ -1,0 +1,39 @@
+/**
+ * One-shot model migration: the view property "View origin" becomes "View generation record", same value.
+ * Model data lives outside the repo, so it is migrated, not read under both names (repo hard rule 3).
+ *
+ * In Archi: select the model (or anything in it), run this script, then save the model. Idempotent:
+ * a view with only the new key is left alone; a view with both keys and the same value loses the old
+ * one; a view with both keys and different values is reported and left as it is.
+ */
+if (typeof require !== "function") { const m = "This script needs jArchi 1.11 or later, with CommonJS on: in Archi, open Preferences > Scripting and tick \"Enable CommonJS Support\" (no such option: update jArchi first). Then run the script again."; try { window.alert(m); } catch (e) { console.error(m); } exit(); }
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+/** @type {typeof import("../../_lib/log")} */
+const Log = require(REPO_ROOT + "_lib/log");
+/** @type {typeof import("../lib/defs")} */
+const Defs = require(REPO_ROOT + "View/lib/defs");
+/** @type {typeof import("../../_lib/archi_folders")} */
+const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders");
+
+const OLD_KEY = "View origin";
+
+Log.start(__FILE__, true);
+if (!model.isSet()) {
+  Log.error("No model is selected.", { effect: "nothing is migrated.", action: "select the model in the model tree and run the script again." });
+} else {
+  let renamed = 0, duplicates = 0;
+  /** @type {string[]} */
+  const conflicts = [];
+  $("view").each(view => {
+    const old = view.prop(OLD_KEY);
+    if (old === null) return;
+    const current = view.prop(Defs.PROP_GENERATION_RECORD);
+    if (current === null) { view.prop(Defs.PROP_GENERATION_RECORD, old); view.removeProp(OLD_KEY); renamed++; }
+    else if (current === old) { view.removeProp(OLD_KEY); duplicates++; }
+    else conflicts.push(`${ArchiFolders.printFolderPath(view)}${view.name}`);
+  });
+  Log.info(`Model "${model.name}": ${renamed} view${renamed === 1 ? "" : "s"} renamed "${OLD_KEY}" → "${Defs.PROP_GENERATION_RECORD}"; ${duplicates} with both keys and the same value lost the old key.`);
+  for (const v of conflicts) Log.warn(`${v} has both keys with different values.`, { effect: "it is left as it is.", action: `keep the right value under "${Defs.PROP_GENERATION_RECORD}" and remove "${OLD_KEY}".` });
+  if (renamed + duplicates) Log.info("Save the model to keep the change.");
+}
+Log.finish();

@@ -173,11 +173,11 @@ The file is read when the dialog builds its Appearance tab and at a run with sty
 { "hidden": [ "GEMMA URL", "path", … ] }
 ```
 
-*Object ID*, *Managed occurrence* and *View origin* are always hidden and not listed. The file is read when the tab is built and at each run; an unusable file stops the run with a message naming what is wrong. Without the file only the two always-hidden keys apply. A preset row with a hidden key is left alone and the console says to remove it.
+*Object ID*, *Managed occurrence* and *View generation record* are always hidden and not listed. The file is read when the tab is built and at each run; an unusable file stops the run with a message naming what is wrong. Without the file only the two always-hidden keys apply. A preset row with a hidden key is left alone and the console says to remove it.
 
-## View origin
+## View generation record
 
-The view property *View origin* holds how the view was made, as JSON, for Regenerate:
+The view property *View generation record* holds how the view was made, as JSON, for Regenerate:
 
 ```json
 { "preset": "GEMMA/GGM/GGM bedrijfsobject specialisaties", "direction": "Down", "action": "one_each",
@@ -185,7 +185,9 @@ The view property *View origin* holds how the view was made, as JSON, for Regene
   "folder": "/_Generated/Project", "element": { "id": "id-91bc", "name": "Klant" } }
 ```
 
-`id` finds the object; `name` is a label, refreshed at every regenerate. `direction`: only when the run overruled the preset. `folder`: *One view each*, the full path under Views (`"/"` = Views itself); with `mirrored`, the root of the mirrored folders. An origin from before schema 9 (Mirrored without `folder`, with `underGenerated`) is read as `folder` and `mirrored`. `element`: *One view each*. `modified`: made with unsaved settings, or expanded since. `script`: made by that script; the origin then holds only this key.
+`id` finds the object; `name` is a label, refreshed at every regenerate. `direction`: only when the run overruled the preset. `folder`: *One view each*, the full path under Views (`"/"` = Views itself); with `mirrored`, the root of the mirrored folders. A generation record from before schema 9 (Mirrored without `folder`, with `underGenerated`) is read as `folder` and `mirrored`. `element`: *One view each*. `modified`: made with unsaved settings, or expanded since. `script`: made by that script; the generation record then holds only this key.
+
+**Model migration.** Until 2026-11-25 the property was called *View origin*. `tools/migrate_view_generation_record.ajs` renames it in the selected model (idempotent; a view with both keys and different values is reported and left as it is); save the model afterwards.
 
 **Schema 10 migration.** `tools/migrate_presets_nesting_style.js` (idempotent, every preset and `_session.json`): the global numbers of `nestingLevel` go into every condition; `bold: true` becomes `fontStyle: "bold"`, otherwise `"normal"`; `backgroundView.on` is `true`; `backgroundKeepAppearance: true` becomes `color: "background"` and `fontStyle: "background"` in every condition (the font size stays), so those views keep their look. A palette color named `same` or `background` (since schema 12 `template`) is refused.
 

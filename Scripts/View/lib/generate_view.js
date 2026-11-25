@@ -52,8 +52,8 @@ const TextMeasure = require(REPO_ROOT + "View/lib/text_measure");
 const WritePlan  = require(REPO_ROOT + "View/lib/write_plan");
 /** @type {typeof import("./view_writer")} */
 const ViewWriter = require(REPO_ROOT + "View/lib/view_writer");
-/** @type {typeof import("./view_origin")} */
-const ViewOrigin = require(REPO_ROOT + "View/lib/view_origin");
+/** @type {typeof import("./generation_record")} */
+const GenerationRecord = require(REPO_ROOT + "View/lib/generation_record");
 /** @type {typeof import("./appearance")} */
 const Appearance = require(REPO_ROOT + "View/lib/appearance");
 /** @type {typeof import("./engines/engine-utils")} */
@@ -121,7 +121,7 @@ function checkEngineParams(preset) {
  * @param {PresetFile}      rawPreset   raw preset object (will be validated)
  * @param {ArchiCollection<ArchiObject>} uiSelection $(selection) from Archi UI
  * @param {string}          [actionId]  ACTION.*.id (runtime — not stored in preset files); default NEW_VIEW
- * @param {GenerateOptions} [options]   origin of the run; without it a new view gets no origin
+ * @param {GenerateOptions} [options]   generation record of the run; without it a new view gets none
  * @returns {ArchimateView[]}
  * @throws when the run fails; the caller shows the reason (ARCHITECTURE § Errors)
  */
@@ -237,8 +237,8 @@ function _openView(view) {
  * @param {GenerateOptions}              options
  */
 function _logStart(preset, rawParams, action, uiSelection, options) {
-  const origin = options.origin || {};
-  const presetName = origin.preset || options.presetName || "unnamed preset";
+  const record = options.generationRecord || {};
+  const presetName = record.preset || options.presetName || "unnamed preset";
   const actionLabel = (Object.values(ACTION).find(a => a.id === action) || { label: action }).label;
   const p = preset.params;
   const nesting = p.nestingConditions && p.nestingConditions.length
@@ -255,8 +255,8 @@ function _logStart(preset, rawParams, action, uiSelection, options) {
 
   Log.info("");
   Log.info(`View generation: ${actionLabel}`);
-  Log.info(Log.field("Preset:", `${presetName}${origin.modified ? " (modified, not saved)" : ""}`
-    + (origin.direction ? ` · direction ${origin.direction} (script name)` : ""), 2));
+  Log.info(Log.field("Preset:", `${presetName}${record.modified ? " (modified, not saved)" : ""}`
+    + (record.direction ? ` · direction ${record.direction} (script name)` : ""), 2));
   Log.info(Log.field("Selection:", selection, 2));
   Log.info(Log.field("Settings:", settings, 2));
   if (hidden.length) Log.info(Log.field("", `also active, not in the dialog: ${hidden.join(" · ")}`, 2));
@@ -413,7 +413,7 @@ function applyViewProperties(view, preset) {
  * @param {MaskedPreset}                 preset
  * @param {ArchiCollection<ArchiObject>} uiSelection
  * @param {string}                       actionId
- * @param {ViewTarget}                   target  where a Create action writes, and the origin it leaves
+ * @param {ViewTarget}                   target  where a Create action writes, and the generation record it leaves
  * @param {LayoutRuntime}                runtime
  * @returns {{ view: ArchimateView, status: string, details: string[] } | null}  status: New, Updated or
  *   Overwritten; details: the console lines under it; null when there is nothing to place
@@ -465,7 +465,7 @@ function _generateSingle(preset, uiSelection, actionId, target, runtime) {
   Appearance.applyAppearance(view, preset, actionId, TextMeasure.defaultViewFont(), keep,
     { elements: Table.elementsOf(planned.objectSet.tables), looks: planned.objectSet.templateLooks || new Map() });
   applyViewProperties(view, preset);
-  _recordOrigin(view, actionId, target);
+  _writeGenerationRecord(view, actionId, target);
   timer.lap("appearance");
 
   Log.debug(`\nTiming: ${timer.summary()}`);
@@ -822,7 +822,7 @@ function _generateOneEach(preset, uiSelection, runtime, options) {
 
   const siblings = options.siblings;
   const mirror = preset.view.mirrored;
-  const start = options.origin && !options.origin.script ? ViewOrigin.describeStart(uiSelection) : [];
+  const start = options.generationRecord && !options.generationRecord.script ? GenerationRecord.describeStart(uiSelection) : [];
 
   /** @type {ArchimateView[]} */
   const views = [];
@@ -831,8 +831,8 @@ function _generateOneEach(preset, uiSelection, runtime, options) {
     /** @type {ViewTarget} */
     const target = { name: element.name + preset.view.suffix, view: siblings && siblings.views.get(String(element.id)) };
     if (mirror) target.folder = () => _mirroredFolder(element, preset.view);
-    if (options.origin) target.origin = options.origin.script ? options.origin : {
-      ...options.origin, action: ACTION.ONE_EACH.id, selection: start, element: ViewOrigin.describeObject(element),
+    if (options.generationRecord) target.generationRecord = options.generationRecord.script ? options.generationRecord : {
+      ...options.generationRecord, action: ACTION.ONE_EACH.id, selection: start, element: GenerationRecord.describeObject(element),
       folder: Defs.viewFolderPath(preset.view), ...(mirror ? { mirrored: true } : {}),
     };
     const view = _generateView(preset, $(element), ACTION.NEW_VIEW.id, target, runtime, target.name || element.name);
@@ -862,7 +862,7 @@ function _mirroredFolder(element, view) {
 // ── View target ───────────────────────────────────────────────────────────────
 
 /**
- * The target of a New view run. Expand view and Layout only have their view, and leave the origin.
+ * The target of a New view run. Expand view and Layout only have their view, and leave the generation record.
  * @param {ArchiCollection<ArchiObject>} uiSelection
  * @param {string}                       action
  * @param {GenerateOptions}              options
@@ -870,8 +870,8 @@ function _mirroredFolder(element, view) {
  */
 function _singleTarget(uiSelection, action, options) {
   if (options.regenerate) return options.regenerate;
-  if (action !== ACTION.NEW_VIEW.id || !options.origin) return {};
-  return { origin: options.origin.script ? options.origin : { ...options.origin, action, selection: ViewOrigin.describeStart(uiSelection) } };
+  if (action !== ACTION.NEW_VIEW.id || !options.generationRecord) return {};
+  return { generationRecord: options.generationRecord.script ? options.generationRecord : { ...options.generationRecord, action, selection: GenerationRecord.describeStart(uiSelection) } };
 }
 
 /**
@@ -891,17 +891,17 @@ function _targetView(preset, elements, target) {
 }
 
 /**
- * A new view gets the origin of its run, or loses one of an earlier run. Expand view changes what
+ * A new view gets the generation record of its run, or loses one of an earlier run. Expand view changes what
  * a regenerate gives; Layout only does not.
  * @param {ArchimateView} view
  * @param {string}        actionId
  * @param {ViewTarget}    target
  */
-function _recordOrigin(view, actionId, target) {
-  if (actionId === ACTION.EXPAND_VIEW.id) ViewOrigin.markModified(view);
+function _writeGenerationRecord(view, actionId, target) {
+  if (actionId === ACTION.EXPAND_VIEW.id) GenerationRecord.markModified(view);
   else if (actionId === ACTION.NEW_VIEW.id) {
-    if (target.origin) ViewOrigin.write(view, target.origin);
-    else ViewOrigin.remove(view);
+    if (target.generationRecord) GenerationRecord.write(view, target.generationRecord);
+    else GenerationRecord.remove(view);
   }
 }
 

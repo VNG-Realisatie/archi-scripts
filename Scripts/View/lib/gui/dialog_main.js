@@ -33,8 +33,8 @@ const PresetIO = require(REPO_ROOT + "View/lib/preset_io");
 const GenView = require(REPO_ROOT + "View/lib/generate_view");
 /** @type {typeof import("../run_preset")} */
 const RunPreset = require(REPO_ROOT + "View/lib/run_preset");
-/** @type {typeof import("../view_origin")} */
-const ViewOrigin = require(REPO_ROOT + "View/lib/view_origin");
+/** @type {typeof import("../generation_record")} */
+const GenerationRecord = require(REPO_ROOT + "View/lib/generation_record");
 /** @type {typeof import("../selection_pipeline")} */
 const Pipeline = require(REPO_ROOT + "View/lib/selection_pipeline");
 /** @type {typeof import("../selection_read")} */
@@ -356,7 +356,7 @@ function open(uiSelection) {
   if (!RunPreset.confirmViewCount(ctx.uiSelection, ctx._actionId, ctx.config.filter)) { RunPreset.cancelled(); return; }
   try {
     const run = { ...ctx.config, view: { ...ctx.config.view, ...(ctx.runFolder === undefined ? {} : { folder: ctx.runFolder }) } };
-    GenView.generate_view(run, ctx.uiSelection, ctx._actionId, { origin: { preset: PresetRow.presetName(ctx), ...(ctx.modified ? { modified: true } : {}) } });
+    GenView.generate_view(run, ctx.uiSelection, ctx._actionId, { generationRecord: { preset: PresetRow.presetName(ctx), ...(ctx.modified ? { modified: true } : {}) } });
     RunPreset.reportOutcome();
   } catch (e) {
     RunPreset.showFailure(e);
@@ -781,17 +781,17 @@ function _showFolderChoice(ctx, nothing) {
 }
 
 /**
- * The note on the origin of the one selected view, "" without one.
+ * The note on the generation record of the one selected view, "" without one.
  * @param {DialogContext} ctx
  * @returns {string}
  */
-function _originNote(ctx) {
-  const origin = ctx.selectedView ? ViewOrigin.read(ctx.selectedView) : null;
-  if (!origin) return "";
-  if (origin.script) return `Made by "${origin.script}".`;
-  const start = origin.element ? [origin.element] : origin.selection || [];
+function _recordNote(ctx) {
+  const record = ctx.selectedView ? GenerationRecord.read(ctx.selectedView) : null;
+  if (!record) return "";
+  if (record.script) return `Made by "${record.script}".`;
+  const start = record.element ? [record.element] : record.selection || [];
   const more = start.length > 1 ? ` and ${start.length - 1} more` : "";
-  return `Made from "${start.length ? start[0].name : "nothing"}${more}" with preset "${origin.preset}"`;
+  return `Made from "${start.length ? start[0].name : "nothing"}${more}" with preset "${record.preset}"`;
 }
 
 /**
@@ -813,7 +813,7 @@ function _refreshAction(ctx) {
   _showFolderChoice(ctx, nothing);
   for (const lbl of [w.modifyView.title, w.modifyView.text]) lbl.setEnabled(!create);
   w.lblCreateNote.setFont(nothing ? Widgets.getBoldFont() : w.lblCreateNote.getDisplay().getSystemFont());
-  w.lblOriginNote.setText(_originNote(ctx));
+  w.lblRecordNote.setText(_recordNote(ctx));
   _showTotals(ctx);
 }
 
@@ -835,10 +835,10 @@ function _showTotals(ctx) {
     _showRow([w.lblCreateNote], !!w.lblCreateNote.getText());
     // Layout only rearranges what is on the view: the Expand view totals do not apply.
     _showRow([w.expandTotals.box], !!(ctx.counts && ctx.counts.expandView) && ctx.action !== ACTION.LAYOUT_ONLY.id);
-    _showRow([w.lblOriginNote], !!w.lblOriginNote.getText());
+    _showRow([w.lblRecordNote], !!w.lblRecordNote.getText());
     // The line count may change: lay out these labels and their ancestors only, not every tab.
     const changed = [w.createTotals, w.expandTotals].flatMap(t => [t.box, t.title, ...t.rows.flatMap(r => [r.sub, r.counts])]);
-    if (ctx.area) ctx.area.layout(Java.to([...changed, w.lblMirrored, w.lblCreateNote, w.lblOriginNote], "org.eclipse.swt.widgets.Control[]"));
+    if (ctx.area) ctx.area.layout(Java.to([...changed, w.lblMirrored, w.lblCreateNote, w.lblRecordNote], "org.eclipse.swt.widgets.Control[]"));
   } catch (e) {}   // silent: text and layout during a dialog update, on widgets that may be disposed
 }
 
@@ -937,8 +937,8 @@ function _buildActionArea(area, ctx, dlg, target) {
     "everything on it, plus the elements and relations the steps add from the selected elements.\n" +
     "The filter does not apply.");
   w.expandTotals.box.getLayoutData().horizontalSpan = 2;
-  w.lblOriginNote = Widgets.noteLabel(grpModify, "");
-  w.lblOriginNote.getLayoutData().horizontalSpan = 2;
+  w.lblRecordNote = Widgets.noteLabel(grpModify, "");
+  w.lblRecordNote.getLayoutData().horizontalSpan = 2;
   w.modifyView = _viewRow(grpModify, 2, rowHeight);
   const lblTarget = w.modifyView.text;
   lblTarget.setText(target.path || "— select a view, or elements on a view");
@@ -949,7 +949,7 @@ function _buildActionArea(area, ctx, dlg, target) {
   if (targetViewName) lblTarget.setFont(Widgets.getBoldFont());
 
   _fitGroupOnResize(area, grpCreate, w.createTotals, w.lblCreateNote);
-  _fitGroupOnResize(area, grpModify, w.expandTotals, w.lblOriginNote);
+  _fitGroupOnResize(area, grpModify, w.expandTotals, w.lblRecordNote);
 
   // ── Run and Cancel: bottom right ──
   const buttonRow = new CompositeWidget(area, SWT.NONE);

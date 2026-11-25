@@ -434,7 +434,7 @@ Two groups of equal height; each holds two choices of the one action. Run and Ca
   - *Expand view* is enabled only when objects on the view are selected, because it expands from them;
   - *Layout only*;
   - *View:* names the target: the view of the selected canvas objects, or a view selected in the model tree; without a target, the line says what to select and both choices are disabled;
-  - with one selected view that has an origin, a note says how it was made: *Made from /Business/Processen with preset X.*
+  - with one selected view that has a generation record, a note says how it was made: *Made from /Business/Processen with preset X.*
 - **Nothing to place.** When no selected element passes the element filter (and *New view* has no diagram objects to copy), a Create action writes nothing: Run is disabled, nothing is bold and a bold note says why: *Nothing to place: no selected element passes the element filter (Selection tab).* A run without the dialog that has nothing to place says the same on the console as an error, with the selected count.
 - **Run** names the result: *Create view*, *Replace view* when that view exists, *Create 12 views*, *Expand view*, *Layout only*.
 - **Cancel** discards changes and remembers UI-only state (the active tab, the chosen action, the size and position of the dialog) for the next open; so does the window's close button.
