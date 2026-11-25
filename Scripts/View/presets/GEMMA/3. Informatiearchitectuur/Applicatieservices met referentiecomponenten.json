@@ -41,7 +41,7 @@
     "connectionLabelSpacing": false,
     "backgroundView": {
       "id": "id-e3defc7db98b4103aab7af54eb1b86b4",
-      "path": "/Views/Beheer/Background views/Background applicatieservices",
+      "path": "/Views/Beheer/View templates/Applicatieservices",
       "on": true
     },
     "backgroundLeavesInPlace": false

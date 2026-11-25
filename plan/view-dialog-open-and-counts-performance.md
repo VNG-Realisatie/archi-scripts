@@ -1,6 +1,6 @@
 # View: dialog open and counts performance
 
-Status: code done and checked on Linux and Windows. Open: the user's choices in § Handoff.
+Status: code done and checked on Linux and Windows. Decided 2026-11-24: no lazy tabs. Open, not for the dialog: § Handoff.
 
 ## Goal
 
@@ -52,8 +52,7 @@ Windows (Git Bash): the same environment variables, then `Archi.exe -application
 
 ## Handoff
 
-Open, the user's choice:
-- **Lazy Appearance / Properties tabs**, or only the Properties tab reading the view properties when shown. Estimated gain ≈ 0.5–0.8 s of the 4.5 s, 40–60 lines, medium risk (a tab that was not built must not write defaults over the session); Properties on show ≈ 0.2–0.4 s, ≈ 10 lines, low risk. Recommendation: stop. No part of the open time or of a click stands out any more.
+Decided 2026-11-24: no lazy Appearance / Properties tabs and no Properties-on-show; the dialog stays as it is (estimated gain ≈ 0.2–0.8 s of 4.5 s did not justify the risk).
 
 Open, not for the dialog:
 - A reference run of the script below on another Windows 11 machine. If it gives ≈ 2 µs per event, the laptop's setup is the cause (IT); 100+ µs would mean Windows 11 is normally this slow. Only if the other machine is fast: an event trace (`wpr`, admin rights) to name the processes that receive the events.

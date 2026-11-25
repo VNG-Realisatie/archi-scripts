@@ -42,7 +42,7 @@
     "connectionLabelSpacing": false,
     "backgroundView": {
       "id": "id-56a7581f8584418886517ed48d955ff4",
-      "path": "/Views/Beheer/Background views/Background alle referentiecomponenten",
+      "path": "/Views/Beheer/View templates/Alle referentiecomponenten",
       "on": true
     },
     "backgroundLeavesInPlace": false

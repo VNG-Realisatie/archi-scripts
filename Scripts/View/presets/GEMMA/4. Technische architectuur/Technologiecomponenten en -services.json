@@ -15,15 +15,16 @@
       {"relation": "serving-relationship"}
     ],
     "nestingConditions": [
-      {"source": "technology-service", "relation": "aggregation-relationship", "target": "technology-service"}
+      {"source": "technology-service", "relation": "aggregation-relationship", "target": "technology-service"},
+      {"source": "system-software", "relation": "realization-relationship", "target": "technology-service"}
     ],
     "padding": 15,
     "diagramPadding": 10,
     "sort": "Containers, then elements",
     "selectionOrder": "Selection",
     "cycleSelectionOrder": false,
-    "sameWidth": "Off",
-    "columnsAcrossContainers": false,
+    "sameWidth": "Per level and type",
+    "columnsAcrossContainers": true,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Across containers",
     "layerSpacing": 180,
@@ -39,11 +40,11 @@
     "labelMaxLineWidth": 400,
     "connectionLabelSpacing": false,
     "backgroundView": {
-      "id": "id-12bbc47d3f0849f4b55bb880718ea914",
-      "path": "/Views/4. Technische architectuur/Technologiecomponenten en -services",
+      "id": "id-2d03ce21b5b24db08da80f1f5f03d6ba",
+      "path": "/Views/Beheer/View templates/Technologiecomponenten en -services",
       "on": true
     },
-    "backgroundLeavesInPlace": false
+    "backgroundLeavesInPlace": true
   },
   "filter": {
     "conditions": [],
@@ -68,7 +69,7 @@
     ]
   },
   "view": {
-    "name": "Cloud dienstverleningslagen",
+    "name": "Technologiecomponenten en -services",
     "folder": "/_Generated/4. Technische architectuur",
     "suffix": "",
     "mirrored": false
@@ -82,7 +83,8 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"parent": "technology-service", "direction": "outgoing", "relation": "aggregation-relationship", "darkenStart": 0, "lightenPerLevel": 40, "fontSize": 14, "fontStyle": "bold", "child": "same"}
+        {"parent": "technology-service", "direction": "outgoing", "relation": "aggregation-relationship", "darkenStart": 0, "lightenPerLevel": 70, "fontSize": 14, "fontStyle": "bold", "child": "same"},
+        {"parent": "technology-service", "child": "system-software", "fontSize": 10}
       ]
     },
     "highlightRepeated": {
@@ -156,5 +158,5 @@
       }
     ]
   },
-  "description": ""
+  "description": "Selecteer grouping Technologiecomponenten en -services en genereer view"
 }

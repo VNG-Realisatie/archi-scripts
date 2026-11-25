@@ -1,6 +1,6 @@
 {
   "schemaVersion": 11,
-  "name": "GEMMA/2. Bedrijfsarchitectuur/Bedrijfsfunctiemodel met referentiecomponenten background",
+  "name": "GEMMA/2. Bedrijfsarchitectuur/Bedrijfsfuncties met referentiecomponenten",
   "algorithm": "Tiles",
   "params": {
     "direction": "Right",
@@ -42,7 +42,7 @@
     "connectionLabelSpacing": false,
     "backgroundView": {
       "id": "id-123355daaee4455fbdbffefe921aa087",
-      "path": "/Views/Beheer/Background views/Background bedrijfsfunctiemodel uitvoering",
+      "path": "/Views/Beheer/View templates/Bedrijfsfunctiemodel uitvoering",
       "on": true
     },
     "backgroundLeavesInPlace": false

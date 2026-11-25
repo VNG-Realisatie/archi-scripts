@@ -43,7 +43,7 @@
     "backgroundView": {
       "id": "",
       "path": "",
-      "on": true
+      "on": false
     },
     "backgroundLeavesInPlace": false
   },
@@ -68,7 +68,7 @@
   },
   "view": {
     "name": "Bedrijfsfunctielagen",
-    "folder": "/_Generated/Bedrijfsfuncties",
+    "folder": "/_Generated/2. Bedrijfsarchitectuur",
     "suffix": "",
     "mirrored": false
   },
