@@ -2,7 +2,7 @@
  * The generation record of a generated view: how it was made, in a hidden view property, so the view can be
  * made again (Regenerate). The start only holds in one model, so it travels with the view.
  *
- *   { preset, action, selection: [{ id, name }], folder?, mirrored?, element?, direction?, modified?, script? }
+ *   { preset, action, selection: [{ id, name }], folder?, mirrored?, element?, recipe?, direction?, modified?, script? }
  *
  *   preset     preset name, not a copy: a better preset reaches the view
  *   action     ACTION.*.id of the run
@@ -12,6 +12,7 @@
  *              of the mirrored folders
  *   mirrored   One view each: the views mirror the model tree below folder
  *   element    One view each: the element of this view
+ *   recipe     the view recipe the view was made from: { id, name }, as selection
  *   direction  only when the run overruled the preset
  *   modified   made with unsaved settings, or changed by Expand view since: Regenerate differs
  *   script     made by a script that works on after the run: Regenerate names it and refuses

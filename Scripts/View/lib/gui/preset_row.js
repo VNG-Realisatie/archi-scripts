@@ -14,6 +14,8 @@ Log.debug("Loading preset_row.js");
 
 /** @type {typeof import("../preset_io")} */
 const PresetIO = require(REPO_ROOT + "View/lib/preset_io");
+/** @type {typeof import("../view_recipe_read")} */
+const ViewRecipeRead = require(REPO_ROOT + "View/lib/view_recipe_read");
 /** @type {typeof import("./widgets")} */
 const Widgets = require(REPO_ROOT + "View/lib/gui/widgets");
 
@@ -83,21 +85,10 @@ function buildPresetRow(parent, ctx) {
   lblModified.setVisible(false);
   w.lblModified = lblModified;
 
-  w.btnSave = Widgets.pushBtn(row, "Save", SAVE_TIP, () => {
-    ctx.saveUI();
-    if (_written(ctx, () => PresetIO.writePreset(presetName(ctx), ctx.config, { quiet: true }))) _afterPresetChange(ctx);
-  });
+  w.btnSave = Widgets.pushBtn(row, "Save", SAVE_TIP, () => _save(ctx));
   GridDataFactory.swtDefaults().hint(70, SWT.DEFAULT).applyTo(w.btnSave);
 
-  const btnSaveAs = Widgets.pushBtn(row, "Save As…", "Save the current settings as a new preset.", () => {
-    ctx.saveUI();
-    const current = presetName(ctx);
-    const newName = _chooseFile(ctx, "Save As…", current === PresetIO.DEFAULT_PRESET_NAME ? "" : current);
-    if (!newName) return;
-    if (!_written(ctx, () => PresetIO.writePreset(newName, { ...ctx.config, name: newName }, { quiet: true }))) return;
-    ctx.config.name = newName;
-    _afterPresetChange(ctx);
-  });
+  const btnSaveAs = Widgets.pushBtn(row, "Save As…", "Save the current settings as a new preset.", () => _saveAs(ctx));
   GridDataFactory.swtDefaults().hint(90, SWT.DEFAULT).applyTo(btnSaveAs);
 
   const sep = new LabelWidget(row, SWT.SEPARATOR | SWT.VERTICAL);
@@ -139,6 +130,81 @@ function buildPresetRow(parent, ctx) {
   GridDataFactory.swtDefaults().align(SWT.FILL, SWT.TOP).applyTo(w.btnEditDescription);
 
   _afterPresetChange(ctx, { keepModified: true });
+}
+
+// ── Save and the recipe link ──────────────────────────────────────────────────
+
+/**
+ * Save: overwrite the preset. With a recipe as the start the preset is linked to it; a preset linked to
+ * another recipe asks first: move the link, or save as a new preset.
+ * @param {DialogContext} ctx
+ */
+function _save(ctx) {
+  ctx.saveUI();
+  const start = ctx.recipeStart, link = ctx.config.recipe;
+  if (start && link && link.id !== start.linked.grouping.id) {
+    const choice = _moveOrNew(ctx, link, start);
+    if (choice === 1) { _saveAs(ctx); return; }
+    if (choice !== 0) return;
+  }
+  const name = presetName(ctx);
+  const recipe = _recipeLink(ctx, start);
+  if (!_written(ctx, () => PresetIO.writePreset(name, { ...ctx.config, recipe }, { quiet: true }))) return;
+  ctx.config.recipe = recipe;
+  if (start) ViewRecipeRead.writeViewPreset(start, name);
+  _afterPresetChange(ctx);
+}
+
+/**
+ * Save As: the settings as a new preset, linked to the recipe of the start; with any other start it is
+ * linked to none, so two presets never share a recipe by a copy.
+ * @param {DialogContext} ctx
+ */
+function _saveAs(ctx) {
+  ctx.saveUI();
+  const current = presetName(ctx);
+  const newName = _chooseFile(ctx, "Save As…", current === PresetIO.DEFAULT_PRESET_NAME ? "" : current);
+  if (!newName) return;
+  const start = ctx.recipeStart;
+  const recipe = start ? _recipeLink(ctx, start) : null;
+  if (!_written(ctx, () => PresetIO.writePreset(newName, { ...ctx.config, name: newName, recipe }, { quiet: true }))) return;
+  ctx.config.name = newName;
+  ctx.config.recipe = recipe;
+  if (start) ViewRecipeRead.writeViewPreset(start, newName);
+  _afterPresetChange(ctx);
+}
+
+/**
+ * The recipe link Save writes: the recipe of the start, else the preset's own with the recipe's name now.
+ * @param {DialogContext} ctx
+ * @param {RecipeStart | null | undefined} start
+ * @returns {RecipeLink | null}
+ */
+function _recipeLink(ctx, start) {
+  if (start) return { id: start.linked.grouping.id, name: start.linked.grouping.name };
+  const link = ctx.config.recipe;
+  if (!link) return null;
+  const name = ViewRecipeRead.linkedName(link);
+  return { id: link.id, name: name === null ? link.name : name };
+}
+
+/**
+ * The preset belongs to another recipe than the start's: move the link, or save as a new preset.
+ * @param {DialogContext} ctx
+ * @param {RecipeLink}    link
+ * @param {RecipeStart}   start
+ * @returns {number} 0 move the link, 1 save as a new preset, else cancel
+ */
+function _moveOrNew(ctx, link, start) {
+  const MessageDialog = Java.type("org.eclipse.jface.dialogs.MessageDialog");
+  const own = ViewRecipeRead.linkedName(link);
+  const to = start.linked.grouping.name;
+  const message = `Preset "${presetName(ctx)}" belongs to recipe "${own === null ? link.name : own}"; the start is recipe "${to}".\n\n` +
+    `Move the link: the preset makes "${to}" from now on, and "${own === null ? link.name : own}" has no preset (the check reports it).\n` +
+    `Save As…: a new preset for "${to}"; this preset stays as it is.`;
+  const dlg = new MessageDialog(_confirmParent(ctx), "Preset of another recipe", null, message, MessageDialog.QUESTION,
+    Java.to(["Move the link", "Save As…", "Cancel"], "java.lang.String[]"), 0);
+  return dlg.open();
 }
 
 /**

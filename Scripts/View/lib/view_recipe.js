@@ -84,6 +84,36 @@ function linkedThrough(recipe, recipes) {
   return group || recipe;
 }
 
+/**
+ * The recipes a linked preset makes: the recipe and, for a group, its view recipes that are in no
+ * other group (one in more groups is reported by the check).
+ * @param {Recipe}              recipe
+ * @param {Map<string, Recipe>} recipes
+ * @returns {Recipe[]}
+ */
+function made(recipe, recipes) {
+  const members = recipe.members.map(m => /** @type {Recipe} */ (recipes.get(m.id)));   // Cast: members are recognised recipes
+  return [recipe, ...members.filter(m => m.groups.length === 1)];
+}
+
+/**
+ * A recipe as the start of a run: a view recipe on its own makes one view (New view); a group makes
+ * one view per view recipe, and a view recipe in one group makes its own view the group's way (One
+ * view each), linked through the group.
+ * @param {Map<string, Recipe>} recipes
+ * @param {string}              id  the selected grouping
+ * @returns {RecipeStart | null}  null when it is no recipe
+ */
+function startOf(recipes, id) {
+  const recipe = recipes.get(id);
+  if (!recipe) return null;
+  const linked = linkedThrough(recipe, recipes);
+  const all = made(linked, recipes);
+  const views = recipe.kind === "group" ? all.slice(1) : [recipe];
+  const action = linked.kind === "group" ? Defs.ACTION.ONE_EACH.id : Defs.ACTION.NEW_VIEW.id;
+  return { recipe, linked, action, views, made: all.map(r => r.grouping) };
+}
+
 // ── Check ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -221,16 +251,16 @@ function _checkLinkedPreset(facts, p, r, recipes) {
   /** @type {RecipeFinding[]} */
   const out = [];
   const g = r.grouping;
-  const made = [r, ...r.members.map(m => /** @type {Recipe} */ (recipes.get(m.id))).filter(m => m.groups.length === 1)];   // Cast: members are recognised recipes
+  const byPreset = made(r, recipes);
   if (p.recipe && p.recipe.name !== g.name)
     out.push(_finding("Links", p.preset, `Preset "${p.preset}" names its recipe "${p.recipe.name}"; the recipe is now "${g.label}".`, "Only the label is old; the link holds.", "Save the preset once to update the name."));
-  for (const m of made) {
+  for (const m of byPreset) {
     if (m.grouping.viewPreset !== p.preset)
       out.push(_finding("Links", m.grouping.label, `Recipe "${m.grouping.label}" has ${Defs.PROP_VIEW_PRESET} "${m.grouping.viewPreset}", but preset "${p.preset}" is linked to it.`, "The model shows the wrong preset; generate is not affected.", "Generate, or save the preset; both write the property."));
     if (p.viewTemplateOn && facts.recipesViews === 1 && _referencesNone(m, recipes))
       out.push(_finding("View template", m.grouping.label, `Preset "${p.preset}" uses a view template, but recipe "${m.grouping.label}" has none on "${V}".`, "Generate skips the recipe.", "Put a view reference to its view template inside the recipe's visual, or inside its group's."));
   }
-  for (const m of made.slice(1).map(x => x.grouping)) {
+  for (const m of byPreset.slice(1).map(x => x.grouping)) {
     if (!ConditionLists.matchElement(p.filter, m.element))
       out.push(_finding("Recipes", m.label, `The element filter of preset "${p.preset}" drops view recipe "${m.label}".`, "Its group makes no view for it.", "Change the preset's element filter, or take the view recipe out of the group."));
   }
@@ -308,5 +338,5 @@ function _labels(named) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { KINDS, SECTIONS, recognise, linkedThrough, check, logFindings };
+  module.exports = { KINDS, SECTIONS, recognise, linkedThrough, made, startOf, check, logFindings };
 }

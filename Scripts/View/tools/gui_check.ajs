@@ -7,6 +7,7 @@
  * Environment:
  *   SELECT_ID  the object to select, by id (the command line has no selection)
  *   PRESET     the dialog opens on this preset instead of the session
+ *   LINK_ID    with PRESET: the preset is linked to this recipe (suite recipe: Save asks to move the link)
  *   SHOTS      folder for the screenshots (NN_<name>.png), must exist
  *   SUITE      the steps to run: "tables" (default, the condition-table checklist), "open" (the dialog as it opens)
  *              or "nestingStyle" (the nesting style table on the Appearance tab, the View template row on the Layout tab)
@@ -49,8 +50,11 @@ const DialogMain = require(REPO_ROOT + "View/lib/gui/dialog_main.js");
 const SHOTS = String(System.getenv("SHOTS"));
 const SUITE = String(System.getenv("SUITE") || "tables");
 const presetName = System.getenv("PRESET");
-if (presetName) PresetIO.readSession = () => Object.assign(PresetIO.readPreset(String(presetName)), { name: String(presetName) });
+const linkId = System.getenv("LINK_ID");
+if (presetName) PresetIO.readSession = () => Object.assign(PresetIO.readPreset(String(presetName)), { name: String(presetName) },
+  linkId ? { recipe: { id: String(linkId), name: "linked by gui_check" } } : {});
 PresetIO.writeSession = () => {};   // the check leaves the session as it was
+PresetIO.writePreset = (/** @type {string} */ name, /** @type {any} */ p) => log(`writePreset "${name}" (not written): recipe ${JSON.stringify(p.recipe)}`);   // and the presets
 
 const display = Display.getDefault();
 /** @type {any} */ let shell = null;
@@ -341,8 +345,29 @@ function logPopup(name) {
   log(`${name}: window "${p.getText()}" ${p.getBounds()}\n  ${lines.join("\n  ")}`);
 }
 
+/** What a recipe start shows outside the action area: the Recipe line, the view template row, the Object ID. */
+function logRecipe() {
+  const w = dialogCtx.widgets;
+  const state = (/** @type {any} */ c) => `${c.getSelection ? (c.getSelection() ? "ticked" : "unticked") + ", " : ""}${c.isEnabled() ? "enabled" : "grey"}`;
+  log(`recipe line: ${w.lblRecipe.isVisible() ? `"${w.lblRecipe.getText()}"` : "(hidden)"}\n` +
+      `  view template field: [${w.txtViewTemplate.getText()}] ${w.txtViewTemplate.isEnabled() ? "enabled" : "grey"}; On ${state(w.chkViewTemplateOn)}\n` +
+      `  Add unique Object ID ${state(w.vpAddObjectId)}\n` +
+      `  run uses view template: ${dialogCtx.viewTemplate ? dialogCtx.viewTemplate.path : "none"}`);
+}
+
 /** @type {Record<string, [number, () => void][]>} */
 const SUITES = {
+  // A recipe as the start (SELECT_ID a recipe grouping): the Recipe line, the action, the view template, the Object ID; with LINK_ID, Save's question.
+  recipe: [
+    [2500, () => clickTab("Selection")],
+    [1500, () => { logRecipe(); logActionArea("recipe"); shotShell("recipe_selection"); }],
+    [100,  () => clickTab("Layout")],
+    [1500, () => shotShell("recipe_layout")],
+    [100,  () => clickTab("Properties")],
+    [1500, () => shotShell("recipe_properties")],
+    [100,  () => { if (linkId) pressAndShoot("recipe_save_question", buttonsNamed("Save")[0]); }],
+    [2500, () => log("save question shot taken")],
+  ],
   // The folder and view template pickers: their buttons next to the fields.
   pickers: [
     [2500, () => pressAndShoot("edit_description", buttonsNamed("Edit…")[0])],

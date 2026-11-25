@@ -37,6 +37,8 @@ const RunPreset = require(REPO_ROOT + "View/lib/run_preset");
 const GenerationRecord = require(REPO_ROOT + "View/lib/generation_record");
 /** @type {typeof import("../selection_pipeline")} */
 const Pipeline = require(REPO_ROOT + "View/lib/selection_pipeline");
+/** @type {typeof import("../view_recipe_read")} */
+const ViewRecipeRead = require(REPO_ROOT + "View/lib/view_recipe_read");
 /** @type {typeof import("../selection_read")} */
 const SelectionRead = require(REPO_ROOT + "View/lib/selection_read");
 /** @type {typeof import("./counts")} */
@@ -128,6 +130,13 @@ function open(uiSelection) {
     else                                       selectedCount.elems++;
   });
   ctx.firstName = firstName;  // propagate for _syncToUI pre-fill
+  // Exactly one recipe as the start sets the action, the view template and the Object ID; the run
+  // starts from its view recipes, not from what was clicked (a visual on View recipes holds more).
+  ctx.recipeStart = ViewRecipeRead.readStart(uiSelection);
+  if (ctx.recipeStart) {
+    uiSelection = ViewRecipeRead.startSelection(ctx.recipeStart);
+    ctx.uiSelection = uiSelection;
+  }
   ctx.holdsView = selectedCount.views > 0;
   if (selectedCount.views === 1 && uiSelection.size() === 1) {
     ctx.selectedView = /** @type {ArchimateView} */ (uiSelection.first());   // Cast: counted as a view
@@ -353,10 +362,14 @@ function open(uiSelection) {
   // Dialog is fully closed here — safe to run generate_view
   if (result === IDialogConstants.CANCEL_ID || result < 0) { Log.info("Dialog cancelled: nothing written.\n"); return; }
 
-  if (!RunPreset.confirmViewCount(ctx.uiSelection, ctx._actionId, ctx.config.filter)) { RunPreset.cancelled(); return; }
+  // A recipe run asks itself (RunPreset.fromRecipe).
+  if (!ctx.recipeStart && !RunPreset.confirmViewCount(ctx.uiSelection, ctx._actionId, ctx.config.filter)) { RunPreset.cancelled(); return; }
   try {
     const run = { ...ctx.config, view: { ...ctx.config.view, ...(ctx.runFolder === undefined ? {} : { folder: ctx.runFolder }) } };
-    GenView.generate_view(run, ctx.uiSelection, ctx._actionId, { generationRecord: { preset: PresetRow.presetName(ctx), ...(ctx.modified ? { modified: true } : {}) } });
+    /** @type {RunRecord} */
+    const record = { preset: PresetRow.presetName(ctx), ...(ctx.modified ? { modified: true } : {}) };
+    if (ctx.recipeStart) RunPreset.fromRecipe(run, ctx.recipeStart, record);
+    else GenView.generate_view(run, ctx.uiSelection, ctx._actionId, { generationRecord: record });
     RunPreset.reportOutcome();
   } catch (e) {
     RunPreset.showFailure(e);
@@ -628,6 +641,7 @@ function _runAction(dlg, ctx) {
  * @returns {string}
  */
 function _initialAction(ctx, available) {
+  if (ctx.recipeStart) return ctx.recipeStart.action;
   if (ctx.holdsView) return ACTION.LAYOUT_ONLY.id;
   const last = ctx.config._lastAction;
   return last && available[last] ? last : ACTION.NEW_VIEW.id;
@@ -742,7 +756,7 @@ function _actionState(ctx) {
     const replaces = _viewPaths(ctx).has(_viewPath(folder, w.txtViewName.getText().trim()));
     // The steps start from the filtered selection: without an element there, only diagram objects can be placed.
     const empty = !!ctx.counts && !ctx.counts.predicted.elements.length && !ctx.counts.view.diagramObjects;
-    return { label: replaces ? "Replace view" : "Create view", folder: true, name: true, canRun: !empty,
+    return { label: replaces ? "Replace view" : "Create view", folder: true, name: !ctx.recipeStart, canRun: !empty,
              note: empty ? NOTHING_TO_PLACE : "" };
   }
   const label = ctx.action === ACTION.EXPAND_VIEW.id ? ACTION.EXPAND_VIEW.label : ACTION.LAYOUT_ONLY.label;
@@ -814,7 +828,69 @@ function _refreshAction(ctx) {
   for (const lbl of [w.modifyView.title, w.modifyView.text]) lbl.setEnabled(!create);
   w.lblCreateNote.setFont(nothing ? Widgets.getBoldFont() : w.lblCreateNote.getDisplay().getSystemFont());
   w.lblRecordNote.setText(_recordNote(ctx));
+  _showRecipe(ctx);
   _showTotals(ctx);
+}
+
+/**
+ * @param {RecipeStart} start
+ * @returns {string} the action it makes, as the dialog names it
+ */
+function _recipeActionLabel(start) {
+  return start.action === ACTION.ONE_EACH.id ? ACTION.ONE_EACH.label : ACTION.NEW_VIEW.label;
+}
+
+/**
+ * The Recipe line of the Selection tab: the recipe the run starts from and the recipe the preset
+ * belongs to; hidden when there is neither.
+ * @param {DialogContext} ctx
+ */
+function _showRecipe(ctx) {
+  const w = ctx.widgets;
+  if (!w.lblRecipe) return;
+  const { text, tooltip } = _recipeLine(ctx);
+  if (String(w.lblRecipe.getText()) === text) return;
+  w.lblRecipe.setText(text);
+  w.lblRecipe.setToolTipText(tooltip);
+  for (const lbl of [w.lblRecipeTitle, w.lblRecipe]) {
+    lbl.setVisible(!!text);
+    lbl.getLayoutData().exclude = !text;
+  }
+  try { w.lblRecipe.getParent().getParent().layout(true, true); } catch (e) {}   // silent: a dialog update on widgets that may be disposed
+}
+
+/**
+ * @param {DialogContext} ctx
+ * @returns {{ text: string, tooltip: string }}
+ */
+function _recipeLine(ctx) {
+  const start = ctx.recipeStart, link = ctx.config.recipe;
+  const linkedTo = link ? _linkedName(ctx, link) : null;
+  const belongs = !link ? ""
+    : linkedTo === null ? `the preset's recipe "${link.name}" is not in this model`
+    : `the preset belongs to recipe "${linkedTo}"`;
+  if (!start) return link
+    ? { text: `none, this run is ad hoc · ${belongs}`, tooltip: "Only a recipe as the start makes the view of its recipe." }
+    : { text: "", tooltip: "" };
+  const r = start.recipe.grouping, linked = start.linked.grouping;
+  const what = start.recipe.kind === "group" ? `${r.name}: recipe group, ${start.views.length} view recipe${start.views.length === 1 ? "" : "s"}`
+    : linked.id !== r.id ? `${r.name}, in recipe group "${linked.name}"` : r.name;
+  const save = PresetRow.presetName(ctx) === PresetIO.DEFAULT_PRESET_NAME ? "Save As links a new preset to it" : "Save links the preset to it";
+  const tail = !link ? save : link.id !== linked.id ? belongs : "";
+  return { text: tail ? `${what} · ${tail}` : what,
+           tooltip: `${r.label}\nIt sets the action, the view template and the Object ID of the view${start.views.length === 1 ? "" : "s"}.` };
+}
+
+/**
+ * The name of a linked recipe now, null when the model does not have it; read once per recipe.
+ * @param {DialogContext} ctx
+ * @param {RecipeLink} link
+ * @returns {string | null}
+ */
+function _linkedName(ctx, link) {
+  if (!ctx.linkedNames) ctx.linkedNames = new Map();
+  if (!ctx.linkedNames.has(link.id)) ctx.linkedNames.set(link.id, ViewRecipeRead.linkedName(link));
+  return /** @type {string | null} */ (ctx.linkedNames.get(link.id));
 }
 
 /**
@@ -895,7 +971,8 @@ function _buildActionArea(area, ctx, dlg, target) {
   const w = ctx.widgets;
 
   /** @type {Record<string, boolean>} */
-  const available = { [ACTION.NEW_VIEW.id]: true, [ACTION.ONE_EACH.id]: true, [ACTION.EXPAND_VIEW.id]: target.onCanvas, [ACTION.LAYOUT_ONLY.id]: !!targetViewName };
+  const available = ctx.recipeStart ? { [ctx.recipeStart.action]: true }
+    : { [ACTION.NEW_VIEW.id]: true, [ACTION.ONE_EACH.id]: true, [ACTION.EXPAND_VIEW.id]: target.onCanvas, [ACTION.LAYOUT_ONLY.id]: !!targetViewName };
   ctx.action = _initialAction(ctx, available);
   /** @type {Swt.Button[]} */
   const radios = [];
@@ -913,7 +990,8 @@ function _buildActionArea(area, ctx, dlg, target) {
   lblName.setText("Name:");
   w.txtViewName = new TextWidget(grpCreate, SWT.BORDER);
   w.txtViewName.setData("label", lblName);
-  w.txtViewName.setToolTipText("Name of the new view, pre-filled with the first selected object.\nA view with this name in the folder is replaced.");
+  w.txtViewName.setToolTipText(ctx.recipeStart ? `From recipe "${ctx.recipeStart.recipe.grouping.name}": its view is named after it.\nA view with this name in the folder is replaced.`
+    : "Name of the new view, pre-filled with the first selected object.\nA view with this name in the folder is replaced.");
   GridDataFactory.fillDefaults().span(3, 1).grab(true, false).hint(150, SWT.DEFAULT).applyTo(w.txtViewName);
   w.txtViewName.addListener(SWT.Modify, () => _refreshAction(ctx));
   const rowHeight = w.txtViewName.computeSize(SWT.DEFAULT, SWT.DEFAULT).y;
@@ -1060,8 +1138,9 @@ function _actionChoices(group, span, actions, radios, available, ctx) {
   for (const action of actions) {
     const radio = new ButtonWidget(choiceRow, SWT.RADIO);
     radio.setText(action.label);
-    radio.setToolTipText(action.tooltip);
-    radio.setEnabled(available[action.id]);
+    radio.setToolTipText(available[action.id] || !ctx.recipeStart ? action.tooltip
+      : `${action.tooltip}\nThe start is recipe "${ctx.recipeStart.recipe.grouping.name}": it makes ${_recipeActionLabel(ctx.recipeStart)}.`);
+    radio.setEnabled(!!available[action.id]);
     radio.setSelection(action.id === ctx.action);
     radio.addListener(SWT.Selection, () => {
       if (!radio.getSelection()) return;
@@ -1331,6 +1410,17 @@ function _viewTemplateRef(w) {
 }
 
 /**
+ * The view template of a recipe start, with the On checkbox of the preset.
+ * @param {RecipeStart} start
+ * @param {DialogWidgets} w
+ * @returns {ViewTemplateRef}
+ */
+function _recipeTemplateRef(start, w) {
+  const t = start.recipe.viewTemplate;
+  return t ? { id: t.id, path: t.label, on: w.chkViewTemplateOn.getSelection() } : { id: "", path: "", on: false };
+}
+
+/**
  * A view named in an open View template field (On was unticked because it was empty) switches On on.
  * @param {DialogContext} ctx
  */
@@ -1350,7 +1440,7 @@ function _tickNamedViewTemplate(ctx) {
 function _readViewTemplateField(ctx) {
   const txt = ctx.widgets.txtViewTemplate;
   if (!txt) return;
-  const ref = _viewTemplateRef(ctx.widgets);
+  const ref = ctx.recipeStart ? _recipeTemplateRef(ctx.recipeStart, ctx.widgets) : _viewTemplateRef(ctx.widgets);
   try {
     ctx.viewTemplate = SelectionRead.readViewTemplate(ref);
     txt.setToolTipText(Defs.paramTooltip("viewTemplate"));

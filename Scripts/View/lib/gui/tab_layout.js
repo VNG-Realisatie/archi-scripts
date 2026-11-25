@@ -266,6 +266,11 @@ function buildLayoutTab(tabFolder, ctx) {
   w.txtViewTemplate.addListener(SWT.DefaultSelection, () => ctx.viewTemplateChanged());
   w.txtViewTemplate.addListener(SWT.FocusOut, () => ctx.viewTemplateChanged());
   Widgets.addCheck(row, "Leaves in place", null, 2, w, "chkTemplateLeavesInPlace");
+  if (ctx.recipeStart) {
+    const r = ctx.recipeStart.recipe, t = r.viewTemplate;
+    Widgets.noteLabel(grpCtr, t ? `From recipe "${r.grouping.name}": ${t.label}` : `Recipe "${r.grouping.name}" has no view template.`)
+      .setToolTipText("The recipe names the view template; On says whether the run uses it.\nThe preset's own view template is kept, not used.");
+  }
 
   // ── Flow ──────────────────────────────────────────────────────────────────────
   const grpFlow = Widgets.group(page, "Flow", 1);
@@ -487,12 +492,16 @@ function updateAlgorithmControls(ctx) {
     for (const k of Defs.LAYOUT_GROUPS.Containers) if (PARAM_WIDGETS[k]) Widgets.enable(w[PARAM_WIDGETS[k].w], false);
   // The view template's On follows its field; off greys the field and what belongs to it.
   // Without a view named there is nothing to switch: On is unticked and greyed, the field stays open.
+  // A recipe as the start names the view template itself: the field keeps the preset's own, greyed.
   if (w.chkViewTemplateOn) {
-    const named = String(w.txtViewTemplate.getText()).trim() !== "";
-    if (!named) { w.chkViewTemplateOn.setSelection(false); Widgets.enable(w.chkTemplateLeavesInPlace, false); }
+    const start = ctx.recipeStart;
+    const named = start ? !!start.recipe.viewTemplate : String(w.txtViewTemplate.getText()).trim() !== "";
+    if (!named && !start) w.chkViewTemplateOn.setSelection(false);
+    if (!named) Widgets.enable(w.chkTemplateLeavesInPlace, false);
     Widgets.enable(w.chkViewTemplateOn, named && w.txtViewTemplate.isEnabled());
     if (named && !w.chkViewTemplateOn.getSelection())
       for (const c of [w.txtViewTemplate, w.btnViewTemplate, w.chkTemplateLeavesInPlace]) Widgets.enable(c, false);
+    if (start) for (const c of [w.txtViewTemplate, w.btnViewTemplate]) Widgets.enable(c, false);
   }
 
   // View size radios: unsupported options are greyed; a selected unsupported option falls back to None.

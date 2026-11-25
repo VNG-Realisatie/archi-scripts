@@ -187,7 +187,7 @@ function generate_view(rawPreset, uiSelection, actionId, options = {}) {
       views.push(..._generateOneEach(preset, uiSelection, runtime, options));
     } else {
       const target = _singleTarget(uiSelection, action, options);
-      const name = target.view ? target.view.name : preset.view.name;
+      const name = target.view ? target.view.name : target.name || preset.view.name;
       const view = _generateView(preset, uiSelection, action, target, runtime, name);
       if (view) views.push(view);
     }
@@ -407,6 +407,44 @@ function applyViewProperties(view, preset) {
   if (lines.length) Log.debug("\nProperties:\n" + lines.join("\n"));   // no heading when nothing changed
 }
 
+// ── View recipe ───────────────────────────────────────────────────────────────
+
+/**
+ * The preset with the view template of the view recipe: the recipe says which view, the preset's On
+ * whether it is used. Unchanged where the algorithm has no view template.
+ * @param {MaskedPreset} preset
+ * @param {RecipeView}   recipe
+ * @returns {MaskedPreset}
+ */
+function _withRecipeTemplate(preset, recipe) {
+  const own = preset.params.viewTemplate;
+  if (!own) return preset;
+  const t = recipe.viewTemplate;
+  Log.debug(`  View template from recipe "${recipe.element.name}": ${t ? t.label : "none"}${own.on ? "" : " (off in the preset)"}`);
+  return { ...preset, params: { ...preset.params, viewTemplate: t ? { id: t.id, path: t.label, on: own.on } : { id: "", path: "", on: false } } };
+}
+
+/**
+ * The view gets the Object ID its recipe names (View Object ID). A recipe without one takes the view's
+ * Object ID, or a new one, so a view made before keeps its Object ID.
+ * @param {ArchimateView} view
+ * @param {ArchiElement}  recipe  the view recipe's grouping
+ */
+function _applyRecipeObjectId(view, recipe) {
+  const own = view.prop(PROP_ID) || "";
+  let id = recipe.prop(Defs.PROP_VIEW_OBJECT_ID) || "";
+  if (!id) {
+    id = own || Common.generateUUID();
+    recipe.prop(Defs.PROP_VIEW_OBJECT_ID, id);
+    Log.info(`Recipe "${recipe.name}" gets ${Defs.PROP_VIEW_OBJECT_ID} ${own ? "from the view's Object ID" : "(new)"}.`);
+  }
+  if (own === id) return;
+  if (own) Log.warn(`The view's ${PROP_ID} is replaced by the ${Defs.PROP_VIEW_OBJECT_ID} of recipe "${recipe.name}".`, {
+    effect: "links to the view by its old Object ID no longer find it.", action: "check that the view belongs to this recipe; Undo restores it." });
+  view.prop(PROP_ID, id);
+  Log.debug(`  prop set:     ${PROP_ID} = "${id}" (recipe "${recipe.name}")`);
+}
+
 // ── Single view ───────────────────────────────────────────────────────────────
 
 /**
@@ -419,6 +457,7 @@ function applyViewProperties(view, preset) {
  *   Overwritten; details: the console lines under it; null when there is nothing to place
  */
 function _generateSingle(preset, uiSelection, actionId, target, runtime) {
+  if (target.recipe) preset = _withRecipeTemplate(preset, target.recipe);
   const timer = _phaseTimer();
   const snapshot = SelectionRead.readSelection(uiSelection, actionId);
   snapshot.viewTemplate = SelectionRead.readViewTemplate(preset.params.viewTemplate);
@@ -464,6 +503,7 @@ function _generateSingle(preset, uiSelection, actionId, target, runtime) {
   }
   Appearance.applyAppearance(view, preset, actionId, TextMeasure.defaultViewFont(), keep,
     { elements: Table.elementsOf(planned.objectSet.tables), looks: planned.objectSet.templateLooks || new Map() });
+  if (target.recipe) _applyRecipeObjectId(view, target.recipe.element);
   applyViewProperties(view, preset);
   _writeGenerationRecord(view, actionId, target);
   timer.lap("appearance");
@@ -829,11 +869,12 @@ function _generateOneEach(preset, uiSelection, runtime, options) {
   for (const element of seeds) {
     Log.debug(`\nGenerating view for: ${element.name}`);
     /** @type {ViewTarget} */
-    const target = { name: element.name + preset.view.suffix, view: siblings && siblings.views.get(String(element.id)) };
+    const target = { name: element.name + preset.view.suffix, view: siblings && siblings.views.get(String(element.id)),
+      recipe: options.recipes && options.recipes.get(String(element.id)) };
     if (mirror) target.folder = () => _mirroredFolder(element, preset.view);
     if (options.generationRecord) target.generationRecord = options.generationRecord.script ? options.generationRecord : {
       ...options.generationRecord, action: ACTION.ONE_EACH.id, selection: start, element: GenerationRecord.describeObject(element),
-      folder: Defs.viewFolderPath(preset.view), ...(mirror ? { mirrored: true } : {}),
+      folder: Defs.viewFolderPath(preset.view), ...(mirror ? { mirrored: true } : {}), ..._recipeRecord(target.recipe),
     };
     const view = _generateView(preset, $(element), ACTION.NEW_VIEW.id, target, runtime, target.name || element.name);
     if (view) views.push(view);
@@ -870,8 +911,20 @@ function _mirroredFolder(element, view) {
  */
 function _singleTarget(uiSelection, action, options) {
   if (options.regenerate) return options.regenerate;
-  if (action !== ACTION.NEW_VIEW.id || !options.generationRecord) return {};
-  return { generationRecord: options.generationRecord.script ? options.generationRecord : { ...options.generationRecord, action, selection: GenerationRecord.describeStart(uiSelection) } };
+  const recipe = options.recipes && action === ACTION.NEW_VIEW.id ? [...options.recipes.values()][0] : undefined;
+  const named = recipe ? { recipe, name: recipe.element.name } : {};   // the view of a view recipe is named after it
+  if (action !== ACTION.NEW_VIEW.id || !options.generationRecord) return named;
+  return { ...named, generationRecord: options.generationRecord.script ? options.generationRecord : {
+    ...options.generationRecord, action, selection: GenerationRecord.describeStart(uiSelection), ..._recipeRecord(recipe) } };
+}
+
+/**
+ * The generation record's part for a view made from a recipe.
+ * @param {RecipeView | undefined} recipe
+ * @returns {{ recipe?: RecordedObject }}
+ */
+function _recipeRecord(recipe) {
+  return recipe ? { recipe: GenerationRecord.describeObject(recipe.element) } : {};
 }
 
 /**

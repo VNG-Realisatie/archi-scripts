@@ -12,6 +12,8 @@ Log.debug("Loading tab_properties.js");
 
 /** @type {typeof import("../hidden_properties")} */
 const HiddenProps = require(REPO_ROOT + "View/lib/hidden_properties");
+/** @type {typeof import("../defs")} */
+const Defs = require(REPO_ROOT + "View/lib/defs");
 /** @type {typeof import("./widgets")} */
 const Widgets = require(REPO_ROOT + "View/lib/gui/widgets");
 
@@ -41,6 +43,12 @@ function buildPropertiesTab(tabFolder, ctx) {
   w.vpAddObjectId = chkObjId;
 
   Widgets.noteLabel(grpObjId, "Leaves an existing Object ID unchanged.");
+  if (ctx.recipeStart) {
+    // The recipe overrules: shown greyed, with where the Object ID comes from.
+    Widgets.enable(chkObjId, false);
+    Widgets.noteLabel(grpObjId, `From recipe "${ctx.recipeStart.recipe.grouping.name}": each view gets the ${Defs.PROP_VIEW_OBJECT_ID} of its recipe.`)
+      .setToolTipText(`A recipe without ${Defs.PROP_VIEW_OBJECT_ID} takes the view's Object ID, or a new one.`);
+  }
 
   // ── View properties grid ───────────────────────────────────────────────────
   const grpViewProps = Widgets.group(page, "View properties", 3);

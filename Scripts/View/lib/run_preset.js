@@ -19,6 +19,7 @@
  *   RunPreset.fromSessionCycling($(selection), ACTION.LAYOUT_ONLY.id);
  * Regenerate runs what a view remembers instead (fromView, fromViewSiblings):
  *   RunPreset.fromView($(selection));
+ * A recipe as the start sets the action, the start, and each view's view template and Object ID (fromRecipe).
  */
 
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
@@ -37,6 +38,8 @@ const SelectionRead = require(REPO_ROOT + "View/lib/selection_read");
 const Pipeline = require(REPO_ROOT + "View/lib/selection_pipeline");
 /** @type {typeof import("./generation_record")} */
 const GenerationRecord = require(REPO_ROOT + "View/lib/generation_record");
+/** @type {typeof import("./view_recipe_read")} */
+const ViewRecipeRead = require(REPO_ROOT + "View/lib/view_recipe_read");
 /** @type {typeof import("../../_lib/selection")} */
 const Selection = require(REPO_ROOT + "_lib/selection");
 /** @type {typeof import("../../_lib/archi_folders")} */
@@ -293,6 +296,22 @@ function _recordPreset(record, subject) {
 }
 
 /**
+ * Run a preset with a recipe as the start: the recipe's action on its view recipes, each view with
+ * its recipe's view template and Object ID. The dialog runs it; the caller reports the outcome.
+ * @param {PresetFile}  preset
+ * @param {RecipeStart} start
+ * @param {RunRecord}   record  what the run leaves on each view
+ * @returns {ArchimateView[]}
+ */
+function fromRecipe(preset, start, record) {
+  const selection = ViewRecipeRead.startSelection(start);
+  if (!confirmViewCount(selection, start.action, preset.filter)) { cancelled(); return []; }
+  /** @type {Map<string, RecipeView>} */
+  const recipes = new Map(start.views.map(v => [v.grouping.id, { element: v.grouping.element, viewTemplate: v.viewTemplate }]));
+  return GenView.generate_view(preset, selection, start.action, { generationRecord: record, recipes });
+}
+
+/**
  * Set the nesting conditions aside in the session, so *flat* loses nothing.
  * @param {DialogConfig} session  changed in place
  */
@@ -451,5 +470,5 @@ function cycleSelectionOrder(params, actionId) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { fromFilename, fromDefault, fromSession, fromSessionCycling, fromView, fromViewSiblings, parkNesting, restoreNesting, showFailure, reportOutcome, cancelled, requireModel, confirmViewCount, cycleSelectionOrder, parseFilename, FILENAME_ACTIONS, FILENAME_DIRECTIONS };
+  module.exports = { fromFilename, fromDefault, fromSession, fromSessionCycling, fromView, fromViewSiblings, fromRecipe, parkNesting, restoreNesting, showFailure, reportOutcome, cancelled, requireModel, confirmViewCount, cycleSelectionOrder, parseFilename, FILENAME_ACTIONS, FILENAME_DIRECTIONS };
 }

@@ -325,10 +325,14 @@ interface ViewProperty {
   enabled: boolean;
 }
 
+/** The recipe link of a preset: the recipe found by id; name is a label, written by Save. */
+type RecipeLink = { id: string; name: string };
+
 /** A validated preset (defs.validatePreset). A type alias, so it can be read by key. */
 type Preset = {
   schemaVersion: number;
   name: string;
+  recipe: RecipeLink | null;
   /** Free text, kept when a preset file is read (preset_io). */
   description?: string;
   algorithm: string;
@@ -590,8 +594,7 @@ interface RecipeFacts {
 /** A preset as the check reads it. */
 interface PresetLink {
   preset: string;
-  /** The recipe link: the recipe's id, and its name as a label. */
-  recipe: { id: string; name: string } | null;
+  recipe: RecipeLink | null;
   /** The preset uses a view template of its own. */
   viewTemplateOn: boolean;
   filter: FilterCondition[];
@@ -612,6 +615,29 @@ interface Recipe {
   /** Its visuals on View recipes. */
   visuals: number;
   /** Its view template: its own, else its group's; null when there is none or more than one. */
+  viewTemplate: RecipeNamed | null;
+}
+
+/**
+ * A recipe as the start of a run (ViewRecipe.startOf): what the run makes and from which recipe the
+ * preset is linked.
+ */
+interface RecipeStart {
+  /** The recipe selected. */
+  recipe: Recipe;
+  /** The recipe a preset links to for it: its group for a view recipe in one group, else itself. */
+  linked: Recipe;
+  /** ACTION.*.id: New view for a view recipe on its own, One view each for a group or a view recipe in one. */
+  action: string;
+  /** The view recipes the run makes a view of, each with its view template. */
+  views: Recipe[];
+  /** Every recipe the linked preset makes: the linked recipe and, for a group, its view recipes. */
+  made: RecipeGrouping[];
+}
+
+/** One view recipe of a run, for generate_view: its grouping, and the view template its view is made from. */
+interface RecipeView {
+  element: ArchiElement;
   viewTemplate: RecipeNamed | null;
 }
 
@@ -1000,11 +1026,13 @@ type GenerationRecord = {
   direction?: string;
   modified?: boolean;
   script?: string;
+  /** The view recipe the view was made from. */
+  recipe?: RecordedObject;
 };
 /** What a run adds to the generation record it writes: an entry point's part. */
 type RunRecord = Pick<GenerationRecord, "preset" | "direction" | "modified" | "script">;
 /** Where a Create action writes: by default the preset's folder; generationRecord: left on the view. */
-type ViewTarget = { name?: string; folder?: () => Folder; view?: ArchimateView; generationRecord?: GenerationRecord };
+type ViewTarget = { name?: string; folder?: () => Folder; view?: ArchimateView; generationRecord?: GenerationRecord; recipe?: RecipeView };
 type GenerateOptions = {
   generationRecord?: RunRecord;
   /** The preset's name for the console and the log file, when the run leaves no generation record (a session run). */
@@ -1013,6 +1041,8 @@ type GenerateOptions = {
   regenerate?: ViewTarget;
   /** Regenerate with siblings: the views of the group by element id. */
   siblings?: { views: Map<string, ArchimateView> };
+  /** A recipe as the start: per start element (a view recipe) by id, its recipe view. */
+  recipes?: Map<string, RecipeView>;
 };
 type DialogBounds = { x: number; y: number; width: number; height: number };
 type DialogConfig = Preset & { _lastTabIndex?: number; _lastAction?: string; _dialogBounds?: DialogBounds; _parkedNestingConditions?: PresetParams["nestingConditions"] };
@@ -1062,6 +1092,8 @@ type DialogWidgets = {
   btnEditDescription: Swt.Button;
   // Selection tab
   lblSelectedCount: Swt.Label;
+  lblRecipeTitle: Swt.Label;
+  lblRecipe: Swt.Label;
   lblContainingCount: Swt.Label;
   tblFilterConditions: ConditionTable<"filter">;
   tblDiagramConditions: ConditionTable<"diagram">;
@@ -1206,6 +1238,10 @@ interface DialogContext {
   /** The nesting style table changed: its counts and ⚠ again, from the last recount's nesting. */
   nestingStyleChanged: () => void;
   viewTemplateNames: () => string[]; // every view as the view template field names it, without /Views/
+  /** Exactly one recipe is the start (ViewRecipeRead.readStart): it sets the action, the view template and the Object ID. */
+  recipeStart?: RecipeStart | null;
+  /** The names of linked recipes now, by id; null: not in this model. */
+  linkedNames?: Map<string, string | null>;
   recount: () => void; // recount after a change of the settings (marks the dialog modified)
   markModified: () => void;
   /** Read every tab into config (the preset row's Save and Save As). */

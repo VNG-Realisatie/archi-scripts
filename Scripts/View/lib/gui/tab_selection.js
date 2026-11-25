@@ -77,6 +77,16 @@ function buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
   w.lblSelectedCount.setToolTipText(
     "Raw count of what you picked in Archi (model tree or canvas), before expansion or filtering.");
 
+  // The recipe the run starts from, and the one the preset belongs to; shown by the dialog when there is one.
+  w.lblRecipeTitle = new LabelWidget(ctrComp, SWT.NONE);
+  w.lblRecipeTitle.setText("Recipe:");
+  w.lblRecipe = _selLine(ctrComp);
+  GridDataFactory.fillDefaults().applyTo(w.lblRecipeTitle);
+  for (const lbl of [w.lblRecipeTitle, w.lblRecipe]) {
+    lbl.getLayoutData().exclude = true;
+    lbl.setVisible(false);
+  }
+
   new LabelWidget(ctrComp, SWT.NONE).setText("Containing:");
   w.lblContainingCount = _selLine(ctrComp);
   w.lblContainingCount.setText(Counts.formatCountsBody(containing));

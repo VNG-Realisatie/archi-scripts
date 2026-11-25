@@ -88,8 +88,8 @@ Above the tab strip, left to right:
 - **Preset picker**: a button with the current preset (`folder/sub/name`). It opens a pop-up with a filter field over a tree of every saved preset: Default first, then the folders, folded, with the current preset's folders open and the preset selected. Typing filters on the full name, folders included, and opens every folder that holds a match; Enter in the filter picks the first match, Esc or a click outside closes the pop-up. Picking one (a click, or Enter on a preset) loads all its settings, including values of options its algorithm does not use, so a later Save writes back exactly what was loaded.
 - **Unknown keys**: a picked preset whose file has keys the dialog does not read opens a warning box that names them; they are not loaded, and saving the preset drops them.
 - **`*`**: shown while the settings differ from the saved preset, after any change. It also shows on open when the session differs from the preset it came from; the view name is not compared, because it is pre-filled from the selection. Save, Save As and loading a preset clear it.
-- **Save** overwrites the current preset.
-- **Save As…** opens the operating system's save dialog on the preset folder: name and folder in one step, a new folder with the system's own button. It writes the current settings as a new preset and selects it; the old preset stays.
+- **Save** overwrites the current preset. With a recipe as the start it links the preset to the recipe and writes *View preset* on every recipe the preset makes. A preset linked to another recipe first asks, in a box with three buttons: **Move the link** (the other recipe is left without a preset, and the check reports it), **Save As…** (a new preset for this recipe; this one stays) or **Cancel**. With any other start the link stays, with the recipe's name now as its label.
+- **Save As…** opens the operating system's save dialog on the preset folder: name and folder in one step, a new folder with the system's own button. It writes the current settings as a new preset and selects it; the old preset stays. The new preset is linked to the recipe of the start, else to none, so a copy never makes two presets of one recipe.
 - **Rename…** opens the same dialog: it renames or moves the *saved* preset, so the old name is gone. Unsaved changes stay in the dialog and are not written.
 - **Delete** deletes the saved preset after a confirm and loads Default.
 - **Description line**: the preset's description, grey, under the picker, with room for two lines (the tooltip has all of it), and **Edit…** behind it, under Delete. Edit… opens a small window with a field of several lines; OK puts the description in the settings, `*` shows and Save writes it. Disabled for Default.
@@ -105,6 +105,7 @@ Decides *which* objects feed the layout: the counts at the top, then the global 
 │ ┌─ Current selection ───────────────────────────────────────────────────────────────┐ │
 │ │  Selected:    3 elements, 2 relations, 1 view, 1 folder;                          │ │
 │ │               First object: Business Actor: Customer                              │ │
+│ │  Recipe:      Applicatieservices recipes: recipe group, 8 view recipes · …        │ │
 │ │  Containing:  12 elements, 8 relations                                            │ │
 │ │  Filter selection by element and relation (no Include condition of a kind = …):   │ │
 │ │   On │ Mode │ Apply to │ Element / source type │ Relation type │ Target type │ Property │ Count │
@@ -133,6 +134,7 @@ Decides *which* objects feed the layout: the counts at the top, then the global 
 
 **Counts.**
 - **Selected**: what the user picked, with a suffix `First object: <Type>: <Name>`. An empty selection shows `Selected: nothing`, without the suffix.
+- **Recipe**: shown only when a recipe is the start or the preset is linked to one. It names the recipe of the start (a group with its number of view recipes, a view recipe in a group with its group) and what Save will do, or the recipe the preset belongs to: *the preset belongs to recipe "X"*, *… is not in this model*, or with any other start *none, this run is ad hoc*. With a recipe as the start, Containing and the counts are of its view recipes, not of what was clicked.
 - **Containing**: the count after folders and views are opened up.
 - **Filter conditions**: each condition's type combo shows how many it keeps on its own, *Grouping (28)*.
 - **Adds**: one counter per step, in its header. It shows what the step *adds*, not a running total, and `Adds: nothing` when zero. A collapsed step without a name also names its number of conditions.
@@ -222,6 +224,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 - **No Include condition.** A Nesting or Reverse list starts from nothing. With Exclude conditions but no Include condition that is on, a grey note under the table says nothing is nested (or reversed) and that an Include condition is needed. The Mode tooltip states the starting point of its list: a filter keeps all without an Include condition; a feature list picks nothing.
 - **Locks.** Connections falls back to *Between containers* (greyed) when Layout inside is Grid or Pack, or a view size is active ([nesting reference](selection-nesting.md#containers-and-connections-mode)). Width and Height are greyed while Use label width is on; Wrap label at applies only with it.
 - **Empty Nesting / Reverse.** An empty table shows the default condition switched off, as an example; untouched, it is saved as `[]`. Reverse has an empty cell where Nesting has *Nested*, so the two tables line up.
+- **View template from a recipe.** With a recipe as the start, a note under the row names the recipe and its view template (*From recipe "X": /Views/…*), or says it has none. The field and **…** are greyed and keep the preset's own view template; **On** still says whether the run uses one.
 - **View template.** **On** (a checkbox before the field): off, the preset keeps the view but the run does not use it, and the field and *Leaves in place* are greyed; *Template* values in the nesting style conditions then show their fallback. The path of a view, as folders and name, typed or chosen with **…**: a window in the middle of the dialog with a filter field over the tree of views, folders bold; *Choose* (or a double click) fills the field. It is read when the field is left or Enter is pressed, not at every key; a path not in the model reads as none for the counts, and the field's tooltip says so (a run stops on it). The counts include the view template.
 - **Form rows.** Containers, Flow, Elements and Connections share the tab's heading column. Flow, Elements and Connections form one raster over their first label/control pair; Containers › Options is a full 2×2 raster.
 
@@ -421,6 +424,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 - After layout and styling, every ticked row's value is written to the generated view. A ticked row without a value removes that key from the view, and so does an unticked row, in every action. The preset keeps every configured row, ticked or not.
 - **Hidden properties.** *Object ID* and *Managed occurrence* are always hidden (the tool owns them), plus the keys of `presets/_hidden_properties.json` ([presets.md](presets.md#hidden-properties)). A hidden key has no row and generation never sets or removes it. The console lists the hidden keys when the tab opens and at each run.
 - **Object ID.** When checked and the view has no *Object ID* property, a new unique id is written; an existing one is never overwritten. *One view each* gives each view its own id.
+- **Object ID from a recipe.** With a recipe as the start the checkbox is greyed and a note says each view gets the *View Object ID* of its recipe; a recipe without one takes the view's Object ID, or a new one.
 
 ### Action area
 
@@ -439,7 +443,7 @@ Two groups of equal height; each holds two choices of the one action. Run and Ca
 - **Run** names the result: *Create view*, *Replace view* when that view exists, *Create 12 views*, *Expand view*, *Layout only*.
 - **Cancel** discards changes and remembers UI-only state (the active tab, the chosen action, the size and position of the dialog) for the next open; so does the window's close button.
 
-The dialog opens on the last action, or on *New view* when that does not fit the selection; with a view selected, on *Layout only*. It opens where it was closed, at that size, cut to its monitor; when that place is on no monitor, top centre.
+The dialog opens on the last action, or on *New view* when that does not fit the selection; with a view selected, on *Layout only*. With a recipe as the start it opens on the recipe's action, and the other three are greyed, their tooltips naming the recipe; with *New view* the Name is the recipe's, greyed. It opens where it was closed, at that size, cut to its monitor; when that place is on no monitor, top centre.
 
 **Counts**: *On the generated view* is what *New view* puts on a new view, *On the expanded view* what *Expand view* leaves on the selected view; the one not chosen is grey, so a group keeps its height. Both use the console's grouped form ([counting rules](selection-nesting.md#counting-rules)) with zeros hidden: a field with value 0 is omitted, and a sub-line whose fields are all 0 is skipped. A sub-line too long for its column wraps between fields and continues under its counts. They refresh on every dialog change; the selected view's content is read once, when the dialog opens. *One view each* has no counts; a note says how many of its views replace an existing one: *3 of the 12 views replace an existing view.* *Layout only* has no counts and hides those of *Expand view*: it writes what is on the view, which *Current selection* on the Selection tab already counts.
 

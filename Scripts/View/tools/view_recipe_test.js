@@ -16,7 +16,7 @@ console.log = _log;
 
 // ── The check on a model file ─────────────────────────────────────────────────
 
-/** Every preset in Scripts/View/presets, with its recipe link as the file holds it (view_recipe_read.readPresetLinks). */
+/** Every preset in Scripts/View/presets, with its recipe link (view_recipe_read.readPresetLinks). */
 function readPresetLinks() {
   const dir = path.join(__dirname, "..", "presets");
   const names = [];
@@ -28,9 +28,8 @@ function readPresetLinks() {
   };
   walk(dir, "");
   return names.sort(Defs.compareNames).map(name => {
-    const raw = JSON.parse(fs.readFileSync(path.join(dir, name + ".json"), "utf8"));
-    const preset = Defs.validatePreset(raw);
-    return { preset: name, recipe: raw.recipe || null, viewTemplateOn: !!(preset.params.viewTemplate.on && preset.params.viewTemplate.id), filter: preset.filter.conditions };
+    const preset = Defs.validatePreset(JSON.parse(fs.readFileSync(path.join(dir, name + ".json"), "utf8")));
+    return { preset: name, recipe: preset.recipe, viewTemplateOn: !!(preset.params.viewTemplate.on && preset.params.viewTemplate.id), filter: preset.filter.conditions };
   });
 }
 
@@ -105,6 +104,21 @@ const sections = (facts, presets) => findings(facts, presets).map(f => f[0] + ":
   const { facts } = fixture();
   facts.visuals.find(v => v.recipeId === "A").templates = [ref("Own")];
   eq(ViewRecipe.recognise(facts).get("A").viewTemplate, ref("Own"), "recognise: its own view template goes before its group's");
+}
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+
+{
+  const { facts } = fixture();
+  const r = ViewRecipe.recognise(facts);
+  const start = id => {
+    const s = ViewRecipe.startOf(r, id);
+    return s && { recipe: s.recipe.grouping.id, linked: s.linked.grouping.id, action: s.action, views: s.views.map(v => v.grouping.id), made: s.made.map(m => m.id) };
+  };
+  eq(start("C"), { recipe: "C", linked: "C", action: Defs.ACTION.NEW_VIEW.id, views: ["C"], made: ["C"] }, "startOf: a view recipe on its own makes one view, New view");
+  eq(start("G"), { recipe: "G", linked: "G", action: Defs.ACTION.ONE_EACH.id, views: ["A", "B"], made: ["G", "A", "B"] }, "startOf: a group makes a view per view recipe, One view each");
+  eq(start("A"), { recipe: "A", linked: "G", action: Defs.ACTION.ONE_EACH.id, views: ["A"], made: ["G", "A", "B"] }, "startOf: a view recipe in a group makes its own view the group's way");
+  eq(start("Loose"), null, "startOf: no recipe");
 }
 
 // ── Recipes ───────────────────────────────────────────────────────────────────

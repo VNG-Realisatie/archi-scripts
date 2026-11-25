@@ -14,6 +14,8 @@ Preset {
                                      // 10 = numbers, font style and property match per nesting style condition, Background, backgroundView.on;
                                      // 11 = no Color and Font switches per nesting level, value "default"; 12 = view template (was background view)
   name, description : string         // description: shown under the preset picker, edited with Edit…
+  recipe        : { id, name : string } | null   // the recipe link (SPEC § 5 A recipe as the start): found by id; name is a label
+                                     // Save writes; null = none (default). Added in schema 12, no migration
   algorithm     : enum               // Algorithm
   params {                           // one key per layout option: the Parameter column of the
                                      // generated tables in gui.md (Layout options, Preset-only options)

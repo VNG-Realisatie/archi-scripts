@@ -17,7 +17,7 @@
 >
 > **Plan contents:** terms with definitions (quote the current SPEC); objective; requirements; what is stored where, one carrier per row; dialog behaviour; check, generate, sync, Regenerate; how it connects to existing code; blocks with model and user checks, following the order of change; verification.
 
-Status: approved 2026-11-25; blocks 0–4 done.
+Status: approved 2026-11-25; blocks 0–5 done.
 
 ## Context
 
@@ -291,17 +291,17 @@ The user is asked only for checks in Archi and for that approval. After each blo
 - A preset linked to A with B as the start: B runs, and Save asks to move the link or to save as a new preset.
 - Any other start: ad hoc, as now, with the view template from the Layout tab.
 - Stale views: report, delete after confirmation.
+- Existing GEMMA views whose names differ from their recipe's (e.g. *Bestuur applicatieservices* for recipe *Applicatieservices bestuur*): the recipe's view gets a new Object ID, and the old views go (2026-11-25).
 - Background view → view template; origin → generation record, taken into this plan because recipes change it anyway.
 - Publication through `createReleaseModel.ajs`; CI is outside this plan.
 
 ## Handoff
 
-- Done: interview, plan, blocks 0–4. Block 3: `lib/view_recipe.js` (recognise, check, report), `lib/view_recipe_read.js` (Archi reads), `_view_recipes_check.ajs`, `tools/view_recipe_test.js` (fixture; with a model file the check in Node, same result as Archi), `readRecipeFacts` in `tools/view_harness.js`; SPEC § 2, § 4, § 5 View recipes; ARCHITECTURE § View recipes, Known gaps 19. Block 4: the GEMMA model is clean but for "No preset is linked to a recipe" (`.git/temp.archimate` of 12:55: 19 view recipes, 2 groups).
-- Open for block 5:
-  - `recipe` into the preset schema (defaults, validation, `types/view.d.ts`, `presets.md`); then `readPresetLinks` (Archi and the Node twin in `view_recipe_test.js`) reads the validated preset instead of the raw file. Known gaps 19 shrinks.
-  - The check's advice "open the dialog with the recipe as the start … save it" only holds once Save writes the link; the user tried it and found no link.
-  - `Technologiecomponenten en -services` now has a step from the grouping (committed with block 3), so its recipe start finds its services.
-  - New view copies the diagram objects of a canvas selection, Regenerate does not (Known gaps 18); with a recipe as the start the nested view reference is the view template.
-- Pre-existing, not from blocks 1–3: `write_plans --variants` 2 lines (Tiles, columnsAcrossContainers); baseline views `2 Edited` expand/layout differ from the committed baseline by a `Segoe UI Symbol` font; with nothing selected the nesting style windows show the "view template is off" note while On is ticked.
-- Next: block 5 in a new session.
-- User: start a new session with the prompt in § Blocks and way of working (N = 5).
+- Done: blocks 0–5. Block 5: `recipe` in the preset (schema 12, default null); `ViewRecipe.startOf`, `ViewRecipeRead.readStart` / `startSelection` / `writeViewPreset`; `RunPreset.fromRecipe` with `GenerateOptions.recipes` (per view recipe its view template, name for *New view*, Object ID, `recipe` in the generation record); dialog: Recipe line, fixed action, view template and Object ID notes, Save / Save As link, move-or-new question; `gui_check.ajs` suite `recipe` (`LINK_ID`). Checked on a GEMMA copy headless: the lone recipe overwrote *Alle referentiecomponenten* and kept its Object ID; the Applicatieservices group made 8 new views, because the existing views have other names.
+- Open for block 6:
+  - The old GEMMA views with other names have no `View last generated`, so sync does not find them: after the first generate-all the agent lists the views in the recipes' folders that the run did not write, and the user deletes them (decision 2026-11-25).
+  - Regenerate of a view with `recipe` in its generation record still runs the record, not the recipe (Known gaps 19).
+  - `RunPreset.fromRecipe` asks before *One view each* writes more than 20 views; headless generate must not.
+- Pre-existing, not from blocks 1–5: `write_plans --variants` 2 lines (Tiles, columnsAcrossContainers); baseline views `2 Edited` expand/layout differ from the committed baseline by a `Segoe UI Symbol` font; with nothing selected the nesting style windows show the "view template is off" note while On is ticked.
+- User, before block 6: in Archi, for each GEMMA preset open the dialog with its recipe as the start, choose the preset and Save; then say "done" (the agent checks the links with `view_recipe_test.js` on `.git/temp.archimate`, and commits the preset files).
+- Next: block 6 in a new session, with the prompt in § Blocks and way of working (N = 6).

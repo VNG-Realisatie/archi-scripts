@@ -760,6 +760,7 @@ const SPLINE_SAMPLE_POINTS = 8;
 const DEFAULT_PRESET = Object.freeze({
   schemaVersion: 12,   // 2 = condition lists (rel_filter.js); 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions; 5 = nesting style conditions + palette; 6 = font size and bold per nesting style condition; 7 = sameWidth replaces alignWidthSameType, templateLeavesInPlace replaces backgroundEveryBox; 8 = filter.conditions (element and relation rows, applyTo) replaces filter.elementConditions and filter.relationConditions; 9 = view.folder is the whole path under Views and replaces view.underGenerated (the root of Mirrored too); 10 = per nesting style condition its numbers, font style and property match, Template, viewTemplate.on, backgroundKeepAppearance removed; 11 = nestingLevel.colorEnabled and fontEnabled removed, fontSize and fontStyle value "default" (Archi's font); 12 = backgroundView → viewTemplate, backgroundLeavesInPlace → templateLeavesInPlace, condition value "background" → "template"; older presets are migrated offline
   name:      "",
+  recipe:    null,   // the recipe link: { id, name } of the view recipe (group) the preset makes; id finds it, name is its label; null = none
   algorithm: "Layered",
   params: {
     direction:             "Right",
@@ -1020,6 +1021,20 @@ function _viewTemplateRef(raw) {
 }
 
 /**
+ * A recipe link from a preset file: null, or { id, name } with a non-empty id.
+ * @param {unknown} raw
+ * @returns {RecipeLink | null}
+ * @throws when it is neither
+ */
+function _recipeLink(raw) {
+  if (raw === null) return null;
+  const r = /** @type {Record<string, unknown>} */ (raw);   // Cast: checked below
+  if (!r || typeof r !== "object" || typeof r.id !== "string" || !r.id || typeof r.name !== "string")
+    throw new Error(`Preset recipe must be null or { "id": "…", "name": "…" }; it is ${JSON.stringify(raw)}.`);
+  return { id: r.id, name: r.name };
+}
+
+/**
  * Validate and normalise a preset object.
  * - Fills missing params from DEFAULT_PRESET
  * - Validates algorithm exists
@@ -1042,6 +1057,7 @@ function validatePreset(raw) {
   // top-level
   if (raw.name    !== undefined) preset.name    = String(raw.name);
   if (raw.algorithm !== undefined) preset.algorithm = raw.algorithm;
+  if (raw.recipe !== undefined) preset.recipe = _recipeLink(raw.recipe);
 
   const alg = ALGORITHMS[preset.algorithm];
   if (!alg) throw new Error(`Unknown algorithm: "${preset.algorithm}". Valid algorithms: ${Object.keys(ALGORITHMS).join(", ")}`);

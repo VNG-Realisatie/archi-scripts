@@ -389,6 +389,9 @@ interface JavaInterop {
   type(className: "org.eclipse.jface.resource.FontDescriptor"): { createFrom(font: Swt.Font): JFace.FontDescriptor };
   type(className: "org.eclipse.jface.dialogs.IDialogConstants"): { readonly OK_ID: number; readonly CANCEL_ID: number };
   type(className: "org.eclipse.jface.dialogs.MessageDialog"): {
+    /** A question with buttons of its own: open() returns the index of the button pressed, -1 when closed. */
+    new (parent: Swt.Shell, title: string, image: null, message: string, kind: number, labels: unknown, defaultIndex: number): { open(): number };
+    readonly QUESTION: number;
     openConfirm(parent: Swt.Shell, title: string, message: string): boolean;
     openWarning(parent: Swt.Shell, title: string, message: string): void;
     openError(parent: Swt.Shell, title: string, message: string): void;
