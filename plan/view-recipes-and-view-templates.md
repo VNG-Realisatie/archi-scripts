@@ -298,6 +298,6 @@ The user is asked only for checks in Archi and for that approval. After each blo
 ## Handoff
 
 - Done: blocks 0–6. Block 6: `_view_recipes_generate.ajs` (`RunPreset.fromRecipes`): check first, findings name the recipes they block; runs per linked preset in name order; `View last generated` per run; stale views listed and deleted after confirmation (headless: `DELETE_STALE=true`, model saved); Regenerate of a recipe view runs its recipe. Verified headless on a GEMMA copy: Object IDs unchanged, a second run identical but for `View last generated`, a renamed recipe gives a new view with the same Object ID and the old one is stale and deleted. The user ran selected recipes, the rename and both answers to the confirmation in Archi, and deleted the old GEMMA views.
-- Not done, left to decide: generate does not warn about a view of another origin that carries the Object ID of a view it wrote.
+- Added after approval: generate warns about a view not made from a recipe that carries the Object ID of a view it wrote (`a7af895`).
 - Pre-existing, not from this plan: `write_plans --variants` 2 lines (Tiles, columnsAcrossContainers); baseline views `2 Edited` expand/layout differ from the committed baseline by a `Segoe UI Symbol` font; with nothing selected the nesting style windows show the "view template is off" note while On is ticked.
-- Next: none in this plan. The user generates all once in Archi with nothing selected and commits the model (coArchi).
+- Next: none in this plan. The user deletes the old view *Alle referentiecomponenten* in `/Views/_Generated/Referentiecomponenten` and commits the model (coArchi).
