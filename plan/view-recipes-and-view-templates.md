@@ -303,5 +303,5 @@ The user is asked only for checks in Archi and for that approval. After each blo
   - Regenerate of a view with `recipe` in its generation record still runs the record, not the recipe (Known gaps 19).
   - `RunPreset.fromRecipe` asks before *One view each* writes more than 20 views; headless generate must not.
 - Pre-existing, not from blocks 1–5: `write_plans --variants` 2 lines (Tiles, columnsAcrossContainers); baseline views `2 Edited` expand/layout differ from the committed baseline by a `Segoe UI Symbol` font; with nothing selected the nesting style windows show the "view template is off" note while On is ticked.
-- User, before block 6: in Archi, for each GEMMA preset open the dialog with its recipe as the start, choose the preset and Save; then say "done" (the agent checks the links with `view_recipe_test.js` on `.git/temp.archimate`, and commits the preset files).
+- GEMMA presets linked (2026-11-25): 5 of 6; recipe *Buitengemeentelijke voorzieningen* has no preset yet (the check's only finding). Save with a recipe start no longer writes the recipe's name into the preset's `view.name`.
 - Next: block 6 in a new session, with the prompt in § Blocks and way of working (N = 6).

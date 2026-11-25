@@ -1,6 +1,10 @@
 {
   "schemaVersion": 12,
   "name": "GEMMA/4. Technische architectuur/Technologiecomponenten en -services",
+  "recipe": {
+    "id": "id-82d1d0e92f96446dae26879c12fa6add",
+    "name": "Technologiecomponenten en -services"
+  },
   "algorithm": "Tiles",
   "params": {
     "direction": "Right",

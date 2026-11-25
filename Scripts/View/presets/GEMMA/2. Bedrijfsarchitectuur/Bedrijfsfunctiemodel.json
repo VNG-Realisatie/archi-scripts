@@ -1,6 +1,10 @@
 {
   "schemaVersion": 12,
   "name": "GEMMA/2. Bedrijfsarchitectuur/Bedrijfsfunctiemodel",
+  "recipe": {
+    "id": "id-b1c95d39b734476eb5a089a130ed3c49",
+    "name": "Bedrijfsfunctiemodel"
+  },
   "algorithm": "Tiles",
   "params": {
     "direction": "Right",
@@ -43,25 +47,28 @@
     "viewTemplate": {
       "id": "",
       "path": "",
-      "on": false
+      "on": true
     },
-    "templateLeavesInPlace": false
+    "templateLeavesInPlace": true
   },
   "filter": {
-    "conditions": [
-      {"source": "business-function"},
-      {"applyTo": "relation", "relation": "aggregation-relationship"}
-    ],
+    "conditions": [],
     "diagramConditions": []
   },
   "relatedElements": {
     "steps": [
       {
         "name": "",
-        "repeat": 3,
+        "repeat": 2,
         "conditions": [
-          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-function", "property": "GEMMA type", "value": "Bedrijfsfunctie"},
-          {"added": "business-function", "property": "GEMMA type", "value": "Bedrijfsfunctie domein"}
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-function"}
+        ]
+      },
+      {
+        "name": "",
+        "repeat": 1,
+        "conditions": [
+          {"previous": "business-function", "direction": "outgoing", "relation": "aggregation-relationship", "added": "business-function", "property": "GEMMA type", "value": "Bedrijfsfunctie"}
         ]
       }
     ]
@@ -95,7 +102,7 @@
     "properties": [
       {
         "key": "Architectuurlaag",
-        "value": "",
+        "value": "Applicatiearchitectuur",
         "enabled": false
       },
       {
@@ -130,12 +137,12 @@
       },
       {
         "key": "Publiceren",
-        "value": "",
+        "value": "GEMMA Online en redactie",
         "enabled": false
       },
       {
         "key": "Scope",
-        "value": "",
+        "value": "Gemeente",
         "enabled": false
       },
       {

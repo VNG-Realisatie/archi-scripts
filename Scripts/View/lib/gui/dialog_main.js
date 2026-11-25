@@ -1321,7 +1321,7 @@ function _saveUI(ctx) {
   };
 
   // View
-  if (w.txtViewName)   c.view.name   = w.txtViewName.getText().trim();
+  if (w.txtViewName && !ctx.recipeStart) c.view.name = w.txtViewName.getText().trim();   // a recipe names its view: the preset's own name stays
   if (w.txtViewFolder) {
     const run = _shownFolder(ctx);
     ctx.runFolder = run;

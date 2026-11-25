@@ -1,6 +1,10 @@
 {
   "schemaVersion": 12,
   "name": "GEMMA/2. Bedrijfsarchitectuur/Bedrijfsfuncties met referentiecomponenten",
+  "recipe": {
+    "id": "id-7b126495f32640dd970dbfc8a7c6cfc8",
+    "name": "Bedrijfsfunctie recipes"
+  },
   "algorithm": "Tiles",
   "params": {
     "direction": "Right",

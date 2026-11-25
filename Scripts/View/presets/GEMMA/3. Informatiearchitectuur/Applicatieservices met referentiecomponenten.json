@@ -1,6 +1,10 @@
 {
   "schemaVersion": 12,
   "name": "GEMMA/3. Informatiearchitectuur/Applicatieservices met referentiecomponenten",
+  "recipe": {
+    "id": "id-85e399bfe4ee4fedbf37ad6a80c64fb1",
+    "name": "Applicatieservices recipes"
+  },
   "algorithm": "Tiles",
   "params": {
     "direction": "Right",
@@ -80,7 +84,7 @@
   },
   "view": {
     "name": "Domeinen",
-    "folder": "/_Generated/Referentiecomponenten/Applicatieservices en referentiecomponenten",
+    "folder": "/_Generated/3. Informatiearchitectuur/Applicatieservices en referentiecomponenten",
     "suffix": "",
     "mirrored": false
   },
