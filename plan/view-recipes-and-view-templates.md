@@ -17,7 +17,7 @@
 >
 > **Plan contents:** terms with definitions (quote the current SPEC); objective; requirements; what is stored where, one carrier per row; dialog behaviour; check, generate, sync, Regenerate; how it connects to existing code; blocks with model and user checks, following the order of change; verification.
 
-Status: approved 2026-11-25; blocks 0 and 1 done.
+Status: approved 2026-11-25; blocks 0, 1 and 2 done.
 
 ## Context
 
@@ -296,7 +296,8 @@ The user is asked only for checks in Archi and for that approval. After each blo
 
 ## Handoff
 
-- Done: interview, plan, block 0, block 1 (background view → view template, schema 12; code, docs, presets, test model; checks in the commit message).
-- Pre-existing, not from block 1: `write_plans --variants` 2 lines (Tiles, columnsAcrossContainers); baseline views `2 Edited` expand/layout differ from the committed baseline by a `Segoe UI Symbol` font; with nothing selected the nesting style windows show the "view template is off" note while On is ticked.
-- Next: block 2 in a new session.
-- User: start a new session with the prompt in § Blocks and way of working (N = 2).
+- Done: interview, plan, blocks 0–2. Block 2: origin → generation record (`lib/generation_record.js`, property `View generation record`), model script `tools/migrate_view_generation_record.ajs` run on GEMMA, sociaal domein and view-architecture (226 views, verified). Found during the check: a generation record kept a canvas selection without its nested objects; fixed in its own commit.
+- Open for block 5: New view copies the diagram objects of a canvas selection, Regenerate does not (ARCHITECTURE § Known gaps 18); with a recipe as the start the nested view reference is the view template. Preset `GEMMA/4. Technische architectuur/Technologiecomponenten en -services` starts its first step from `technology-service`, so from the grouping alone it finds nothing: a recipe start needs a step from the grouping.
+- Pre-existing, not from blocks 1–2: `write_plans --variants` 2 lines (Tiles, columnsAcrossContainers); baseline views `2 Edited` expand/layout differ from the committed baseline by a `Segoe UI Symbol` font; with nothing selected the nesting style windows show the "view template is off" note while On is ticked.
+- Next: blocks 3 and 4 in one new session.
+- User: start a new session with the prompt in § Blocks and way of working (N = 3).

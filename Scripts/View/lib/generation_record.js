@@ -27,6 +27,8 @@ const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders");
 const Defs = require(REPO_ROOT + "View/lib/defs");
 /** @type {typeof import("./selection_read")} */
 const SelectionRead = require(REPO_ROOT + "View/lib/selection_read");
+/** @type {typeof import("../../_lib/selection")} */
+const Selection = require(REPO_ROOT + "_lib/selection");
 
 /**
  * @param {ArchiObject} object
@@ -39,7 +41,8 @@ function describeObject(object) {
 /**
  * The start of a run, as the generation record keeps it. A folder stays a folder, so new elements in it join.
  * A view, or a folder of views, is kept as the elements on it now: a view replaced in place would
- * otherwise be its own start and grow with every regenerate.
+ * otherwise be its own start and grow with every regenerate. An object on a canvas is kept with the
+ * objects nested in it, as the run reads it (Selection.getSelection walks them); diagram objects are left out.
  * @param {ArchiCollection<ArchiObject>} uiSelection
  * @returns {RecordedObject[]}
  */
@@ -50,10 +53,7 @@ function describeStart(uiSelection) {
   uiSelection.each(o => {
     if (SelectionRead.isViewOrViewFolder(o)) SelectionRead.getSeedElements($(o)).forEach(add);
     else if (o.type === "folder") add(o);
-    else {
-      const concept = /** @type {VisualObject} */ (o).concept || o;   // Cast: a canvas object holds its concept
-      if (!String(concept.type).startsWith("diagram-model-")) add(concept);
-    }
+    else Selection.getSelection($(o)).each(c => { if (!Selection.DIAGRAM_OBJECT_TYPES.includes(c.type)) add(c); });
   });
   return [...start.values()];
 }
