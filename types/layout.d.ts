@@ -64,9 +64,9 @@ interface LayoutEdge {
 
 /** One cell of a table: its boxes (a stack when several, in reading order) and its place, counted from 0 (lib/table.js). */
 interface TableCell { ids: string[]; column: number; columnSpan: number; row: number; rowSpan: number }
-/** The table rows and table columns of the boxes of a container on the background view, and their cells. */
+/** The table rows and table columns of the boxes of a container on the view template, and their cells. */
 interface Table { columns: number; rows: number; cells: TableCell[] }
-/** Container element id ("" = the view itself) → the table of its children on the background view. */
+/** Container element id ("" = the view itself) → the table of its children on the view template. */
 type Tables = Record<string, Table>;
 /** A table as Tiles placed it, for the column grid: the box it lies in (null: the view), its table columns, and its cells (the nodes
  *  that fill them, with the table columns they span). */
@@ -84,7 +84,7 @@ interface LayoutGraph {
   columnsAcrossContainers: boolean;
   /** How the boxes are sorted (defs.SORT_MODE); undefined where the algorithm has no Sort (directed views). */
   sort?: string;
-  /** The table of the containers on the background view (Tiles); absent without a background view. */
+  /** The table of the containers on the view template (Tiles); absent without a view template. */
   tables?: Tables;
   /** Occurrence id → parent occurrence id (container-ness is derived from this; Scripts/View/AGENTS.md). */
   _parentMap: Record<string, string>;

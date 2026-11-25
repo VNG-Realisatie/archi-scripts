@@ -32,8 +32,8 @@ const Defs        = require(REPO_ROOT + "View/lib/defs");
 const ConditionLists = require(REPO_ROOT + "View/lib/rel_filter");
 /** @type {typeof import("./nesting")} */
 const Nesting     = require(REPO_ROOT + "View/lib/nesting");
-/** @type {typeof import("./background")} */
-const Background  = require(REPO_ROOT + "View/lib/background");
+/** @type {typeof import("./view_template")} */
+const ViewTemplate  = require(REPO_ROOT + "View/lib/view_template");
 /** @type {typeof import("./table")} */
 const Table       = require(REPO_ROOT + "View/lib/table");
 const { ACTION } = Defs;
@@ -53,70 +53,70 @@ function buildObjectSet(snapshot, preset, actionId) {
   if (!_isModifyAction(actionId)) _logFilter(preset.filter);
   else Log.debug("  Modify-selected-view action: element-type filter skipped");
 
-  if (snapshot.background && _isModifyAction(actionId)) Log.debug("  Modify-selected-view action: the background view gives the table only (nothing added or left out)");
-  else if (snapshot.background && !(preset.params.nestingConditions || []).length) Log.warn(`The background view "${snapshot.background.path}" has no effect: nothing nests without a nesting condition.`, {
-    action: "add a nesting condition on the Layout tab, or empty Background." });
+  if (snapshot.viewTemplate && _isModifyAction(actionId)) Log.debug("  Modify-selected-view action: the view template gives the table only (nothing added or left out)");
+  else if (snapshot.viewTemplate && !(preset.params.nestingConditions || []).length) Log.warn(`The view template "${snapshot.viewTemplate.path}" has no effect: nothing nests without a nesting condition.`, {
+    action: "add a nesting condition on the Layout tab, or empty View template." });
   const composed = composeObjectSet(snapshot, preset, actionId);
   _logSteps(preset.relatedElements.steps, composed.stepCounts);
   _logComposed(composed, _isModifyAction(actionId));
-  if (composed.background) _logBackground(composed.background);
+  if (composed.viewTemplate) _logViewTemplate(composed.viewTemplate);
   return composed;
 }
 
 /**
- * The background view's part: on the console what it left out, in the log file what it added.
- * @param {NonNullable<ComposedObjectSet["background"]>} bg
+ * The view template's part: on the console what it left out, in the log file what it added.
+ * @param {NonNullable<ComposedObjectSet["viewTemplate"]>} tpl
  */
-function _logBackground(bg) {
+function _logViewTemplate(tpl) {
   const names = (/** @type {ArchiElement[]} */ list) => list.map(e => `"${e.name}"`).join(", ");
-  Log.debug(`  Background view "${bg.view}": ${bg.elements} elements; parents brought up to it: ${bg.parents.length ? names(bg.parents) : "none"}`);
-  if (!bg.dropped.length) return;
-  const n = bg.dropped.length;
-  Log.info(`Left out: ${n} element${n === 1 ? "" : "s"} under nothing on the background view: ${names(bg.dropped.slice(0, 5))}${n > 5 ? ", …" : ""}`);
-  if (n > 5) Log.detail("INFO", `  All left out: ${names(bg.dropped)}`);
+  Log.debug(`  View template "${tpl.view}": ${tpl.elements} elements; parents brought up to it: ${tpl.parents.length ? names(tpl.parents) : "none"}`);
+  if (!tpl.dropped.length) return;
+  const n = tpl.dropped.length;
+  Log.info(`Left out: ${n} element${n === 1 ? "" : "s"} under nothing on the view template: ${names(tpl.dropped.slice(0, 5))}${n > 5 ? ", …" : ""}`);
+  if (n > 5) Log.detail("INFO", `  All left out: ${names(tpl.dropped)}`);
 }
 
 /**
- * The background view a Create action fills: none for the Modify actions, or without a nesting
+ * The view template a Create action fills: none for the Modify actions, or without a nesting
  * condition (nothing could hang under it).
  * @param {Snapshot}        snapshot
  * @param {EffectiveParams} params
  * @param {boolean}         isModifyAction
- * @returns {BackgroundSnapshot | null}
+ * @returns {ViewTemplateSnapshot | null}
  */
-function _backgroundOf(snapshot, params, isModifyAction) {
-  if (isModifyAction || !snapshot.background || !params.backgroundView) return null;
-  return (params.nestingConditions || []).length ? snapshot.background : null;
+function _viewTemplateOf(snapshot, params, isModifyAction) {
+  if (isModifyAction || !snapshot.viewTemplate || !params.viewTemplate) return null;
+  return (params.nestingConditions || []).length ? snapshot.viewTemplate : null;
 }
 
 /**
- * The background looks: the visuals of each element on the background view, in view order, with the
+ * The template looks: the visuals of each element on the view template, in view order, with the
  * element each lies in, outside a diagram-block (an element in a diagram-block keeps that one's own).
- * Appearance.backgroundLook picks the one an occurrence keeps.
- * @param {BackgroundSnapshot} background
- * @returns {Map<string, BackgroundLook[]>}  element id → its visuals
+ * Appearance.templateLook picks the one an occurrence keeps.
+ * @param {ViewTemplateSnapshot} viewTemplate
+ * @returns {Map<string, TemplateLook[]>}  element id → its visuals
  */
-function backgroundLooks(background) {
-  /** @type {Map<string, BackgroundLook[]>} */
+function templateLooks(viewTemplate) {
+  /** @type {Map<string, TemplateLook[]>} */
   const looks = new Map();
-  for (const vo of background.sourceVisualElements) {
-    if (background.diagramBlockOf.has(String(vo.id))) continue;
+  for (const vo of viewTemplate.sourceVisualElements) {
+    if (viewTemplate.diagramBlockOf.has(String(vo.id))) continue;
     const id = String(/** @type {ArchiElement} */ (vo.concept).id);   // Cast: a source element visual has its element
     if (!looks.has(id)) looks.set(id, []);
-    /** @type {BackgroundLook[]} */ (looks.get(id)).push({ visual: vo, parentId: background.parentOf.get(String(vo.id)) || null });
+    /** @type {TemplateLook[]} */ (looks.get(id)).push({ visual: vo, parentId: viewTemplate.parentOf.get(String(vo.id)) || null });
   }
   return looks;
 }
 
 /**
  * Expand view, Layout only: the diagram objects at the view's top level that are copies of those of the
- * background view, matched by content (type, name, text, size; a diagram-block its contents too), in
+ * view template, matched by content (type, name, text, size; a diagram-block its contents too), in
  * view order. A copy edited on the view matches nothing.
- * @param {BackgroundSnapshot} background
+ * @param {ViewTemplateSnapshot} viewTemplate
  * @param {Snapshot}           snapshot  the view's own
- * @returns {Map<string, string>}  background view's id → the view's id
+ * @returns {Map<string, string>}  view template's id → the view's id
  */
-function _copiesOnView(background, snapshot) {
+function _copiesOnView(viewTemplate, snapshot) {
   /** @type {(objects: DiagramObject[], blockOf: Map<string, string>) => VisualObject[]} */
   const top = (objects, blockOf) => /** @type {VisualObject[]} */ (objects.filter(o => o.type !== "diagram-model-connection" && !blockOf.has(String(o.id))));   // Cast: connections left out
   /** @type {Map<string, string[]>} */
@@ -128,8 +128,8 @@ function _copiesOnView(background, snapshot) {
   }
   /** @type {Map<string, string>} */
   const out = new Map();
-  for (const o of top(background.diagramObjects, background.diagramBlockOf)) {
-    const ids = free.get(_contentKey(o, background.blockContents));
+  for (const o of top(viewTemplate.diagramObjects, viewTemplate.diagramBlockOf)) {
+    const ids = free.get(_contentKey(o, viewTemplate.blockContents));
     if (ids && ids.length) out.set(String(o.id), /** @type {string} */ (ids.shift()));
   }
   return out;
@@ -171,9 +171,9 @@ function composeObjectSet(snapshot, preset, actionId) {
   const isModifyAction = _isModifyAction(actionId);
   const isExpand       = actionId === ACTION.EXPAND_VIEW.id;
   const { existing, relationsOf } = snapshot;
-  const background     = _backgroundOf(snapshot, preset.params, isModifyAction);
-  // Expand view and Layout only keep what is on the view, but lay it out in the background view's table.
-  const withTables   = isModifyAction && snapshot.background && preset.params.backgroundView ? snapshot.background : background;
+  const viewTemplate     = _viewTemplateOf(snapshot, preset.params, isModifyAction);
+  // Expand view and Layout only keep what is on the view, but lay it out in the view template's table.
+  const withTables   = isModifyAction && snapshot.viewTemplate && preset.params.viewTemplate ? snapshot.viewTemplate : viewTemplate;
 
   // Filter (skipped for the Modify actions, see buildObjectSet).
   let filteredElementsArr = snapshot.elements;
@@ -182,13 +182,13 @@ function composeObjectSet(snapshot, preset, actionId) {
     filteredElementsArr = applyFilter(filteredElementsArr, preset.filter);
     diagramObjects      = _applyDiagramFilter(diagramObjects, preset.filter);
   }
-  // The background view's diagram objects are always on the view, like its elements: no filter.
-  const blocksRead = background ? {
-    diagramBlockOf:       new Map([...snapshot.diagramBlockOf, ...background.diagramBlockOf]),
-    blockContents:        new Map([...snapshot.blockContents, ...background.blockContents]),
-    sourceVisualElements: [...snapshot.sourceVisualElements, ...background.sourceVisualElements],
+  // The view template's diagram objects are always on the view, like its elements: no filter.
+  const blocksRead = viewTemplate ? {
+    diagramBlockOf:       new Map([...snapshot.diagramBlockOf, ...viewTemplate.diagramBlockOf]),
+    blockContents:        new Map([...snapshot.blockContents, ...viewTemplate.blockContents]),
+    sourceVisualElements: [...snapshot.sourceVisualElements, ...viewTemplate.sourceVisualElements],
   } : snapshot;
-  if (background) diagramObjects = _uniqueById([...diagramObjects, ...background.diagramObjects]);
+  if (viewTemplate) diagramObjects = _uniqueById([...diagramObjects, ...viewTemplate.diagramObjects]);
 
   const filteredCounts = {
     elems: filteredElementsArr.length,
@@ -223,8 +223,8 @@ function composeObjectSet(snapshot, preset, actionId) {
     ? _uniqueById([.../** @type {ArchiElement[]} */ (existing.visualElements.map(ve => ve.concept).filter(Boolean)), ...expansion.addedElements])   // Cast: nulls filtered
     : [...filteredElementsArr, ...expansion.addedElements];
   let viewRelations = allRelations;
-  // The background view: its elements always on the view, the selection filling it (lib/background.js).
-  const filled = background ? Background.compose(viewElements, allRelations, background, relationsOf, preset.params) : null;
+  // The view template: its elements always on the view, the selection filling it (lib/view_template.js).
+  const filled = viewTemplate ? ViewTemplate.compose(viewElements, allRelations, viewTemplate, relationsOf, preset.params) : null;
   if (filled) { viewElements = filled.elements; viewRelations = filled.relations; }
 
   // Diagram-blocks: Create copies only those the diagram filter keeps (the view read is not the target).
@@ -264,13 +264,13 @@ function composeObjectSet(snapshot, preset, actionId) {
       visuals,
       joinRun,
       ...(withTables ? { tables: isModifyAction ? Table.withIds(withTables.tables, _copiesOnView(withTables, snapshot)) : withTables.tables } : {}),
-      ...(withTables ? { backgroundLooks: backgroundLooks(withTables) } : {}),
+      ...(withTables ? { templateLooks: templateLooks(withTables) } : {}),
     },
     filteredCounts,
     filteredBaseRels,
     stepCounts: expansion.stepCounts,
     view,
-    ...(background && filled ? { background: { view: background.path, elements: background.elements.length, parents: filled.parents, dropped: filled.dropped } } : {}),
+    ...(viewTemplate && filled ? { viewTemplate: { view: viewTemplate.path, elements: viewTemplate.elements.length, parents: filled.parents, dropped: filled.dropped } } : {}),
   };
 }
 
@@ -791,7 +791,7 @@ function _uniqueById(objects) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     applyFilter,
-    backgroundLooks,
+    templateLooks,
     buildObjectSet,
     composeObjectSet,
     expandStepWithRelations,

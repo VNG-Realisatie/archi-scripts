@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 11,
+  "schemaVersion": 12,
   "name": "GEMMA/3. Informatiearchitectuur/Alle referentiecomponenten",
   "algorithm": "Tiles",
   "params": {
@@ -40,12 +40,12 @@
     "labelSizing": false,
     "labelMaxLineWidth": 400,
     "connectionLabelSpacing": false,
-    "backgroundView": {
+    "viewTemplate": {
       "id": "id-56a7581f8584418886517ed48d955ff4",
       "path": "/Views/Beheer/View templates/Alle referentiecomponenten",
       "on": true
     },
-    "backgroundLeavesInPlace": false
+    "templateLeavesInPlace": false
   },
   "filter": {
     "conditions": [],
@@ -111,8 +111,8 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "color": "background", "lightenPerLevel": 40, "fontSize": 16, "fontStyle": "background", "child": "same"},
-        {"direction": "outgoing", "relation": "aggregation-relationship", "child": "application-service", "color": "background", "lightenPerLevel": 40, "fontSize": 10, "fontStyle": "background"}
+        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "color": "template", "lightenPerLevel": 40, "fontSize": 16, "fontStyle": "template", "child": "same"},
+        {"direction": "outgoing", "relation": "aggregation-relationship", "child": "application-service", "color": "template", "lightenPerLevel": 40, "fontSize": 10, "fontStyle": "template"}
       ]
     },
     "highlightRepeated": {

@@ -65,8 +65,8 @@ const ICON_OFFSET = Object.freeze({
  * @property {(nodeId: string) => ArchiElement | undefined} elementOf  the element of an occurrence; undefined for a diagram object
  * @property {(nodeId: string) => VisualObject | undefined} visualOf   the visual on the target view paired with the occurrence
  * @property {Preset["appearance"]["nestingLevel"]} nestingLevel
- * @property {Set<string>} backgroundElements  elements of the background view: styled as containers
- * @property {Map<string, BackgroundLook[]>} backgroundLooks  element id → its visuals on the background view (Appearance.backgroundLook): the background look, whose font and text layout it takes
+ * @property {Set<string>} templateElements  elements of the view template: styled as containers
+ * @property {Map<string, TemplateLook[]>} templateLooks  element id → its visuals on the view template (Appearance.templateLook): the template look, whose font and text layout it takes
  * @property {LabelInput} input
  *
  * @typedef {object} LabelLayout  how Archi lays out one node's label
@@ -78,8 +78,8 @@ const ICON_OFFSET = Object.freeze({
 
 /**
  * How each element node's label is laid out. Font: the one Color and font by nesting level sets or
- * resets, else the font of its background look, else the visual's, else Archi's default view font.
- * Text width: the figure type, text alignment, text position and icon of its background look, else
+ * resets, else the font of its template look, else the visual's, else Archi's default view font.
+ * Text width: the figure type, text alignment, text position and icon of its template look, else
  * of the visual; a new visual as Archi creates it (figure type, text alignment and text position from
  * Archi's preferences, a grouping left-aligned; icon shown).
  * @param {LayoutNode[]}           nodes
@@ -95,7 +95,7 @@ function labelLayouts(nodes, parentMap, src) {
   const lookOf = id => {
     const el = src.elementOf(id);
     const parentEl = parentMap[id] ? src.elementOf(parentMap[id]) : undefined;
-    return el ? Appearance.backgroundLook(src.backgroundLooks, el.id, parentEl ? parentEl.id : null) : undefined;
+    return el ? Appearance.templateLook(src.templateLooks, el.id, parentEl ? parentEl.id : null) : undefined;
   };
   /** @type {import("./appearance").NestingNode[]} */
   const nestingNodes = [];
@@ -107,7 +107,7 @@ function labelLayouts(nodes, parentMap, src) {
     nestingNodes.push({
       id: n.id, parentId: n.parent, type: el.type, element: el,
       rels: parentEl ? Appearance.relsBetween(parentEl, el, src.input.relationsOf) : [],
-      depth: depthOf(n.id), isContainer: containers.has(n.id), onBackground: src.backgroundElements.has(el.id),
+      depth: depthOf(n.id), isContainer: containers.has(n.id), onTemplate: src.templateElements.has(el.id),
       ...(look ? { look: Appearance.lookValues(look) } : {}),
     });
   }

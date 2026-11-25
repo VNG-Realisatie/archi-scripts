@@ -62,7 +62,7 @@ const DP = DEFAULT_PRESET.params;
 // Layout params with one plain widget: loaded (_syncToUI), saved (_saveUI) and enabled per
 // algorithm (updateAlgorithmControls) from this table, so every param follows defs.activeParams.
 //   kind: spin | check | combo (items = full list; the algorithm's supportedOptions narrow it) |
-//         conditions (condition table, gui/condition_table.js) | view (a view's path, BackgroundRef)
+//         conditions (condition table, gui/condition_table.js) | view (a view's path, ViewTemplateRef)
 // Params with their own handling: the view size (maxWidth / aspectRatio / viewSizeMode radios).
 /** @type {Readonly<Record<string, ParamWidget>>} */
 const PARAM_WIDGETS = Object.freeze({
@@ -92,8 +92,8 @@ const PARAM_WIDGETS = Object.freeze({
   sort:     { w: "cmbSort",      kind: "combo", items: SORT_MODE_LABELS },
   sameWidth:                { w: "cmbSameWidth",                 kind: "combo", items: SAME_WIDTH_LABELS },
   columnsAcrossContainers:        { w: "chkColumnsAcrossContainers",               kind: "check" },
-  backgroundView:           { w: "txtBackgroundView",            kind: "view" },
-  backgroundLeavesInPlace:  { w: "chkBackgroundLeavesInPlace",   kind: "check" },
+  viewTemplate:             { w: "txtViewTemplate",              kind: "view" },
+  templateLeavesInPlace:    { w: "chkTemplateLeavesInPlace",     kind: "check" },
 });
 
 /**
@@ -244,28 +244,28 @@ function buildLayoutTab(tabFolder, ctx) {
   Widgets.addCombo(row, "Same width", SAME_WIDTH_LABELS, 0, SWT.DEFAULT, "cmbSameWidth", w);
   w.cmbSameWidth.addListener(SWT.Selection, () => updateAlgorithmControls(ctx));
   Widgets.addCheck(row, "Columns across containers", null, 2, w, "chkColumnsAcrossContainers");
-  row = Widgets.formRow(grpCtr, "Background:", formRows);
-  const chkOn = Widgets.addCheck(row, "On", "Use the background view. Off: the preset keeps it, but the run lays out without it and " +
-    "Background in the nesting style conditions uses default values.", 1, w, "chkBackgroundOn");
-  chkOn.addListener(SWT.Selection, () => { updateAlgorithmControls(ctx); ctx.backgroundChanged(); });
+  row = Widgets.formRow(grpCtr, "View template:", formRows);
+  const chkOn = Widgets.addCheck(row, "On", "Use the view template. Off: the preset keeps it, but the run lays out without it and " +
+    "Template in the nesting style conditions uses default values.", 1, w, "chkViewTemplateOn");
+  chkOn.addListener(SWT.Selection, () => { updateAlgorithmControls(ctx); ctx.viewTemplateChanged(); });
   const field = new CompositeWidget(row, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(2).spacing(4, 0).applyTo(field);
   GridDataFactory.fillDefaults().grab(true, false).span(2, 1).hint(300, SWT.DEFAULT).applyTo(field);
-  w.txtBackgroundView = new TextWidget(field, SWT.BORDER);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(w.txtBackgroundView);
-  w.txtBackgroundView.setMessage("path of a view, e.g. /Views/Backgrounds/Map");
-  w.btnBackgroundView = DialogTree.treeButton(field, {
-    title:   "Choose background view",
-    items:   () => ctx.backgroundNames(),
-    current: () => String(w.txtBackgroundView.getText()).trim().replace(/^\/Views\//, ""),
+  w.txtViewTemplate = new TextWidget(field, SWT.BORDER);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(w.txtViewTemplate);
+  w.txtViewTemplate.setMessage("path of a view, e.g. /Views/View templates/Map");
+  w.btnViewTemplate = DialogTree.treeButton(field, {
+    title:   "Choose view template",
+    items:   () => ctx.viewTemplateNames(),
+    current: () => String(w.txtViewTemplate.getText()).trim().replace(/^\/Views\//, ""),
     tooltip: "Choose a view of the model.",
-    onChange: name => { w.txtBackgroundView.setText("/Views/" + name); ctx.backgroundChanged(); },
+    onChange: name => { w.txtViewTemplate.setText("/Views/" + name); ctx.viewTemplateChanged(); },
   });
-  w.txtBackgroundView.addListener(SWT.Modify, () => ctx.markModified());
+  w.txtViewTemplate.addListener(SWT.Modify, () => ctx.markModified());
   // Read the view when the path is complete: Enter or leaving the field, not at every key.
-  w.txtBackgroundView.addListener(SWT.DefaultSelection, () => ctx.backgroundChanged());
-  w.txtBackgroundView.addListener(SWT.FocusOut, () => ctx.backgroundChanged());
-  Widgets.addCheck(row, "Leaves in place", null, 2, w, "chkBackgroundLeavesInPlace");
+  w.txtViewTemplate.addListener(SWT.DefaultSelection, () => ctx.viewTemplateChanged());
+  w.txtViewTemplate.addListener(SWT.FocusOut, () => ctx.viewTemplateChanged());
+  Widgets.addCheck(row, "Leaves in place", null, 2, w, "chkTemplateLeavesInPlace");
 
   // ── Flow ──────────────────────────────────────────────────────────────────────
   const grpFlow = Widgets.group(page, "Flow", 1);
@@ -485,14 +485,14 @@ function updateAlgorithmControls(ctx) {
   // Containers settings only matter once a Nesting condition is on.
   if (!_nestingOn(w, alg))
     for (const k of Defs.LAYOUT_GROUPS.Containers) if (PARAM_WIDGETS[k]) Widgets.enable(w[PARAM_WIDGETS[k].w], false);
-  // The background view's On follows its field; off greys the field and what belongs to it.
+  // The view template's On follows its field; off greys the field and what belongs to it.
   // Without a view named there is nothing to switch: On is unticked and greyed, the field stays open.
-  if (w.chkBackgroundOn) {
-    const named = String(w.txtBackgroundView.getText()).trim() !== "";
-    if (!named) { w.chkBackgroundOn.setSelection(false); Widgets.enable(w.chkBackgroundLeavesInPlace, false); }
-    Widgets.enable(w.chkBackgroundOn, named && w.txtBackgroundView.isEnabled());
-    if (named && !w.chkBackgroundOn.getSelection())
-      for (const c of [w.txtBackgroundView, w.btnBackgroundView, w.chkBackgroundLeavesInPlace]) Widgets.enable(c, false);
+  if (w.chkViewTemplateOn) {
+    const named = String(w.txtViewTemplate.getText()).trim() !== "";
+    if (!named) { w.chkViewTemplateOn.setSelection(false); Widgets.enable(w.chkTemplateLeavesInPlace, false); }
+    Widgets.enable(w.chkViewTemplateOn, named && w.txtViewTemplate.isEnabled());
+    if (named && !w.chkViewTemplateOn.getSelection())
+      for (const c of [w.txtViewTemplate, w.btnViewTemplate, w.chkTemplateLeavesInPlace]) Widgets.enable(c, false);
   }
 
   // View size radios: unsupported options are greyed; a selected unsupported option falls back to None.

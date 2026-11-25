@@ -10,7 +10,7 @@
  *        [--write-plan]          print the write plan as JSON instead of the summary
  *        [--in-process]          the adapter runs in this process, not in a Node layout process (debugging, speed)
  *
- * As a module: loadModel, findView, readSnapshot, readBackground, relationIndex, layoutRuntime, planView, planEach, writePlanJson
+ * As a module: loadModel, findView, readSnapshot, readViewTemplate, relationIndex, layoutRuntime, planView, planEach, writePlanJson
  * and the parsers (see below).
  */
 const fs   = require("fs");
@@ -27,7 +27,7 @@ console.log = (...a) => { if (!(typeof a[0] === "string" && a[0].startsWith("Loa
 
 const Defs     = require(LIB + "defs");
 const Nesting  = require(LIB + "nesting");   // classifyVisuals, as describeVisuals
-const Table = require(LIB + "table");   // tablesOf, as readBackground
+const Table = require(LIB + "table");   // tablesOf, as readViewTemplate
 const TextMeasureNode = require("./text_measure_node");
 
 // ── .archimate reader ─────────────────────────────────────────────────────────
@@ -265,7 +265,7 @@ function planView(model, view, preset, actionId, inProcess = false) {
   const GenView = require(LIB + "generate_view");
   const runtime = layoutRuntime(inProcess);
   const snapshot = readSnapshot(model, view, actionId);
-  snapshot.background = readBackground(model, preset.params.backgroundView);
+  snapshot.viewTemplate = readViewTemplate(model, preset.params.viewTemplate);
   return GenView.plan({ ...preset, params: Defs.effectiveParams(preset) }, snapshot, actionId, runtime);
 }
 
@@ -284,7 +284,7 @@ function planEach(model, seeds, preset, inProcess = false) {
   const masked = { ...preset, params: Defs.effectiveParams(preset) };
   return Pipeline.applyFilter(seeds, preset.filter).map(seed => {
     const snapshot = { elements: [seed], diagramObjects: [], relationsOf: relationIndex(model), existing: { existingView: null, visualElements: [], visualRelations: [], positions: new Map() },
-                       diagramBlockOf: new Map(), blockContents: new Map(), sourceVisualElements: [], visuals: [], background: readBackground(model, preset.params.backgroundView) };
+                       diagramBlockOf: new Map(), blockContents: new Map(), sourceVisualElements: [], visuals: [], viewTemplate: readViewTemplate(model, preset.params.viewTemplate) };
     return { seed, planned: GenView.plan(masked, snapshot, Defs.ACTION.NEW_VIEW.id, runtime) };
   });
 }
@@ -302,14 +302,14 @@ function layoutRuntime(inProcess) {
 }
 
 /**
- * The background view as selection_read.readBackground gives it in Archi: its elements (each once), diagram
+ * The view template as selection_read.readViewTemplate gives it in Archi: its elements (each once), diagram
  * objects and diagram-blocks, its element visuals, and the tables of its boxes; null without one, or when it is off.
- * @param {{id: string, path: string, on: boolean} | undefined} ref  preset.params.backgroundView
+ * @param {{id: string, path: string, on: boolean} | undefined} ref  preset.params.viewTemplate
  */
-function readBackground(model, ref) {
+function readViewTemplate(model, ref) {
   if (!ref || !ref.on || (!ref.id && !ref.path)) return null;
   const view = model.views.find(v => v.id === ref.id) || model.views.find(v => "/" + v.path === ref.path);
-  if (!view) throw new Error(`Background view "${ref.path || ref.id}" is not in this model.`);
+  if (!view) throw new Error(`View template "${ref.path || ref.id}" is not in this model.`);
   const w = _walkView(model, view);
   const conceptOf = new Map(w.visualElements.map(v => [v.id, v.concept.id]));
   const parentOf = new Map(w.visualElements.map(v => [v.id, conceptOf.get(w.positions.get(v.id).parentId) || null]));
@@ -334,7 +334,7 @@ function writePlanJson(writePlan) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { parseXml, jarchiType, loadModel, findView, readSnapshot, readBackground, relationIndex, layoutRuntime, planView, planEach, writePlanJson };
+  module.exports = { parseXml, jarchiType, loadModel, findView, readSnapshot, readViewTemplate, relationIndex, layoutRuntime, planView, planEach, writePlanJson };
 }
 
 // ── CLI ───────────────────────────────────────────────────────────────────────

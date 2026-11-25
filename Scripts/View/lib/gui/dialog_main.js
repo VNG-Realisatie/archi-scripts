@@ -108,9 +108,9 @@ function open(uiSelection) {
   const w = /** @type {DialogWidgets} */ ({});       // widget map
   const ctx = /** @type {DialogContext} */ ({ config, widgets: w, uiSelection, firstName: "", relBlocks: /** @type {StepBlock[]} */ ([]),
     recount: () => _updateFilteredCount(ctx), markModified: () => PresetRow.markModified(ctx),
-    backgroundChanged: () => { _tickNamedBackground(ctx); _readBackgroundField(ctx); _updateFilteredCount(ctx); },
+    viewTemplateChanged: () => { _tickNamedViewTemplate(ctx); _readViewTemplateField(ctx); _updateFilteredCount(ctx); },
     nestingStyleChanged: () => TabAppearance.updateNestingStyleCounts(ctx),
-    backgroundNames: () => _backgroundNames(ctx),
+    viewTemplateNames: () => _viewTemplateNames(ctx),
     saveUI: () => _saveUI(ctx), syncToUI: () => _syncToUI(ctx), refreshAction: () => _refreshAction(ctx) });  // firstName set below
 
   // Compute selection counts before the dialog opens.
@@ -500,7 +500,7 @@ function _updateFilteredCount(ctx) {
     return;
   }
 
-  ctx.backgroundInUse = _backgroundInUse(ctx);
+  ctx.viewTemplateInUse = _viewTemplateInUse(ctx);
   try {
     _showCounts(ctx, Counts.dialogCounts(_countInput(ctx, objects)));
   } catch (e) {
@@ -549,16 +549,16 @@ function _countInput(ctx, objects) {
     relationsOf: ctx.relationsOf,
     visuals: ctx.visuals,
     expandSnapshot: ctx.expandSnapshot || null,
-    background: _backgroundInUse(ctx) ? ctx.background || null : null,
+    viewTemplate: _viewTemplateInUse(ctx) ? ctx.viewTemplate || null : null,
   };
 }
 
 /**
- * Whether the view in the Background field takes part: read (named, found and on) and used by the chosen algorithm.
+ * Whether the view in the View template field takes part: read (named, found and on) and used by the chosen algorithm.
  * @param {DialogContext} ctx
  */
-function _backgroundInUse(ctx) {
-  return !!ctx.background && Defs.ALGORITHMS[TabLayout.selectedAlgorithm(ctx.widgets)].activeParams.includes("backgroundView");
+function _viewTemplateInUse(ctx) {
+  return !!ctx.viewTemplate && Defs.ALGORITHMS[TabLayout.selectedAlgorithm(ctx.widgets)].activeParams.includes("viewTemplate");
 }
 
 /**
@@ -680,11 +680,11 @@ function _viewFolders(ctx) {
 }
 
 /**
- * Every view as the background field names it: "/Views/…" minus "/Views/", folders before the name.
+ * Every view as the view template field names it: "/Views/…" minus "/Views/", folders before the name.
  * @param {DialogContext} ctx
  * @returns {string[]}
  */
-function _backgroundNames(ctx) {
+function _viewTemplateNames(ctx) {
   return [..._viewPaths(ctx)].map(p => p.replace(/^\/Views\//, ""));
 }
 
@@ -1139,7 +1139,7 @@ function _fillWidgets(ctx) {
 
   // Layout params (validatePreset guarantees every key is present)
   for (const [key, def] of Object.entries(TabLayout.PARAM_WIDGETS)) _paramToWidget(w[def.w], def, /** @type {Record<string, unknown>} */ (p)[key], w);   // Cast: key is a params key
-  _readBackgroundField(ctx);
+  _readViewTemplateField(ctx);
   _spinSet(w.spinMaxWidth, p.maxWidth);
   let arIdx = AR_OPTIONS.findIndex(a => a.val === p.aspectRatio);
   if (arIdx < 0) arIdx = AR_OPTIONS.findIndex(a => a.val === Defs.AR_DEFAULT);  // no ratio yet
@@ -1286,10 +1286,10 @@ function _paramToWidget(ctrl, def, value, w) {
     case "conditions": ctrl.setConditions(value); break;
     case "view": {
       // The view's path as it is now (found by id), else the path the preset names; on in its checkbox.
-      const ref = /** @type {BackgroundRef} */ (value);
-      const view = ref.id || ref.path ? SelectionRead.findBackgroundView(ref) : null;
+      const ref = /** @type {ViewTemplateRef} */ (value);
+      const view = ref.id || ref.path ? SelectionRead.findViewTemplate(ref) : null;
       ctrl.setText(view ? SelectionRead.viewPath(view) : ref.path);
-      if (w.chkBackgroundOn) w.chkBackgroundOn.setSelection(ref.on);
+      if (w.chkViewTemplateOn) w.chkViewTemplateOn.setSelection(ref.on);
       break;
     }
     case "combo": {
@@ -1314,49 +1314,49 @@ function _paramFromWidget(ctrl, def, w) {
     case "check":    return ctrl.getSelection();
     case "conditions":    return ctrl.getConditions();
     case "combo":    return String(ctrl.getText());
-    case "view":     return _backgroundRef(w);
+    case "view":     return _viewTemplateRef(w);
   }
 }
 
 /**
- * The background view the Background field names: its id when the model has it, so a rename or move
+ * The view template the View template field names: its id when the model has it, so a rename or move
  * keeps it, and whether its On checkbox is ticked.
  * @param {DialogWidgets} w
- * @returns {BackgroundRef}
+ * @returns {ViewTemplateRef}
  */
-function _backgroundRef(w) {
-  const path = String(w.txtBackgroundView.getText()).trim();
-  const view = path ? SelectionRead.findBackgroundView({ id: "", path, on: true }) : null;
-  return { id: view ? String(view.id) : "", path, on: w.chkBackgroundOn ? w.chkBackgroundOn.getSelection() : true };
+function _viewTemplateRef(w) {
+  const path = String(w.txtViewTemplate.getText()).trim();
+  const view = path ? SelectionRead.findViewTemplate({ id: "", path, on: true }) : null;
+  return { id: view ? String(view.id) : "", path, on: w.chkViewTemplateOn ? w.chkViewTemplateOn.getSelection() : true };
 }
 
 /**
- * A view named in an open Background field (On was unticked because it was empty) switches On on.
+ * A view named in an open View template field (On was unticked because it was empty) switches On on.
  * @param {DialogContext} ctx
  */
-function _tickNamedBackground(ctx) {
+function _tickNamedViewTemplate(ctx) {
   const w = ctx.widgets;
-  if (!w.chkBackgroundOn || !w.txtBackgroundView.isEnabled() || w.chkBackgroundOn.getSelection()) return;
-  if (String(w.txtBackgroundView.getText()).trim() === "") return;
-  w.chkBackgroundOn.setSelection(true);
+  if (!w.chkViewTemplateOn || !w.txtViewTemplate.isEnabled() || w.chkViewTemplateOn.getSelection()) return;
+  if (String(w.txtViewTemplate.getText()).trim() === "") return;
+  w.chkViewTemplateOn.setSelection(true);
   TabLayout.updateAlgorithmControls(ctx);
 }
 
 /**
- * Read the view in the Background field for the counts; a path not in the model reads as none, and
+ * Read the view in the View template field for the counts; a path not in the model reads as none, and
  * the field's tooltip says so (a run stops on it).
  * @param {DialogContext} ctx
  */
-function _readBackgroundField(ctx) {
-  const txt = ctx.widgets.txtBackgroundView;
+function _readViewTemplateField(ctx) {
+  const txt = ctx.widgets.txtViewTemplate;
   if (!txt) return;
-  const ref = _backgroundRef(ctx.widgets);
+  const ref = _viewTemplateRef(ctx.widgets);
   try {
-    ctx.background = SelectionRead.readBackground(ref);
-    txt.setToolTipText(Defs.paramTooltip("backgroundView"));
+    ctx.viewTemplate = SelectionRead.readViewTemplate(ref);
+    txt.setToolTipText(Defs.paramTooltip("viewTemplate"));
   } catch (e) {
-    ctx.background = null;
-    txt.setToolTipText(`Not found: "${ref.path}" is not a view in this model.\n${Defs.paramTooltip("backgroundView")}`);
+    ctx.viewTemplate = null;
+    txt.setToolTipText(`Not found: "${ref.path}" is not a view in this model.\n${Defs.paramTooltip("viewTemplate")}`);
   }
 }
 

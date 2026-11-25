@@ -6,7 +6,7 @@
  *
  * Elements (the layout result):
  *   size       a leaf keeps the size of the layout graph (View rule 1); Same width and Columns across containers only widen,
- *              a leaf in a table of a background view fills its cell
+ *              a leaf in a table of a view template fills its cell
  *   overlap    no two siblings overlap
  *   outside    a child lies inside its container
  *   padding    and at least Padding from its sides
@@ -184,7 +184,7 @@ function _sizes(graph, byId) {
   // Same width widens leaves to their level's or type's width in the engine, Columns across containers to their
   // column (ARCHITECTURE § Sizing).
   const widthOk = graph.sameWidth !== Defs.SAME_WIDTH.OFF || graph.columnsAcrossContainers ? (/** @type {number} */ w, /** @type {number} */ w0) => w >= w0 : (/** @type {number} */ w, /** @type {number} */ w0) => w === w0;
-  // A leaf in a table of a background view fills its cell, in width and height (a diagram object keeps its size).
+  // A leaf in a table of a view template fills its cell, in width and height (a diagram object keeps its size).
   const inTable = new Set(Object.values(graph.tables || {}).flatMap(t => t.cells.flatMap(c => c.ids)));
   return graph.nodes.filter(n => !parents.has(n.id)).flatMap(n => {
     const r = byId.get(n.id);

@@ -1,18 +1,18 @@
 /**
- * Background view: the selection fills a background that is always on the view.
- *   1. Every element of the background view is on the view, with the nesting it shows: an element
+ * View template: the selection fills the view template, whose elements are always on the view.
+ *   1. Every element of the view template is on the view, with the nesting it shows: an element
  *      in the box of its parent, through a nesting relation between them in the model. Another
  *      relation between two of its elements comes only when the selection follows it.
  *   2. The selection (start and steps) fills it, with the relations it followed.
- *   3. An element of the selection that does not hang under the background through those relations
- *      brings its nesting parents from the model, up to an element of the background (the path):
+ *   3. An element of the selection that does not hang under the view template through those relations
+ *      brings its nesting parents from the model, up to an element of the view template (the path):
  *      parents only, never their other children.
- *   4. An element that reaches the background by no path is left out.
+ *   4. An element that reaches the view template by no path is left out.
  * Only these relations are drawn: an element the selection put under one of its own elements does
- * not also go under another background element the model nests it in. "Hangs under" follows the
+ * not also go under another template element the model nests it in. "Hangs under" follows the
  * nesting conditions: the parent is the source, or the target of a reversed relation (nesting.js).
  *
- * Pure: Node loads it (tools/background_test.js).
+ * Pure: Node loads it (tools/view_template_test.js).
  */
 
 const REPO_ROOT = (() => {
@@ -21,7 +21,7 @@ const REPO_ROOT = (() => {
 })();
 /** @type {typeof import("../../_lib/log")} */
 const Log = require(REPO_ROOT + "_lib/log");
-Log.debug("Loading background.js");
+Log.debug("Loading view_template.js");
 
 /** @type {typeof import("./nesting")} */
 const Nesting = require(REPO_ROOT + "View/lib/nesting");
@@ -29,45 +29,45 @@ const Nesting = require(REPO_ROOT + "View/lib/nesting");
 const Table = require(REPO_ROOT + "View/lib/table");
 
 /**
- * @typedef {{ elements: ArchiElement[], relations: ArchiRelation[], parents: ArchiElement[], dropped: ArchiElement[] }} BackgroundComposed
+ * @typedef {{ elements: ArchiElement[], relations: ArchiRelation[], parents: ArchiElement[], dropped: ArchiElement[] }} TemplateComposed
  *   elements: on the view, the selection first; parents: what rule 3 brought up; dropped: left out by rule 4
  */
 
 /**
- * The elements and relations on the view with a background view.
+ * The elements and relations on the view with a view template.
  * @param {ArchiElement[]}  selected    the selection after filter and steps, in the order it joined
  * @param {ArchiRelation[]} relations   the relations the selection collected
- * @param {Pick<BackgroundSnapshot, "elements" | "tables">} backgroundView  its elements, and its boxes' tables (which box holds which)
+ * @param {Pick<ViewTemplateSnapshot, "elements" | "tables">} viewTemplate  its elements, and its boxes' tables (which box holds which)
  * @param {RelationIndex}   relationsOf
  * @param {EffectiveParams} params      nesting and reverse conditions
- * @returns {BackgroundComposed}
+ * @returns {TemplateComposed}
  */
-function compose(selected, relations, backgroundView, relationsOf, params) {
-  const background = backgroundView.elements;
-  const onBackground = new Set(background.map(e => e.id));
+function compose(selected, relations, viewTemplate, relationsOf, params) {
+  const templateElements = viewTemplate.elements;
+  const onTemplate = new Set(templateElements.map(e => e.id));
   /** @param {ArchiElement} e @returns {ArchiRelation[]} its nesting relations to a parent element, in the model */
   const upward = e => relationsOf(e).filter(r => Nesting.isNesting(r, params) && _child(r, params).id === e.id && _isElement(_parent(r, params)));
 
   const selectedIds = new Set(selected.map(e => e.id));
-  const all = [...selected, ...background.filter(e => !selectedIds.has(e.id))];
+  const all = [...selected, ...templateElements.filter(e => !selectedIds.has(e.id))];
   /** @type {ArchiRelation[]} */
   const drawn = [];
   const seen = new Set();
   const draw = (/** @type {ArchiRelation} */ r) => { if (!seen.has(r.id)) { seen.add(r.id); drawn.push(r); } };
   relations.forEach(draw);
-  const shown = _shownNesting(backgroundView.tables);
-  for (const e of background) for (const r of upward(e)) if (shown.has(`${_parent(r, params).id}>${e.id}`)) draw(r);
+  const shown = _shownNesting(viewTemplate.tables);
+  for (const e of templateElements) for (const r of upward(e)) if (shown.has(`${_parent(r, params).id}>${e.id}`)) draw(r);
 
   /** @type {ArchiElement[]} */
   const parents = [];
   const known = new Set(all.map(e => e.id));
-  const reaches = _reachesBackground(onBackground, upward, params);
-  let attached = _attached(all, drawn, onBackground, params);
+  const reaches = _reachesTemplate(onTemplate, upward, params);
+  let attached = _attached(all, drawn, onTemplate, params);
   // In the order the selection joined: an element under an earlier one attaches with it and climbs not itself.
   for (const e of selected) {
     if (attached.has(e.id) || !reaches(e)) continue;
     _collectPath(e, reaches, upward, params, known, parents, draw);
-    attached = _attached([...all, ...parents], drawn, onBackground, params);
+    attached = _attached([...all, ...parents], drawn, onTemplate, params);
   }
 
   const dropped = selected.filter(e => !attached.has(e.id));
@@ -77,14 +77,14 @@ function compose(selected, relations, backgroundView, relationsOf, params) {
 }
 
 /**
- * The elements of the list that hang under the background through the drawn nesting relations.
+ * The elements of the list that hang under the view template through the drawn nesting relations.
  * @param {ArchiElement[]}  list
  * @param {ArchiRelation[]} drawn
- * @param {Set<string>}     onBackground
+ * @param {Set<string>}     onTemplate
  * @param {EffectiveParams} params
  * @returns {Set<string>}
  */
-function _attached(list, drawn, onBackground, params) {
+function _attached(list, drawn, onTemplate, params) {
   const inList = new Set(list.map(e => e.id));
   /** @type {Map<string, string[]>} */
   const children = new Map();
@@ -95,7 +95,7 @@ function _attached(list, drawn, onBackground, params) {
     const list = children.get(p);
     if (list) list.push(c); else children.set(p, [c]);
   }
-  const attached = new Set(list.filter(e => onBackground.has(e.id)).map(e => e.id));
+  const attached = new Set(list.filter(e => onTemplate.has(e.id)).map(e => e.id));
   const queue = [...attached];
   while (queue.length) {
     for (const c of children.get(/** @type {string} */ (queue.shift())) || []) if (!attached.has(c)) { attached.add(c); queue.push(c); }
@@ -104,21 +104,21 @@ function _attached(list, drawn, onBackground, params) {
 }
 
 /**
- * Whether an element reaches the background through its nesting parents (any parents, in the model).
+ * Whether an element reaches the view template through its nesting parents (any parents, in the model).
  * A cycle of parents reaches nothing through itself.
- * @param {Set<string>}                          onBackground
+ * @param {Set<string>}                          onTemplate
  * @param {(e: ArchiElement) => ArchiRelation[]} upward
  * @param {EffectiveParams}                      params
  * @returns {(e: ArchiElement) => boolean}
  */
-function _reachesBackground(onBackground, upward, params) {
+function _reachesTemplate(onTemplate, upward, params) {
   /** @type {Map<string, boolean>} */
   const memo = new Map();
   /** @type {Set<string>} */
   const visiting = new Set();
   /** @param {ArchiElement} e @returns {boolean} */
   const reaches = e => {
-    if (onBackground.has(e.id)) return true;
+    if (onTemplate.has(e.id)) return true;
     const known = memo.get(e.id);
     if (known !== undefined) return known;
     if (visiting.has(e.id)) return false;
@@ -133,8 +133,8 @@ function _reachesBackground(onBackground, upward, params) {
 }
 
 /**
- * Draw the nesting relations from an element to its parents that reach the background, and add
- * those parents and theirs, up to the background.
+ * Draw the nesting relations from an element to its parents that reach the view template, and add
+ * those parents and theirs, up to the view template.
  * @param {ArchiElement}                         e
  * @param {(e: ArchiElement) => boolean}         reaches
  * @param {(e: ArchiElement) => ArchiRelation[]} upward
@@ -156,7 +156,7 @@ function _collectPath(e, reaches, upward, params, known, parents, draw) {
 }
 
 /**
- * The nesting the background view shows: "parent>child" for every box in the box of another.
+ * The nesting the view template shows: "parent>child" for every box in the box of another.
  * @param {Tables} tables
  * @returns {Set<string>}
  */

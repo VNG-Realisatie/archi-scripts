@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 11,
+  "schemaVersion": 12,
   "name": "GEMMA/2. Bedrijfsarchitectuur/Bedrijfsfunctiemodel",
   "algorithm": "Tiles",
   "params": {
@@ -40,12 +40,12 @@
     "labelSizing": false,
     "labelMaxLineWidth": 400,
     "connectionLabelSpacing": false,
-    "backgroundView": {
+    "viewTemplate": {
       "id": "",
       "path": "",
       "on": false
     },
-    "backgroundLeavesInPlace": false
+    "templateLeavesInPlace": false
   },
   "filter": {
     "conditions": [

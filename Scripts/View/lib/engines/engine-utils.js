@@ -270,7 +270,7 @@ function labelPoint(start, end, bendpoints, labelPosition) {
  * @param {Map<string, string[]>}  [fit]        leaves that fill their tracks: the containers whose span they take (none: their own track)
  * @param {Record<string, number>} [minWidth]   container id → the narrowest it may be (LayoutNode.minWidth)
  * @param {Set<string>}            [blocks]     boxes at the last nesting type change: one width, laid out as one
- * @param {PlacedTable[]}          [tables]     the tables of a background view as Tiles placed them: per table its container,
+ * @param {PlacedTable[]}          [tables]     the tables of a view template as Tiles placed them: per table its container,
  *                                              its table columns and its cells. Cells in disjoint table columns lie on
  *                                              tracks of their own; cells that end (or begin) at one table column border end
  *                                              (begin) on one track line, so the table stays a table

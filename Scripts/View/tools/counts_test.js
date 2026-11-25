@@ -140,13 +140,13 @@ eq(counts("2 Edited", expandSnapshot).expandView,
 {
   global.Java = global.Java || { type: n => n.endsWith("Files") ? { readString: p => fs.readFileSync(String(p), "utf8"), exists: p => fs.existsSync(String(p)) } : { get: p => p } };
   const Appearance = require("../lib/appearance");
-  const gemma = Defs.validatePreset(JSON.parse(fs.readFileSync(path.join(VIEW, "presets/Test/gemma/Bedrijfsfuncties background.json"), "utf8")));
+  const gemma = Defs.validatePreset(JSON.parse(fs.readFileSync(path.join(VIEW, "presets/Test/gemma/Bedrijfsfuncties template.json"), "utf8")));
   const gp = Defs.effectiveParams(gemma);
   const sel = modelTreeSelection("6 GEMMA");
   const input = { ...countInput(sel, null), filter: gemma.filter,
     steps: gemma.relatedElements.steps.map(step => ({ step, displayedConditions: shown("step", step.conditions, true), cache: new Map() })),
     params: { nestingConditions: gp.nestingConditions, reverseConditions: gp.reverseConditions }, algorithm: gemma.algorithm,
-    layoutConditions: null, background: H.readBackground(model, gp.backgroundView) };
+    layoutConditions: null, viewTemplate: H.readViewTemplate(model, gp.viewTemplate) };
   const quiet = console.log; console.log = () => {};
   const c = Counts.dialogCounts(input);
   console.log = quiet;
@@ -174,11 +174,11 @@ eq(counts("2 Edited", expandSnapshot).expandView,
   eq(got.counts, expected, "nesting style: parents and children per condition match the chains on the planned view");
   eq(got.counts.every(x => x.children > 0), true, "nesting style: every condition of the GEMMA preset styles something");
 
-  const bgConditions = nl.conditions.map((r, i) => (i === 2 ? { ...r, color: "background" } : r));
-  const bg = Counts.nestingStyleCounts(bgConditions, c.nestingView, sel.relationsOf);
-  eq([...bg.warnings.keys()], [2], "nesting style: ⚠ on Background for elements not on the background view (the services)");
-  const noBg = Counts.nestingStyleCounts(bgConditions, { ...c.nestingView, background: null }, sel.relationsOf);
-  eq(noBg.warnings.size, 0, "nesting style: no ⚠ on Background without a background view in use (the dialog shows the fallback)");
+  const tplConditions = nl.conditions.map((r, i) => (i === 2 ? { ...r, color: "template" } : r));
+  const tpl = Counts.nestingStyleCounts(tplConditions, c.nestingView, sel.relationsOf);
+  eq([...tpl.warnings.keys()], [2], "nesting style: ⚠ on Template for elements not on the view template (the services)");
+  const noTpl = Counts.nestingStyleCounts(tplConditions, { ...c.nestingView, viewTemplate: null }, sel.relationsOf);
+  eq(noTpl.warnings.size, 0, "nesting style: no ⚠ on Template without a view template in use (the dialog shows the fallback)");
   const same = Counts.nestingStyleCounts(nl.conditions.map((r, i) => (i === 0 ? { ...r, color: "same" } : r)), c.nestingView, sel.relationsOf);
   eq(/root container/.test(same.warnings.get(0) || ""), true, "nesting style: ⚠ on Same as parent for a root container");
 }

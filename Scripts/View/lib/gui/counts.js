@@ -24,8 +24,8 @@ const Pipeline  = require(REPO_ROOT + "View/lib/selection_pipeline");
 const Nesting   = require(REPO_ROOT + "View/lib/nesting");
 /** @type {typeof import("../rel_filter")} */
 const ConditionLists = require(REPO_ROOT + "View/lib/rel_filter");
-/** @type {typeof import("../background")} */
-const Background = require(REPO_ROOT + "View/lib/background");
+/** @type {typeof import("../view_template")} */
+const ViewTemplate = require(REPO_ROOT + "View/lib/view_template");
 /** @type {typeof import("../appearance")} */
 const Appearance = require(REPO_ROOT + "View/lib/appearance");
 /** @type {typeof import("../table")} */
@@ -61,16 +61,16 @@ function dialogCounts(input) {
     // Casts: neither a relation nor a diagram object, so an element.
     else if (ConditionLists.matchElement(filter.conditions, /** @type {ArchiElement} */ (o))) filteredElements.push(/** @type {ArchiElement} */ (o));
   }
-  // As the pipeline: the background view's diagram objects are always on the view, with their diagram-blocks.
-  const background = input.background && (input.params.nestingConditions || []).length ? input.background : null;
-  const blocksRead = background ? {
-    diagramBlockOf:       new Map([...input.diagramBlockOf, ...background.diagramBlockOf]),
-    blockContents:        new Map([...input.blockContents, ...background.blockContents]),
-    sourceVisualElements: [...input.sourceVisualElements, ...background.sourceVisualElements],
+  // As the pipeline: the view template's diagram objects are always on the view, with their diagram-blocks.
+  const viewTemplate = input.viewTemplate && (input.params.nestingConditions || []).length ? input.viewTemplate : null;
+  const blocksRead = viewTemplate ? {
+    diagramBlockOf:       new Map([...input.diagramBlockOf, ...viewTemplate.diagramBlockOf]),
+    blockContents:        new Map([...input.blockContents, ...viewTemplate.blockContents]),
+    sourceVisualElements: [...input.sourceVisualElements, ...viewTemplate.sourceVisualElements],
   } : input;
-  if (background) {
+  if (viewTemplate) {
     const kept = new Set(keptDiagramObjects.map(o => String(o.id)));
-    for (const o of background.diagramObjects) if (!kept.has(String(o.id))) keptDiagramObjects.push(o);
+    for (const o of viewTemplate.diagramObjects) if (!kept.has(String(o.id))) keptDiagramObjects.push(o);
   }
   // As the pipeline: a diagram connection is a line; a diagram-block is laid out as one and written with its contents.
   const inBlock = Pipeline.keptDiagramBlocks(blocksRead.diagramBlockOf, keptDiagramObjects);
@@ -114,9 +114,9 @@ function dialogCounts(input) {
   // Predict view-level counts (duplicates, containers) using the current params: the totals
   // line must reflect what the writer will produce.
   // An element that appears only inside a diagram-block is written with it, not laid out, as in the pipeline.
-  // The background view: its elements always on the view, the selection filling it (lib/background.js).
-  if (background) {
-    const filled = Background.compose(cumulative, finalRels, background, relationsOf, input.params);
+  // The view template: its elements always on the view, the selection filling it (lib/view_template.js).
+  if (viewTemplate) {
+    const filled = ViewTemplate.compose(cumulative, finalRels, viewTemplate, relationsOf, input.params);
     cumulative = filled.elements;
     finalRels.splice(0, finalRels.length, ...filled.relations);
   }
@@ -145,7 +145,7 @@ function dialogCounts(input) {
     : null;
 
   return { filterConditions, steps, predicted: { elements: cumulative, relations: finalRels }, view, layoutConditions, expandView,
-           nestingView: { elements: onView, nesting, background } };
+           nestingView: { elements: onView, nesting, viewTemplate } };
 }
 
 // ── Nesting style counts ──────────────────────────────────────────────────────
@@ -153,8 +153,8 @@ function dialogCounts(input) {
 /**
  * The nesting style table's counts and ⚠ on the predicted view, through the nesting chains the
  * appearance pass follows: per condition the parents of the nesting steps it styles ("parents") and
- * the elements it styles directly, root containers included ("children"); ⚠ where Background meets
- * an element without a background look (a background view in use), or Same as parent a root container. A condition that is off
+ * the elements it styles directly, root containers included ("children"); ⚠ where Template meets
+ * an element without a template look (a view template in use), or Same as parent a root container. A condition that is off
  * gets no counts.
  * @param {NestingStyleCondition[]} conditions  the rows as shown
  * @param {NestingView}   view
@@ -186,10 +186,10 @@ function nestingStyleCounts(conditions, view, relationsOf) {
   const roots = new Map();
   for (const id of parentlessRoots) { const nr = /** @type {{ nr: number }} */ (styles.get(id)).nr; roots.set(nr, (roots.get(nr) || 0) + 1); }   // Cast: a parentless root is styled
   roots.forEach((n, nr) => add(nr, `Same as parent on ${n} root container${n === 1 ? "" : "s"}: there is no parent to take the fill color from. ` +
-    "They keep their background look, else Type default."));
-  // Without a background view in use the dialog shows Background's fallback itself: no ⚠ for it.
-  if (view.background) {
-    Appearance.withoutLookCounts(withoutLook).forEach((n, nr) => add(nr, `${n} element${n === 1 ? "" : "s"} styled by this condition ${n === 1 ? "is" : "are"} not on the background view. ` +
+    "They keep their template look, else Type default."));
+  // Without a view template in use the dialog shows Template's fallback itself: no ⚠ for it.
+  if (view.viewTemplate) {
+    Appearance.withoutLookCounts(withoutLook).forEach((n, nr) => add(nr, `${n} element${n === 1 ? "" : "s"} styled by this condition ${n === 1 ? "is" : "are"} not on the view template. ` +
       "They use default values instead (Type default, 9 pt, normal). The count reflects the predicted view and the configured property match."));
   }
   return { counts, warnings };
@@ -202,7 +202,7 @@ function nestingStyleCounts(conditions, view, relationsOf) {
  * @returns {import("../appearance").NestingNode[]}
  */
 function _nestingNodes(view, relationsOf) {
-  const { nesting, background } = view;
+  const { nesting, viewTemplate } = view;
   const byId = new Map(view.elements.map(el => [el.id, el]));
   /** @type {Map<string, ArchiElement>} */
   const elementOf = new Map();
@@ -211,8 +211,8 @@ function _nestingNodes(view, relationsOf) {
     if (el) for (const occ of occs) elementOf.set(occ, el);
   }
   const containers = new Set(Object.values(nesting.parentMap));
-  const onBackground = background ? Table.elementsOf(background.tables) : new Set();
-  const looks = background ? Pipeline.backgroundLooks(background) : new Map();
+  const onTemplate = viewTemplate ? Table.elementsOf(viewTemplate.tables) : new Set();
+  const looks = viewTemplate ? Pipeline.templateLooks(viewTemplate) : new Map();
   /** @type {(id: string) => number} */
   const depthOf = id => { let d = 0; for (let p = nesting.parentMap[id]; p; p = nesting.parentMap[p]) d++; return d; };
   /** @type {import("../appearance").NestingNode[]} */
@@ -220,11 +220,11 @@ function _nestingNodes(view, relationsOf) {
   for (const [occ, el] of elementOf) {
     const parentId = nesting.parentMap[occ] || null;
     const parentEl = parentId ? elementOf.get(parentId) : undefined;
-    const look = Appearance.backgroundLook(looks, el.id, parentEl ? parentEl.id : null);
+    const look = Appearance.templateLook(looks, el.id, parentEl ? parentEl.id : null);
     nodes.push({
       id: occ, parentId: parentEl ? parentId : null, type: el.type, element: el,
       rels: parentEl ? Appearance.relsBetween(parentEl, el, relationsOf) : [],
-      depth: depthOf(occ), isContainer: containers.has(occ), onBackground: onBackground.has(el.id),
+      depth: depthOf(occ), isContainer: containers.has(occ), onTemplate: onTemplate.has(el.id),
       ...(look ? { look: Appearance.lookValues(look) } : {}),
     });
   }

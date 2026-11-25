@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 11,
+  "schemaVersion": 12,
   "name": "GEMMA/Bedrijfsobjecten/Bedrijfsobjectmodel",
   "algorithm": "Layered",
   "params": {
@@ -38,12 +38,12 @@
     "labelSizing": false,
     "labelMaxLineWidth": 400,
     "connectionLabelSpacing": true,
-    "backgroundView": {
+    "viewTemplate": {
       "id": "",
       "path": "",
       "on": true
     },
-    "backgroundLeavesInPlace": false
+    "templateLeavesInPlace": false
   },
   "filter": {
     "conditions": [

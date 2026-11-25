@@ -168,8 +168,8 @@ function generate_view(rawPreset, uiSelection, actionId, options = {}) {
   if (settings.invalid) {
     throw new Error(`${settings.invalid} engineParams setting(s) of the wrong type (✗ above). Correct the preset; nothing is written.`);
   }
-  const noBackground = Appearance.backgroundWithoutView(preset);
-  if (noBackground) Log.warn(noBackground, { action: "choose a background view on the Layout tab and switch it on, or another value for those conditions." });
+  const noTemplate = Appearance.templateWithoutView(preset);
+  if (noTemplate) Log.warn(noTemplate, { action: "choose a view template on the Layout tab and switch it on, or another value for those conditions." });
   Log.debug(`Name: "${preset.view.name}"  Folder: "${preset.view.folder}"${preset.view.mirrored ? "  Mirrored" : ""}`);
   {
     const vsMode = _rawParams.viewSizeMode || "none";
@@ -421,7 +421,7 @@ function applyViewProperties(view, preset) {
 function _generateSingle(preset, uiSelection, actionId, target, runtime) {
   const timer = _phaseTimer();
   const snapshot = SelectionRead.readSelection(uiSelection, actionId);
-  snapshot.background = SelectionRead.readBackground(preset.params.backgroundView);
+  snapshot.viewTemplate = SelectionRead.readViewTemplate(preset.params.viewTemplate);
   timer.lap("selection");
 
   // Determine the target view.
@@ -463,7 +463,7 @@ function _generateSingle(preset, uiSelection, actionId, target, runtime) {
     keep.set(copy ? String(copy.id) : id, block);
   }
   Appearance.applyAppearance(view, preset, actionId, TextMeasure.defaultViewFont(), keep,
-    { elements: Table.elementsOf(planned.objectSet.tables), looks: planned.objectSet.backgroundLooks || new Map() });
+    { elements: Table.elementsOf(planned.objectSet.tables), looks: planned.objectSet.templateLooks || new Map() });
   applyViewProperties(view, preset);
   _recordOrigin(view, actionId, target);
   timer.lap("appearance");
@@ -547,8 +547,8 @@ function plan(preset, snapshot, actionId, runtime, timer = { lap() {} }) {
   const graph = LayoutGraph.buildLayoutGraph(preset, objectSet.elements, routedRels, nestingRels, objectSet.diagramObjects,
                                   objectSet.visuals, objectSet.visualRelations, objectSet.diagramConnections, objectSet, labels);
   if (objectSet.tables) {
-    // Leaves in place: every table of the background view; else only those of containers that hold a container.
-    graph.tables = preset.params.backgroundLeavesInPlace ? objectSet.tables : Table.tablesWithContainers(objectSet.tables);
+    // Leaves in place: every table of the view template; else only those of containers that hold a container.
+    graph.tables = preset.params.templateLeavesInPlace ? objectSet.tables : Table.tablesWithContainers(objectSet.tables);
     _checkTables(graph, objectSet.tables, graph.tables);
   }
   timer.lap("layout graph");
@@ -584,21 +584,21 @@ function plan(preset, snapshot, actionId, runtime, timer = { lap() {} }) {
 }
 
 /**
- * Where the model and the background view differ, on the console: a child of a container whose
- * places are kept that is not on the background view in it comes last; one the background view has
+ * Where the model and the view template differ, on the console: a child of a container whose
+ * places are kept that is not on the view template in it comes last; one the view template has
  * under another parent goes where the model puts it. The tables in the log file.
  * @param {LayoutGraph}  graph
- * @param {Tables} tables  every table of the background view
+ * @param {Tables} tables  every table of the view template
  * @param {Tables} kept          those whose places the layout keeps
  */
 function _checkTables(graph, tables, kept) {
   const element = (/** @type {string} */ nodeId) => nodeId.replace(/_occ_\d+$/, "");
   const label = new Map(graph.nodes.map(n => [element(n.id), n.label || n.id]));
   /** @type {Map<string, string>} */
-  const backgroundParent = new Map();
+  const templateParent = new Map();
   for (const [key, table] of Object.entries(tables)) {
-    for (const id of Table.idsOf(table)) backgroundParent.set(id, key);
-    Log.debug(`  Table of ${key === Table.ROOT ? "the view" : `"${label.get(key) || key}"`} on the background view${kept[key] ? "" : " (not kept: placed by the layout)"}: ` +
+    for (const id of Table.idsOf(table)) templateParent.set(id, key);
+    Log.debug(`  Table of ${key === Table.ROOT ? "the view" : `"${label.get(key) || key}"`} on the view template${kept[key] ? "" : " (not kept: placed by the layout)"}: ` +
       Table.describe(table, id => label.get(id) || `(${id}, not on this view)`));
   }
   const name = (/** @type {string} */ id) => id === Table.ROOT ? "the view" : `"${label.get(id) || id}"`;
@@ -610,16 +610,16 @@ function _checkTables(graph, tables, kept) {
     const id = element(node.id);
     const parent = node.parent ? element(node.parent) : Table.ROOT;
     if (!tables[parent]) continue;
-    const there = backgroundParent.get(id);
+    const there = templateParent.get(id);
     if (there === parent) continue;
     if (there === undefined) { if (kept[parent]) missing.push(`${name(id)} in ${name(parent)}`); }
-    else moved.push(`${name(id)}: in the model under ${name(parent)}, on the background view under ${name(there)}`);
+    else moved.push(`${name(id)}: in the model under ${name(parent)}, on the view template under ${name(there)}`);
   }
   const list = (/** @type {string[]} */ l) => l.slice(0, 5).join("; ") + (l.length > 5 ? "; …" : "");
-  if (missing.length) Log.warn(`Not on the background view: ${list(missing)}.`, {
-    effect: "placed after the cells of their table.", action: "add them to the background view where they belong." });
-  if (moved.length) Log.warn(`The background view differs from the model: ${list(moved)}.`, {
-    effect: "placed where the model puts them.", action: "move them on the background view." });
+  if (missing.length) Log.warn(`Not on the view template: ${list(missing)}.`, {
+    effect: "placed after the cells of their table.", action: "add them to the view template where they belong." });
+  if (moved.length) Log.warn(`The view template differs from the model: ${list(moved)}.`, {
+    effect: "placed where the model puts them.", action: "move them on the view template." });
   if (missing.length + moved.length > 5) Log.detail("WARN", [...missing, ...moved].join("\n"));
 }
 
@@ -627,7 +627,7 @@ function _checkTables(graph, tables, kept) {
 const LEAF_FIT_RUNS = 3;
 
 /**
- * A leaf that fills a cell of a background view's table is drawn wider (or narrower) than the width its
+ * A leaf that fills a cell of a view template's table is drawn wider (or narrower) than the width its
  * height was reckoned at, so its label may need other room; its table row follows. Lay out again with
  * every such leaf at the height its label needs at the width it was drawn, until none changes (at most
  * LEAF_FIT_RUNS times); the first layout that fits, else the last.

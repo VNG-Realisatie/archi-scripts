@@ -60,13 +60,13 @@ function _orderRootLeaves(nodes, order) {
 }
 
 /**
- * Per id in a table of the background view: the first occurrence of the element whose table it is in.
+ * Per id in a table of the view template: the first occurrence of the element whose table it is in.
  * An id in the view's own table, or in the table of an element not on the view, has none.
  * @param {Tables | undefined}       tables
  * @param {Record<string, string[]>} occurrenceMap
  * @returns {Map<string, string>}
  */
-function _backgroundParents(tables, occurrenceMap) {
+function _templateParents(tables, occurrenceMap) {
   /** @type {Map<string, string>} */
   const out = new Map();
   for (const [key, table] of Object.entries(tables || {})) {
@@ -85,8 +85,8 @@ function _backgroundParents(tables, occurrenceMap) {
  * @param {VisualDescription[] | undefined}  visuals
  * @param {VisualConnection[] | undefined}   visualRelations
  * @param {DiagramObject[] | undefined}      diagramConnections    connections of diagram objects (a note's line)
- * @param {{ diagramBlockOf?: Map<string, string>, diagramBlockVisualOf?: Map<string, string>, positions?: Map<string, VisualPosition>, visualElements?: VisualObject[], joinRun?: Map<string, number>, tables?: Tables, backgroundLooks?: Map<string, BackgroundLook[]> }} diagramBlocks
- *   contents of diagram-blocks, the target view's objects, the run each element joined in and the background view's tables (ObjectSet)
+ * @param {{ diagramBlockOf?: Map<string, string>, diagramBlockVisualOf?: Map<string, string>, positions?: Map<string, VisualPosition>, visualElements?: VisualObject[], joinRun?: Map<string, number>, tables?: Tables, templateLooks?: Map<string, TemplateLook[]> }} diagramBlocks
+ *   contents of diagram-blocks, the target view's objects, the run each element joined in and the view template's tables (ObjectSet)
  * @param {import("./label_size").LabelInput} labels  measuring and fonts for the label heights
  * @returns {LayoutGraph}
  */
@@ -144,13 +144,13 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
   }
 
   // Diagram-object nodes, sized from current canvas bounds: at view root, or in the element they lie
-  // in on the background view (they have no model nesting to follow).
+  // in on the view template (they have no model nesting to follow).
   // diagram-model-connection objects are edges, never nodes (docs/reference/selection-nesting.md: Selection run order, 6).
-  const backgroundParent = _backgroundParents(diagramBlocks && diagramBlocks.tables, occurrenceMap);
+  const templateParent = _templateParents(diagramBlocks && diagramBlocks.tables, occurrenceMap);
   for (const vo of diagramObjects) {
     if (vo.type === "diagram-model-connection") continue;
     if (nodeIds.has(vo.id)) continue;
-    const parent = backgroundParent.get(String(vo.id)) || null;
+    const parent = templateParent.get(String(vo.id)) || null;
     if (parent) parentMap[vo.id] = parent;
     nodes.push({
       id:          vo.id,
@@ -265,9 +265,9 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
   _orderEdges(nodes, edges, params.selectionOrder);
 
   const engineParams = preset.engineParams || {};
-  const backgroundElements = Table.elementsOf(diagramBlocks && diagramBlocks.tables);
-  const background = { elements: backgroundElements, looks: (diagramBlocks && diagramBlocks.backgroundLooks) || new Map() };
-  const fonts = _labelLayouts(nodes, elements, nesting, (diagramBlocks && diagramBlocks.visualElements) || [], preset, labels, background);
+  const templateElements = Table.elementsOf(diagramBlocks && diagramBlocks.tables);
+  const viewTemplate = { elements: templateElements, looks: (diagramBlocks && diagramBlocks.templateLooks) || new Map() };
+  const fonts = _labelLayouts(nodes, elements, nesting, (diagramBlocks && diagramBlocks.visualElements) || [], preset, labels, viewTemplate);
   if (params.labelSizing) _sizeToLabels(nodes, fonts, params, engineParams, labels.measure);
   expandNodeSizesForEdgeDensity(nodes, edges, params);   // after label sizing, which would overwrite it
   const { labelHeightAt, widthAt, leafHeightAt } = _fitLabels(nodes, nesting, fonts, preset, labels.measure);
@@ -311,11 +311,11 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
  * @param {VisualObject[]}    visualElements  the element visuals on the target view
  * @param {MaskedPreset}      preset
  * @param {import("./label_size").LabelInput} labels
- * @param {{ elements: Set<string>, looks: Map<string, BackgroundLook[]> }} background  elements of the background
- *   view, styled as containers; looks: element id → its visuals there (the background look)
+ * @param {{ elements: Set<string>, looks: Map<string, TemplateLook[]> }} viewTemplate  elements of the view template
+ *   view, styled as containers; looks: element id → its visuals there (the template look)
  * @returns {NodeLabels}
  */
-function _labelLayouts(nodes, elements, nesting, visualElements, preset, labels, background) {
+function _labelLayouts(nodes, elements, nesting, visualElements, preset, labels, viewTemplate) {
   const elementById = new Map(elements.map(e => [e.id, e]));
   /** @type {Map<string, ArchiElement>} */
   const elementOf = new Map();
@@ -328,8 +328,8 @@ function _labelLayouts(nodes, elements, nesting, visualElements, preset, labels,
     elementOf:    id => elementOf.get(id),
     visualOf:     id => { const v = nesting.visualOf[id]; return v ? visualById.get(v) : undefined; },
     nestingLevel: preset.appearance.nestingLevel,
-    backgroundElements: background.elements,
-    backgroundLooks:    background.looks,
+    templateElements: viewTemplate.elements,
+    templateLooks:    viewTemplate.looks,
     input:        labels,
   });
   return { layoutOf, isElement: id => elementOf.has(id) };

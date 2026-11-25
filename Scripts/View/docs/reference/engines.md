@@ -67,8 +67,8 @@ An option outside the active set is greyed in the dialog, keeps its value, and i
 | Sort `sort` | — | — | — | — | ✓ | ✓ | ✓ | — | — | — | — | — | — | — |
 | Same width `sameWidth` | ✓ | ✓ | — | — | ✓ | ✓ | ✓ | — | — | — | — | — | — | — |
 | Columns across containers `columnsAcrossContainers` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — | — |
-| Background `backgroundView` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — | — |
-| Leaves in place `backgroundLeavesInPlace` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — | — |
+| View template `viewTemplate` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — | — |
+| Leaves in place `templateLeavesInPlace` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — | — |
 | Direction `direction` | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — |
 | Cycles `acyclicer` | — | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
 | Ranking `ranking` | — | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |

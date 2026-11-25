@@ -2,7 +2,7 @@
  * Node tests for Style by nesting level (lib/appearance.js) on the GEMMA runs of the test model (views 6 and 7 GEMMA,
  * presets presets/Test/gemma/): the nesting chains and fonts (followNestingChains, nestingFonts) on the nested result
  * of a New view, and applyAppearance on a stand-in of that view (a small jArchi $ below): what test cases 17, 21, 23
- * and 28 fixed, the background look as base layer with Background per appearance attribute, the pass order, and
+ * and 28 fixed, the template look as base layer with Template per appearance attribute, the pass order, and
  * Highlight repeated; which objects a style condition reaches and with which property values
  * (computeConditionTargets); and the view properties a run writes (generate_view.applyViewProperties). Run from the repo root:
  *   node Scripts/View/tools/appearance_test.js [model.archimate]
@@ -161,7 +161,7 @@ function standInView(run) {
 }
 
 {
-  const run = newView("Bedrijfsfuncties background", "6 GEMMA");
+  const run = newView("Bedrijfsfuncties template", "6 GEMMA");
   const { view, visuals } = standInView(run);
   const preset = { ...run.preset, params: Defs.effectiveParams(run.preset) };
   eq([preset.appearance.highlightRepeated.enabled, !!preset.appearance.highlightRepeated.colorRange], [false, true], "17: the preset has Highlight repeated off, with a range");
@@ -181,7 +181,7 @@ function standInView(run) {
 
 // ── Highlight repeated: every occurrence of a repeated element one color of the range, over the nesting color ─────────
 {
-  const run = newView("Bedrijfsfuncties background", "6 GEMMA");
+  const run = newView("Bedrijfsfuncties template", "6 GEMMA");
   const fillsOf = highlight => {
     const { view, visuals } = standInView(run);
     const preset = { ...run.preset, params: Defs.effectiveParams(run.preset),
@@ -204,11 +204,11 @@ function standInView(run) {
   eq(Object.keys(on).filter(n => on[n].length === 1).every(n => on[n][0] === off[n][0]), true, "Highlight repeated: an element on the view once keeps its nesting color");
 }
 
-// ── Background look: the base layer; a condition overrides per appearance attribute, Background keeps it ───────────
+// ── Template look: the base layer; a condition overrides per appearance attribute, Template keeps it ───────────
 {
-  const run = newView("Bedrijfsfuncties background", "6 GEMMA");
+  const run = newView("Bedrijfsfuncties template", "6 GEMMA");
   const look = { isLook: true, fillColor: "#123456", fontName: "Serif", fontSize: 30, fontStyle: "italic", fontColor: "#ff0000", figureType: 1, image: "img-1" };
-  /** applyAppearance with the root grouping on the background view; the first condition changed by `first`. */
+  /** applyAppearance with the root grouping on the view template; the first condition changed by `first`. */
   const rootWith = (first, actionId = Defs.ACTION.NEW_VIEW.id) => {
     const { view, visuals } = standInView(run);
     const nl = run.preset.appearance.nestingLevel;
@@ -221,55 +221,55 @@ function standInView(run) {
     console.log = quiet;
     return { root, visuals };
   };
-  const bg = rootWith({ color: "background", fontSize: "background", fontStyle: "background" }).root;
-  eq([bg._fill, bg.fontName, bg.fontSize, bg.fontStyle, bg.fontColor, bg.figureType, bg.image], ["#123456", "Serif", 30, "italic", "#ff0000", 1, "img-1"],
-     "background look: Background for every attribute keeps the whole look: fill color, font name, size and style, font color, figure, image");
+  const tpl = rootWith({ color: "template", fontSize: "template", fontStyle: "template" }).root;
+  eq([tpl._fill, tpl.fontName, tpl.fontSize, tpl.fontStyle, tpl.fontColor, tpl.figureType, tpl.image], ["#123456", "Serif", 30, "italic", "#ff0000", 1, "img-1"],
+     "template look: Template for every attribute keeps the whole look: fill color, font name, size and style, font color, figure, image");
   const own = rootWith({ color: "#00ff00", fontSize: 16, fontStyle: "bold", darkenStart: 0 }).root;
   eq([own._fill, own.fontName, own.fontSize, own.fontStyle, own.fontColor, own.figureType], ["#00ff00", "Serif", 16, "bold", "#ff0000", 1],
-     "background look: a condition's own values override fill color, font size and font style; font name, color and figure stay the look's");
-  const mixed = rootWith({ color: "background", fontSize: 12, fontStyle: "background" }).root;
-  eq([mixed._fill, mixed.fontSize, mixed.fontStyle], ["#123456", 12, "italic"], "background look: overridden per appearance attribute");
-  const { root: under, visuals } = rootWith({ color: "background" });
+     "template look: a condition's own values override fill color, font size and font style; font name, color and figure stay the look's");
+  const mixed = rootWith({ color: "template", fontSize: 12, fontStyle: "template" }).root;
+  eq([mixed._fill, mixed.fontSize, mixed.fontStyle], ["#123456", 12, "italic"], "template look: overridden per appearance attribute");
+  const { root: under, visuals } = rootWith({ color: "template" });
   const child = visuals.find(v => v.parent === under && v.concept.type === "grouping");
   const fn = visuals.find(v => v.concept.type === "business-function");
   eq([child._fill, fn && fn._fill !== null], [null, true],
-     "background look: an element not on the background view gets Type default for Background, and its condition's fill color otherwise");
-  const modify = rootWith({ color: "background", fontSize: "background", fontStyle: "background" }, Defs.ACTION.LAYOUT_ONLY.id).root;
-  eq([modify._fill, modify.fontSize, modify.fontStyle], ["#123456", 30, "italic"], "background look: a Modify action does not reset it");
+     "template look: an element not on the view template gets Type default for Template, and its condition's fill color otherwise");
+  const modify = rootWith({ color: "template", fontSize: "template", fontStyle: "template" }, Defs.ACTION.LAYOUT_ONLY.id).root;
+  eq([modify._fill, modify.fontSize, modify.fontStyle], ["#123456", 30, "italic"], "template look: a Modify action does not reset it");
 }
 {
   const looks = new Map([["e", [{ visual: "under A", parentId: "A" }, { visual: "under B", parentId: "B" }]]]);
-  eq([Appearance.backgroundLook(looks, "e", "B"), Appearance.backgroundLook(looks, "e", "C"), Appearance.backgroundLook(looks, "x", "A")], ["under B", "under A", undefined],
-     "background look: an occurrence takes the look of the element's visual in the same container on the background view, else the first");
+  eq([Appearance.templateLook(looks, "e", "B"), Appearance.templateLook(looks, "e", "C"), Appearance.templateLook(looks, "x", "A")], ["under B", "under A", undefined],
+     "template look: an occurrence takes the look of the element's visual in the same container on the view template, else the first");
 }
 {
   const planWith = on => {
-    const preset = presetOf("Bedrijfsfuncties background");
-    preset.params.backgroundView = { ...preset.params.backgroundView, on };
+    const preset = presetOf("Bedrijfsfuncties template");
+    preset.params.viewTemplate = { ...preset.params.viewTemplate, on };
     const quiet = console.log; console.log = () => {};
     const planned = H.planView(model, H.findView(model, "Views/Test/6 GEMMA"), preset, Defs.ACTION.NEW_VIEW.id, true);
     console.log = quiet;
     return planned.objectSet;
   };
   const on = planWith(true), off = planWith(false);
-  eq([on.backgroundLooks.size, [...on.backgroundLooks].every(([id, list]) => list.every(l => l.visual.concept.id === id))], [20, true],
-     "background view on: one visual of the background view per element of it");
-  eq([off.backgroundLooks, off.tables], [undefined, undefined], "background view off: no background looks, no table");
+  eq([on.templateLooks.size, [...on.templateLooks].every(([id, list]) => list.every(l => l.visual.concept.id === id))], [20, true],
+     "view template on: one visual of the view template per element of it");
+  eq([off.templateLooks, off.tables], [undefined, undefined], "view template off: no template looks, no table");
 }
 {
-  // Background in a preset without a background view, or with it off: one warning per run
-  const preset = presetOf("Bedrijfsfuncties background");
-  preset.appearance.nestingLevel.conditions[0].color = "background";
+  // Template in a preset without a view template, or with it off: one warning per run
+  const preset = presetOf("Bedrijfsfuncties template");
+  preset.appearance.nestingLevel.conditions[0].color = "template";
   const masked = { ...preset, params: Defs.effectiveParams(preset) };
-  eq(Appearance.backgroundWithoutView(masked), null, "Background with the background view on: no run warning");
-  masked.params = { ...masked.params, backgroundView: { ...masked.params.backgroundView, on: false } };
-  eq(String(Appearance.backgroundWithoutView(masked)).startsWith("Background view off: condition 1 "), true, "Background with the background view off: a run warning naming the condition");
-  masked.params = { ...masked.params, backgroundView: { id: "", path: "", on: true } };
-  eq(String(Appearance.backgroundWithoutView(masked)).startsWith("No background view: condition 1 "), true, "Background without a background view: a run warning");
+  eq(Appearance.templateWithoutView(masked), null, "Template with the view template on: no run warning");
+  masked.params = { ...masked.params, viewTemplate: { ...masked.params.viewTemplate, on: false } };
+  eq(String(Appearance.templateWithoutView(masked)).startsWith("View template off: condition 1 "), true, "Template with the view template off: a run warning naming the condition");
+  masked.params = { ...masked.params, viewTemplate: { id: "", path: "", on: true } };
+  eq(String(Appearance.templateWithoutView(masked)).startsWith("No view template: condition 1 "), true, "Template without a view template: a run warning");
 }
 {
   // Pass order: Highlight repeated comes after Style by property, so it wins on a repeated element
-  const run = newView("Bedrijfsfuncties background", "6 GEMMA");
+  const run = newView("Bedrijfsfuncties template", "6 GEMMA");
   const { view, visuals } = standInView(run);
   const style = { ...RF.defaultCondition("style"), applyTo: "element", source: "business-function", propertyOf: "element", property: "GEMMA type", colorRange: "Lagen" };
   const preset = { ...run.preset, params: Defs.effectiveParams(run.preset), appearance: { ...run.preset.appearance,
@@ -294,7 +294,7 @@ function standInView(run) {
     const map = new Map(Object.entries(props));
     return { map, prop: (k, v) => { if (v === undefined) return map.has(k) ? map.get(k) : null; map.set(k, v); return undefined; }, removeProp: k => { map.delete(k); } };
   };
-  const preset = presetOf("Bedrijfsfuncties background");
+  const preset = presetOf("Bedrijfsfuncties template");
   preset.viewProperties.properties.push({ key: "GEMMA URL", value: "https://example.org", enabled: true });   // hidden (presets/_hidden_properties.json)
   const view = viewWith({ Model: "oud", Beleidsdomein: "Werk", "GEMMA URL": "kept", Scope: "x" });
   const warnings = [], warn = Log.warn;
@@ -367,9 +367,9 @@ function standInView(run) {
   const cond = { ...RF.defaultCondition("nestingStyle"), child: "", color: "same", darkenStart: 0, lightenPerLevel: 30 };
   const r = Appearance.followNestingChains(sameNodes, [cond]);
   eq([r.styles.get("c").color, r.styles.get("g").color], ["same", "same"], "Same as parent: a child keeps the marker, whatever its type");
-  eq([r.styles.get("r").color, r.parentlessRoots], ["background", ["r"]], "Same as parent: a root has no parent: its background look, else Type default, and it is reported");
+  eq([r.styles.get("r").color, r.parentlessRoots], ["template", ["r"]], "Same as parent: a root has no parent: its template look, else Type default, and it is reported");
 
-  const run = newView("Bedrijfsfuncties background", "6 GEMMA");
+  const run = newView("Bedrijfsfuncties template", "6 GEMMA");
   const { view, visuals } = standInView(run);
   const nl = { ...run.preset.appearance.nestingLevel, conditions: [cond] };
   const preset = { ...run.preset, params: Defs.effectiveParams(run.preset), appearance: { ...run.preset.appearance, nestingLevel: nl } };
@@ -382,7 +382,7 @@ function standInView(run) {
   const root = visuals.find(v => v.concept.name === "Bedrijfsfunctiemodel");
   const child = visuals.find(v => v.parent === root);
   const grand = visuals.find(v => v.parent && v.parent.parent === root && v._fill !== null);
-  eq(root._fill, null, "Same as parent: the root without a background look gets Type default");
+  eq(root._fill, null, "Same as parent: the root without a template look gets Type default");
   eq(child._fill, Chroma(DEFAULT_FILL).set("hsl.l", 1 - (1 - light(DEFAULT_FILL)) * 0.7).hex(), "Same as parent: the child is the parent's fill one level lighter");
   eq(!!grand && light(grand._fill) > light(grand.parent._fill), true, "Same as parent: each level deeper is lighter again");
   eq(warnings.some(m => /Same\s+as\s+parent/.test(m)) && !warnings.some(m => /not in palette/.test(m)), true, "Same as parent: one warning for the root, and no palette-color warning");

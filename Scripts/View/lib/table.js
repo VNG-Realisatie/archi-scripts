@@ -1,6 +1,6 @@
 /**
  * Table: how the containers, leaves and diagram objects of a container (or of the view) on a
- * background view stand: table rows and table columns of cells, a cell possibly spanning several of
+ * view template stand: table rows and table columns of cells, a cell possibly spanning several of
  * each. Read from their boxes by overlap alone, so no tolerance in pixels decides it:
  *   1. Cells. A box is a cell; boxes that overlap share one cell as a stack, in reading order.
  *   2. Borders. Two cells side by side (they overlap in height, nothing lies between) have a column
@@ -197,7 +197,7 @@ function describe(table, name) {
 }
 
 /**
- * The tables of the containers that hold a container of the background view. Their children keep
+ * The tables of the containers that hold a container of the view template. Their children keep
  * their places; the children of the other containers are only there, and the layout places them.
  * One container among the children is enough to keep a container's table.
  * @param {Tables} tables
@@ -211,7 +211,7 @@ function tablesWithContainers(tables) {
 }
 
 /**
- * Every element of the background view the tables name: the containers and their children.
+ * Every element of the view template the tables name: the containers and their children.
  * @param {Tables | undefined} tables
  * @returns {Set<string>}
  */

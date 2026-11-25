@@ -244,7 +244,7 @@ eq(run(graph(4, 7)), run(graph(4, 7)), "same graph, same result");
   eq(r.edges.map(e => [e.id, e.isStraight, e.bendpoints.length]), [["e1", true, 0], ["e2", false, 0]], "edges: straight line and self-loop; unknown end dropped");
 }
 
-// The table of a background view: the cells in their table rows and table columns, a cell spanning
+// The table of a view template: the cells in their table rows and table columns, a cell spanning
 // several; every cell fills its table columns and table rows; a stack one above the other; children
 // the table does not hold come last; a child of the table the view does not hold drops out.
 const cell = (ids, row, column, rowSpan = 1, columnSpan = 1) => ({ ids, row, column, rowSpan, columnSpan });
@@ -304,7 +304,7 @@ const tableOf = (rows, columns, cells) => ({ rows, columns, cells });
 
 // What a cell over several table rows lacks goes into its last table row, so the table is as low as
 // its cells allow: beside a tall cell over three table rows, small cells keep their own height and
-// stand one below the other (the RC background: Primaire functies beside the legends).
+// stand one below the other (the RC view template: Primaire functies beside the legends).
 {
   const n = (id, height) => ({ id, label: id, elementType: "business-function", width: 300, height, parent: null });
   const options = Object.assign({}, Defs.effectiveParams(Defs.validatePreset({ algorithm: "Tiles" })), { padding: 20, elementSpacing: 10 });

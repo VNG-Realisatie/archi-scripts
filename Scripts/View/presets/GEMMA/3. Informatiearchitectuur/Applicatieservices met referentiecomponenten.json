@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 11,
+  "schemaVersion": 12,
   "name": "GEMMA/3. Informatiearchitectuur/Applicatieservices met referentiecomponenten",
   "algorithm": "Tiles",
   "params": {
@@ -39,12 +39,12 @@
     "labelSizing": false,
     "labelMaxLineWidth": 400,
     "connectionLabelSpacing": false,
-    "backgroundView": {
+    "viewTemplate": {
       "id": "id-e3defc7db98b4103aab7af54eb1b86b4",
       "path": "/Views/Beheer/View templates/Applicatieservices",
       "on": true
     },
-    "backgroundLeavesInPlace": false
+    "templateLeavesInPlace": false
   },
   "filter": {
     "conditions": [],
@@ -93,9 +93,9 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "child": "grouping", "color": "background", "darkenStart": 0, "lightenPerLevel": 50, "fontSize": 16, "fontStyle": "bold"},
+        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "child": "grouping", "color": "template", "darkenStart": 0, "lightenPerLevel": 50, "fontSize": 16, "fontStyle": "bold"},
         {"direction": "outgoing", "relation": "aggregation-relationship", "child": "application-service", "color": "same", "darkenStart": 0, "lightenPerLevel": 50, "fontSize": 0, "fontStyle": "italic"},
-        {"on": false, "parent": "application-service", "direction": "outgoing", "relation": "aggregation-relationship", "color": "background", "darkenStart": 0, "lightenPerLevel": 50, "fontSize": 0, "fontStyle": "background", "child": "same"}
+        {"on": false, "parent": "application-service", "direction": "outgoing", "relation": "aggregation-relationship", "color": "template", "darkenStart": 0, "lightenPerLevel": 50, "fontSize": 0, "fontStyle": "template", "child": "same"}
       ]
     },
     "highlightRepeated": {

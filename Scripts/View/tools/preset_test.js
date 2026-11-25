@@ -87,7 +87,7 @@ for (const file of files(PRESETS)) {
 {
   const FORBIDDEN = [
     [/\$\(/, "the jArchi $()"], [/\bmodel\.(?!exports)/, "the jArchi model"], [/\bwindow\./, "the jArchi window"],
-    [/require\([^)]*(selection|generate_view|view_writer|preset_io|appearance|nesting|background|run_preset)/, "a pipeline module"],
+    [/require\([^)]*(selection|generate_view|view_writer|preset_io|appearance|nesting|view_template|run_preset)/, "a pipeline module"],
   ];
   const dir = path.join(__dirname, "..", "lib", "engines");
   for (const file of fs.readdirSync(dir).filter(f => f.endsWith(".js"))) {
@@ -99,20 +99,20 @@ for (const file of files(PRESETS)) {
   }
 }
 
-// Schema 10 and later: backgroundView.on (default true); the schema 9 keys are reported, not read.
+// Schema 10 and later: viewTemplate.on (default true); the schema 9 keys are reported, not read.
 {
-  const v = Defs.validatePreset({ schemaVersion: 11, algorithm: "Tiles", params: { backgroundView: { id: "x", path: "/Views/X" } } });
-  eq(v.params.backgroundView, { id: "x", path: "/Views/X", on: true }, "backgroundView.on defaults to true");
-  eq(Defs.validatePreset({ algorithm: "Tiles", params: { backgroundView: { id: "x", path: "", on: false } } }).params.backgroundView.on, false, "backgroundView.on false is kept");
+  const v = Defs.validatePreset({ schemaVersion: 12, algorithm: "Tiles", params: { viewTemplate: { id: "x", path: "/Views/X" } } });
+  eq(v.params.viewTemplate, { id: "x", path: "/Views/X", on: true }, "viewTemplate.on defaults to true");
+  eq(Defs.validatePreset({ algorithm: "Tiles", params: { viewTemplate: { id: "x", path: "", on: false } } }).params.viewTemplate.on, false, "viewTemplate.on false is kept");
   eq(Defs.unknownPresetKeys({ params: { backgroundKeepAppearance: true }, appearance: { nestingLevel: { darkenStart: 1, lightenPerLevel: 15, fontDecreasePerLevel: 2 } } }),
      ["params.backgroundKeepAppearance", "appearance.nestingLevel.darkenStart", "appearance.nestingLevel.lightenPerLevel", "appearance.nestingLevel.fontDecreasePerLevel"],
      "the schema 9 keys are unknown in schema 10");
   let message = "";
   try { Defs.validatePreset({ schemaVersion: 9, algorithm: "Tiles" }); } catch (e) { message = String(e.message); }
-  eq(message.includes("expected 11"), true, "a schema 9 preset is refused: migrate it (tools/migrate_presets_nesting_style.js, then migrate_presets_nesting_enabled.js)");
+  eq(message.includes("expected 12"), true, "a schema 9 preset is refused: migrate it (tools/migrate_presets_nesting_style.js, then migrate_presets_nesting_enabled.js and migrate_presets_view_template.js)");
 }
 
-// The names "same" and "background" are reserved for a nesting style fill color (Same as parent, Background): a palette may not hold a color of that name.
+// The names "same" and "template" are reserved for a nesting style fill color (Same as parent, Template): a palette may not hold a color of that name.
 {
   const Palettes = require("../lib/palettes");
   const palette = colors => ({ palettes: [{ name: "P", colors, ranges: [{ name: "R", colors: ["#ffffff", "#000000"], padding: [0, 0] }] }] });
@@ -120,8 +120,8 @@ for (const file of files(PRESETS)) {
   try { Palettes.validatePalettes(palette([{ name: ConditionLists.SAME_TYPE, hex: "#ffffcc" }])); } catch (e) { refused = String(e.message); }
   eq(/reserved/.test(refused), true, "a palette color named like the nesting style's Same as parent is refused");
   refused = "";
-  try { Palettes.validatePalettes(palette([{ name: ConditionLists.BACKGROUND, hex: "#ffffcc" }])); } catch (e) { refused = String(e.message); }
-  eq(/reserved/.test(refused), true, "a palette color named like the nesting style's Background is refused");
+  try { Palettes.validatePalettes(palette([{ name: ConditionLists.TEMPLATE, hex: "#ffffcc" }])); } catch (e) { refused = String(e.message); }
+  eq(/reserved/.test(refused), true, "a palette color named like the nesting style's Template is refused");
   eq(Palettes.validatePalettes(palette([{ name: "Blue", hex: "#ffffcc" }])).length, 1, "a palette with ordinary color names is accepted");
 }
 

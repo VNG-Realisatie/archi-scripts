@@ -17,7 +17,7 @@
 >
 > **Plan contents:** terms with definitions (quote the current SPEC); objective; requirements; what is stored where, one carrier per row; dialog behaviour; check, generate, sync, Regenerate; how it connects to existing code; blocks with model and user checks, following the order of change; verification.
 
-Status: approved 2026-11-25; block 0 done.
+Status: approved 2026-11-25; blocks 0 and 1 done.
 
 ## Context
 
@@ -296,6 +296,7 @@ The user is asked only for checks in Archi and for that approval. After each blo
 
 ## Handoff
 
-- Done: interview, plan, block 0 (view template paths in the presets).
-- Next: block 1 in a new session.
-- User: start a new session with the prompt in § Blocks and way of working.
+- Done: interview, plan, block 0, block 1 (background view → view template, schema 12; code, docs, presets, test model; checks in the commit message).
+- Pre-existing, not from block 1: `write_plans --variants` 2 lines (Tiles, columnsAcrossContainers); baseline views `2 Edited` expand/layout differ from the committed baseline by a `Segoe UI Symbol` font; with nothing selected the nesting style windows show the "view template is off" note while On is ticked.
+- Next: block 2 in a new session.
+- User: start a new session with the prompt in § Blocks and way of working (N = 2).

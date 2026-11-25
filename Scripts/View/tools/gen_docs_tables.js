@@ -34,7 +34,7 @@ const usedBy = k => cell(Defs.paramUsedBy(k).replace(/^Used by: /, ""));
 const defaultOf = k => {
   const v = DEFAULT_PRESET.params[k];
   if (Array.isArray(v)) return v.length ? v.map(r => r.relation.replace(/-relationship$/, "")).join(", ") : "none";
-  if (v && typeof v === "object") return v.path === "" ? "none, on" : cell(JSON.stringify(v));   // the background view: { id, path, on }
+  if (v && typeof v === "object") return v.path === "" ? "none, on" : cell(JSON.stringify(v));   // the view template: { id, path, on }
   return typeof v === "boolean" ? (v ? "on" : "off") : cell(v);
 };
 

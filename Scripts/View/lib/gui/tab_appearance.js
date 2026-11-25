@@ -209,13 +209,13 @@ function buildAppearanceTab(tabFolder, ctx) {
   // Info label — shown/hidden via updateNestingLevelState (hidden when a Nesting condition is on).
   w.lblNestingInfo = Widgets.noteLabel(grpNest, "Turn on a Nesting condition in the Layout tab to use this.");
   w.nestDescLbl = Widgets.noteLabel(grpNest, "Each condition selects parent-to-child nesting steps and defines how each child looks. " +
-    "Deeper levels within a condition become lighter and smaller. With a background view, elements start with their appearance " +
-    "from that view. Choose Background to preserve it.");
+    "Deeper levels within a condition become lighter and smaller. With a view template, elements start with their appearance " +
+    "from that view. Choose Template to preserve it.");
 
   const onNestChange = () => { ctx.markModified(); ctx.nestingStyleChanged(); };
   w.tblNestingStyleConditions = conditionTable(grpNest, {
     kind: "nestingStyle", onChange: onNestChange,
-    columns: nestingStyleConditionColumns(paletteColors, { background: () => !!ctx.backgroundInUse }),
+    columns: nestingStyleConditionColumns(paletteColors, { viewTemplate: () => !!ctx.viewTemplateInUse }),
     onLayout: relayout,
     propItems:  r => Counts.propNames(_nestPropObjects(ctx, r)),
     valueItems: r => Counts.propValues(_nestPropObjects(ctx, r), r.property),

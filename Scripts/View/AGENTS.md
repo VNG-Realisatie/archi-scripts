@@ -7,7 +7,7 @@ View generation and layout (ELK, Dagre, Graphviz). Adds to the repo `AGENTS.md`;
 System-wide, grouped by theme; code reviews enforce them. They go before `docs/SPEC.md` (what) and the rest of the docs. The only exceptions are the ones a rule names itself. Violating them corrupts diagrams or breaks the pipeline.
 
 **Layout integrity.**
-1. **No scaling**: a leaf keeps its size and the engine sizes the containers; no size is multiplied to reach a view size or aspect ratio. (Foundational.) A leaf grows only to fill a place the layout gives it: a width (*Same width*), a column (*Columns across containers*) or a cell (the table of a background view). Engine facts: [layout graph and result](docs/reference/engines.md#layout-graph-and-result); why: [ARCHITECTURE § Sizing](docs/ARCHITECTURE.md#sizing).
+1. **No scaling**: a leaf keeps its size and the engine sizes the containers; no size is multiplied to reach a view size or aspect ratio. (Foundational.) A leaf grows only to fill a place the layout gives it: a width (*Same width*), a column (*Columns across containers*) or a cell (the table of a view template). Engine facts: [layout graph and result](docs/reference/engines.md#layout-graph-and-result); why: [ARCHITECTURE § Sizing](docs/ARCHITECTURE.md#sizing).
 2. **Position spread only**: an outward centre-spread, with sizes frozen, is the only post-layout adjustment; compression is forbidden.
 3. **Parent-relative coordinates**: a nested visual's bounds are relative to its parent. The orchestrator converts them from the engine's absolute output.
 4. **Parent-first writing**: every node is written after its parent, so parent-relative conversion and draw order hold under any engine output order.

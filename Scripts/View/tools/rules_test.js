@@ -49,7 +49,7 @@ const NEW = Defs.ACTION.NEW_VIEW.id, LAYOUT = Defs.ACTION.LAYOUT_ONLY.id;
   const quietLoad = console.log; console.log = () => {};
   const runtime = H.layoutRuntime(true);
   console.log = quietLoad;
-  const runs = [["1 Nesting", null], ["4 Parts", null], ["6 GEMMA", "Bedrijfsfuncties background"], ["7 GEMMA functions", "Bedrijfsobjecten"]];
+  const runs = [["1 Nesting", null], ["4 Parts", null], ["6 GEMMA", "Bedrijfsfuncties template"], ["7 GEMMA functions", "Bedrijfsobjecten"]];
   for (const algorithm of ALGORITHMS.filter(a => !(a in Expected.UNSTABLE_ALGORITHMS))) for (const [viewName, gemma] of runs) {
     const preset = gemma ? Defs.validatePreset({ ...JSON.parse(fs.readFileSync(path.join(Expected.GEMMA_PRESET_DIR, gemma + ".json"), "utf8")), algorithm }) : baseline(algorithm);
     const planned = plan(preset, viewName, NEW);
@@ -158,7 +158,7 @@ const NEW = Defs.ACTION.NEW_VIEW.id, LAYOUT = Defs.ACTION.LAYOUT_ONLY.id;
     return { target, existing: existing.filter(r => r.kind !== "view") };
   }
   const runs = [["2 Edited", path.join(BASELINE, "baseline.json")], ["2 Edited", path.join(BASELINE, "AlgoTwopi.json")],
-                ["8 GEMMA background", path.join(Expected.GEMMA_PRESET_DIR, "Bedrijfsfuncties.json")]];
+                ["8 GEMMA template", path.join(Expected.GEMMA_PRESET_DIR, "Bedrijfsfuncties.json")]];
   for (const [viewName, file] of runs) for (const algorithm of ALGORITHMS) {
     const preset = Defs.validatePreset({ ...JSON.parse(fs.readFileSync(file, "utf8")), algorithm });
     const planned = plan(preset, viewName, LAYOUT);
@@ -190,7 +190,7 @@ const NEW = Defs.ACTION.NEW_VIEW.id, LAYOUT = Defs.ACTION.LAYOUT_ONLY.id;
     /** @type {Record<string, unknown>} */
     const changed = {};
     for (const [key, value] of Object.entries(base.params)) {
-      if (active.has(key) || key === "viewSizeMode" || key === "backgroundView") continue;
+      if (active.has(key) || key === "viewSizeMode" || key === "viewTemplate") continue;
       if (typeof value === "number") changed[key] = value + 7;
       else if (typeof value === "boolean") changed[key] = !value;
       else if (typeof value === "string" && options(key).length) changed[key] = options(key).find(o => o !== value) || value;
@@ -213,9 +213,9 @@ const NEW = Defs.ACTION.NEW_VIEW.id, LAYOUT = Defs.ACTION.LAYOUT_ONLY.id;
   eq(Object.keys(Defs.validatePreset(raw)).filter(k => UI.test(k)), [], "validation does not carry it into the preset");
 }
 
-// ── leaf cells: a leaf that fills a cell of a background view's table has the height its label needs at the width drawn ──
+// ── leaf cells: a leaf that fills a cell of a view template's table has the height its label needs at the width drawn ──
 {
-  const file = path.join(Expected.GEMMA_PRESET_DIR, "Bedrijfsfuncties background.json");
+  const file = path.join(Expected.GEMMA_PRESET_DIR, "Bedrijfsfuncties template.json");
   const preset = presetFile(file); preset.algorithm = "Tiles";
   const planned = plan(preset, "6 GEMMA", NEW);
   const { graph, result } = planned;

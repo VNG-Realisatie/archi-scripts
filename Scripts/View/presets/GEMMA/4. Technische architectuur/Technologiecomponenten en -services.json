@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 11,
+  "schemaVersion": 12,
   "name": "GEMMA/4. Technische architectuur/Technologiecomponenten en -services",
   "algorithm": "Tiles",
   "params": {
@@ -39,12 +39,12 @@
     "labelSizing": false,
     "labelMaxLineWidth": 400,
     "connectionLabelSpacing": false,
-    "backgroundView": {
+    "viewTemplate": {
       "id": "id-2d03ce21b5b24db08da80f1f5f03d6ba",
       "path": "/Views/Beheer/View templates/Technologiecomponenten en -services",
       "on": true
     },
-    "backgroundLeavesInPlace": true
+    "templateLeavesInPlace": true
   },
   "filter": {
     "conditions": [],

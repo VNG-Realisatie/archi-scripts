@@ -83,8 +83,8 @@ const PARAM_LABELS = Object.freeze({
   cycleSelectionOrder:      "Cycle selection order",
   sameWidth:                "Same width",
   columnsAcrossContainers:  "Columns across containers",
-  backgroundView:           "Background",
-  backgroundLeavesInPlace:  "Leaves in place",
+  viewTemplate:             "View template",
+  templateLeavesInPlace:    "Leaves in place",
   direction:                "Direction",
   acyclicer:                "Cycles",
   ranking:                  "Ranking",
@@ -128,9 +128,9 @@ const PARAM_TOOLTIPS = Object.freeze({
                              "Per level and type: after the last nesting type change one width per element type, as narrow as it allows. A container is never narrower than its contents."],
   columnsAcrossContainers:  ["Line up the columns of the tiles on one grid across the whole view.",
                              "Elements of one level line up along their parent's edge, leaves fill their column; neighbours stay Distance apart."],
-  backgroundView:           ["A view the selection fills: its elements are always on the view, in its table of rows and columns.",
-                             "Path of the view, e.g. /Views/Backgrounds/Map. An element under nothing on it brings its parents; one that reaches it by no path is left out."],
-  backgroundLeavesInPlace:  ["The leaves of the background view keep their place too.",
+  viewTemplate:             ["The view the generated view is made from: its elements are always on it, its containers keep their places in its table of rows and columns, and it gives the base look. The selection fills it.",
+                             "Path of the view, e.g. /Views/View templates/Map. An element under nothing on it brings its parents; one that reaches it by no path is left out."],
+  templateLeavesInPlace:    ["The leaves of the view template keep their place too.",
                              "Off: only its containers keep theirs; its leaves are always on the view, and the layout places them (sorted, compact)."],
   direction:                ["Direction of the main flow.", ""],
   acyclicer:                ["How relation cycles are broken before layout; no effect without cycles.",
@@ -193,7 +193,7 @@ const LAYOUT_GROUPS = Object.freeze({
   Nesting:     ["nestingConditions"],
   Reverse:     ["reverseConditions"],
   Containers:  ["containerAlgorithm", "connectionsMode", "padding",
-                "sort", "sameWidth", "columnsAcrossContainers", "backgroundView", "backgroundLeavesInPlace"],
+                "sort", "sameWidth", "columnsAcrossContainers", "viewTemplate", "templateLeavesInPlace"],
   Flow:        ["direction", "acyclicer", "ranking", "nodePlacement", "circles", "layerSpacing"],
   Elements:    ["elementWidth", "elementHeight", "labelSizing", "labelMaxLineWidth", "elementSpacing"],
   Connections: ["routing", "labelPosition", "connectionLabelSpacing", "connectionSpacing", "connectionElementSpacing"],
@@ -355,7 +355,7 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    false,  // tiles position nodes only — they do not route edges
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, "nestingConditions", "padding", "sort", "sameWidth", "columnsAcrossContainers",
-      ...PARAMS_VIEW_SIZE, "labelSizing", "labelMaxLineWidth", "elementSpacing", "reverseConditions", "backgroundView", "backgroundLeavesInPlace",
+      ...PARAMS_VIEW_SIZE, "labelSizing", "labelMaxLineWidth", "elementSpacing", "reverseConditions", "viewTemplate", "templateLeavesInPlace",
     ],
     supportedOptions:     { sameWidth: Object.values(SAME_WIDTH) },
     labelPositionDefault: null,
@@ -752,7 +752,7 @@ const SPLINE_SAMPLE_POINTS = 8;
 // ── Preset schema defaults ────────────────────────────────────────────────────
 
 const DEFAULT_PRESET = Object.freeze({
-  schemaVersion: 11,   // 2 = condition lists (rel_filter.js); 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions; 5 = nesting style conditions + palette; 6 = font size and bold per nesting style condition; 7 = sameWidth replaces alignWidthSameType, backgroundLeavesInPlace replaces backgroundEveryBox; 8 = filter.conditions (element and relation rows, applyTo) replaces filter.elementConditions and filter.relationConditions; 9 = view.folder is the whole path under Views and replaces view.underGenerated (the root of Mirrored too); 10 = per nesting style condition its numbers, font style and property match, Background, backgroundView.on, backgroundKeepAppearance removed; 11 = nestingLevel.colorEnabled and fontEnabled removed, fontSize and fontStyle value "default" (Archi's font); older presets are migrated offline
+  schemaVersion: 12,   // 2 = condition lists (rel_filter.js); 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions; 5 = nesting style conditions + palette; 6 = font size and bold per nesting style condition; 7 = sameWidth replaces alignWidthSameType, templateLeavesInPlace replaces backgroundEveryBox; 8 = filter.conditions (element and relation rows, applyTo) replaces filter.elementConditions and filter.relationConditions; 9 = view.folder is the whole path under Views and replaces view.underGenerated (the root of Mirrored too); 10 = per nesting style condition its numbers, font style and property match, Template, viewTemplate.on, backgroundKeepAppearance removed; 11 = nestingLevel.colorEnabled and fontEnabled removed, fontSize and fontStyle value "default" (Archi's font); 12 = backgroundView → viewTemplate, backgroundLeavesInPlace → templateLeavesInPlace, condition value "background" → "template"; older presets are migrated offline
   name:      "",
   algorithm: "Layered",
   params: {
@@ -790,8 +790,8 @@ const DEFAULT_PRESET = Object.freeze({
     labelSizing:           false,   // derive node width/height from the measured label (label_size.labelSizedLeaf)
     labelMaxLineWidth:     400,    // widest element Use label width makes before the label wraps
     connectionLabelSpacing:      true,   // reserve space for connection labels in ELK Layered (prevents overlap)
-    backgroundView:        { id: "", path: "", on: true },   // Tiles: the view the selection fills (lib/background.js); id finds it, path is its label; on: false = the run does not use it
-    backgroundLeavesInPlace: false, // the leaves of the background view keep their place too; false: only its containers (Table.tablesWithContainers)
+    viewTemplate:          { id: "", path: "", on: true },   // Tiles: the view the selection fills (lib/view_template.js); id finds it, path is its label; on: false = the run does not use it
+    templateLeavesInPlace: false, // the leaves of the view template keep their place too; false: only its containers (Table.tablesWithContainers)
   },
   // Filter lists (empty = keep everything); condition shapes in rel_filter.js.
   filter: {
@@ -1001,15 +1001,15 @@ function _legacyKeys(raw) {
 }
 
 /**
- * A background view reference from a preset file: { id, path, on }; id and path strings, on a boolean (default true).
+ * A view template reference from a preset file: { id, path, on }; id and path strings, on a boolean (default true).
  * @param {unknown} raw
- * @returns {BackgroundRef}
+ * @returns {ViewTemplateRef}
  * @throws when it is not an object with string id and path, or on is not a boolean
  */
-function _backgroundRef(raw) {
+function _viewTemplateRef(raw) {
   const r = /** @type {Record<string, unknown>} */ (raw);   // Cast: checked below
   if (!r || typeof r !== "object" || typeof r.id !== "string" || typeof r.path !== "string" || (r.on !== undefined && typeof r.on !== "boolean"))
-    throw new Error(`Preset params.backgroundView must be { "id": "…", "path": "…", "on": true | false } (id and path may be empty); it is ${JSON.stringify(raw)}.`);
+    throw new Error(`Preset params.viewTemplate must be { "id": "…", "path": "…", "on": true | false } (id and path may be empty); it is ${JSON.stringify(raw)}.`);
   return { id: r.id, path: r.path, on: r.on !== false };
 }
 
@@ -1058,8 +1058,8 @@ function validatePreset(raw) {
         preset.params[key] = conditions("relation", rawVal, `params.${key}`);
         continue;
       }
-      if (key === "backgroundView") {
-        preset.params.backgroundView = _backgroundRef(rawVal);
+      if (key === "viewTemplate") {
+        preset.params.viewTemplate = _viewTemplateRef(rawVal);
         continue;
       }
       // Migrate old direction labels (e.g. "Left → Right" → "Left") so old presets remain valid.

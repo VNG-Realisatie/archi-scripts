@@ -167,8 +167,8 @@ eq(RF.detectConditionConflicts(new Map([[0, new Set(["a"])], [1, new Set(["b"])]
 eq(norm("nestingStyle", [{}]), [{ on: true, parent: "", direction: "either", relation: "", child: "same", propertyOf: "child", property: "", value: "",
   color: "", darkenStart: 1, lightenPerLevel: 15, fontSize: "default", fontStyle: "default", fontDecreasePerLevel: 2 }], "nesting style: defaults");
 eq(norm("nestingStyle", [{ fontSize: 14, fontStyle: "bold" }])[0].fontSize, 14, "nesting style: font size");
-eq(norm("nestingStyle", [{ color: "background", fontSize: "background", fontStyle: "background" }]).map(r => [r.color, r.fontSize, r.fontStyle]),
-   [["background", "background", "background"]], "nesting style: Background for fill color, font size and font style");
+eq(norm("nestingStyle", [{ color: "template", fontSize: "template", fontStyle: "template" }]).map(r => [r.color, r.fontSize, r.fontStyle]),
+   [["template", "template", "template"]], "nesting style: Template for fill color, font size and font style");
 eq(refused("nestingStyle", [{ fontSize: "14" }]).startsWith("test[0]: "), true, "nesting style: font size must be a number");
 eq(refused("nestingStyle", [{ fontSize: 30 }]).startsWith("test[0]: "), true, "nesting style: font size from 8 to 24");
 eq(refused("nestingStyle", [{ fontStyle: "heavy" }]).startsWith("test[0]: "), true, "nesting style: font style one of the list");
@@ -280,34 +280,34 @@ eq(fonts([{ fontSize: 14, fontStyle: "italic", fontDecreasePerLevel: 4 }]), { g0
   eq(out.f1, "B", "chains: a property match beats an otherwise equal condition, whatever the order");
 }
 {
-  // Background: each element its own value from its background look; without one the fallback (and it is counted)
+  // Template: each element its own value from its template look; without one the fallback (and it is counted)
   const look = (fontSize, fontStyle, fillColor) => ({ fillColor, fontName: "Serif", fontSize, fontStyle });
-  const bg = [node("g0", null, "grouping", 0, true), node("g1", "g0", "grouping", 1, true, agg), node("g2", "g1", "grouping", 2, false, agg)];
-  bg[0].look = look(18, "bolditalic", "#a6c3dd"); bg[1].look = look(11, "normal", "#a6c3dd");
-  eq(fonts([{ fontSize: "background", fontStyle: "background" }], bg), { g0: "18bi", g1: "11", g2: "9" },
-     "Background: each element its own font size and style, at every level; without a look 9 pt normal");
-  const r = Appearance.followNestingChains(bg, NS([{ color: "background", fontSize: "background", fontStyle: "bold" }]));
-  eq([r.styles.get("g1").color, r.withoutLook.color.get(1).size, r.withoutLook.font.get(1).size], ["background", 1, 1], "Background: elements without a look are counted per condition");
-  const both = Appearance.followNestingChains(bg, NS([{ color: "background", fontSize: "background", fontStyle: "background" }]));
-  eq(Appearance.withoutLookCounts(both.withoutLook).get(1), 1, "Background: an element without a look counts once, whatever attributes use Background");
+  const tpl = [node("g0", null, "grouping", 0, true), node("g1", "g0", "grouping", 1, true, agg), node("g2", "g1", "grouping", 2, false, agg)];
+  tpl[0].look = look(18, "bolditalic", "#a6c3dd"); tpl[1].look = look(11, "normal", "#a6c3dd");
+  eq(fonts([{ fontSize: "template", fontStyle: "template" }], tpl), { g0: "18bi", g1: "11", g2: "9" },
+     "Template: each element its own font size and style, at every level; without a look 9 pt normal");
+  const r = Appearance.followNestingChains(tpl, NS([{ color: "template", fontSize: "template", fontStyle: "bold" }]));
+  eq([r.styles.get("g1").color, r.withoutLook.color.get(1).size, r.withoutLook.font.get(1).size], ["template", 1, 1], "Template: elements without a look are counted per condition");
+  const both = Appearance.followNestingChains(tpl, NS([{ color: "template", fontSize: "template", fontStyle: "template" }]));
+  eq(Appearance.withoutLookCounts(both.withoutLook).get(1), 1, "Template: an element without a look counts once, whatever attributes use Template");
   const mixed = [node("g0", null, "grouping", 0, true), node("o1", "g0", "business-object", 1, false, agg)];
   mixed[0].look = look(14, "bold", null);
-  eq(fonts([{ fontSize: "background" }, { child: "business-object", fontSize: 0 }], mixed), { g0: "14", o1: "12" },
-     "Background: a start element without a font size continues from the parent's look size");
-  const same = Appearance.followNestingChains(bg, NS([{ color: "same" }]));
-  eq([same.styles.get("g0").color, same.parentlessRoots, same.withoutLook.color.size], ["background", ["g0"], 0],
-     "Same as parent on a root container: it keeps its background look, reported as parentless, not as without a look");
+  eq(fonts([{ fontSize: "template" }, { child: "business-object", fontSize: 0 }], mixed), { g0: "14", o1: "12" },
+     "Template: a start element without a font size continues from the parent's look size");
+  const same = Appearance.followNestingChains(tpl, NS([{ color: "same" }]));
+  eq([same.styles.get("g0").color, same.parentlessRoots, same.withoutLook.color.size], ["template", ["g0"], 0],
+     "Same as parent on a root container: it keeps its template look, reported as parentless, not as without a look");
 }
 {
-  // Font style Same as parent: the parent's style; a root takes its background look's, else normal; no Background fallback count
+  // Font style Same as parent: the parent's style; a root takes its template look's, else normal; no Template fallback count
   const sp = [node("g0", null, "grouping", 0, true), node("s1", "g0", "application-service", 1, false, agg), node("s2", "g0", "application-service", 1, false, agg)];
   sp[0].look = { fillColor: null, fontName: "Serif", fontSize: 16, fontStyle: "bold" };
-  const r = Appearance.followNestingChains(sp, NS([{ parent: "grouping", child: "grouping", fontSize: 16, fontStyle: "background" },
+  const r = Appearance.followNestingChains(sp, NS([{ parent: "grouping", child: "grouping", fontSize: 16, fontStyle: "template" },
     { child: "application-service", fontSize: 11, fontStyle: "same" }]));
   eq([r.styles.get("g0").fontStyle, r.styles.get("s1").fontStyle, r.styles.get("s1").fontSize, r.withoutLook.font.has(2)], ["bold", "bold", 11, false],
-     "Font style Same as parent: the parent's style, and no Background fallback for the elements");
+     "Font style Same as parent: the parent's style, and no Template fallback for the elements");
   const root = Appearance.followNestingChains(sp.slice(0, 1), NS([{ fontStyle: "same", fontSize: 16 }]));
-  eq(root.styles.get("g0").fontStyle, "bold", "Font style Same as parent on a root container: its background look's style");
+  eq(root.styles.get("g0").fontStyle, "bold", "Font style Same as parent on a root container: its template look's style");
   eq(norm("nestingStyle", [{ fontStyle: "same" }])[0].fontStyle, "same", "nesting style: font style same is valid");
 }
 console.log(failed ? `\n${failed} FAILED` : "all rel_filter tests passed");

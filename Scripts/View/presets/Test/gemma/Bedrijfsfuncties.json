@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 11,
+  "schemaVersion": 12,
   "name": "Test/gemma/Bedrijfsfuncties",
   "algorithm": "Tiles",
   "params": {
@@ -171,5 +171,5 @@
       }
     ]
   },
-  "description": "GEMMA test run on the test model (views 6–8 GEMMA): a copy of GEMMA/Referentiecomponenten/Bedrijfsfunctiemodel met referentiecomponenten, 2026-11-20; only the view and the background view changed"
+  "description": "GEMMA test run on the test model (views 6–8 GEMMA): a copy of GEMMA/Referentiecomponenten/Bedrijfsfunctiemodel met referentiecomponenten, 2026-11-20; only the view and the view template changed"
 }

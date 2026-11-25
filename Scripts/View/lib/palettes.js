@@ -46,8 +46,8 @@ function validatePalettes(raw) {
     const colors = p.colors.map((/** @type {any} */ c, /** @type {number} */ j) => {
       if (!c || typeof c.name !== "string" || !c.name.trim()) throw new Error(`${where}: palette "${p.name}" colors[${j}] needs a name.`);
       if (colorNames.has(c.name)) throw new Error(`${where}: palette "${p.name}" has color "${c.name}" twice.`);
-      if (c.name === ConditionLists.SAME_TYPE || c.name === ConditionLists.BACKGROUND)
-        throw new Error(`${where}: palette "${p.name}" colors[${j}]: the name "${c.name}" is reserved (a nesting style fill color: ${c.name === ConditionLists.SAME_TYPE ? "Same as parent" : "Background"}). Rename the color.`);
+      if (c.name === ConditionLists.SAME_TYPE || c.name === ConditionLists.TEMPLATE)
+        throw new Error(`${where}: palette "${p.name}" colors[${j}]: the name "${c.name}" is reserved (a nesting style fill color: ${c.name === ConditionLists.SAME_TYPE ? "Same as parent" : "Template"}). Rename the color.`);
       colorNames.add(c.name);
       if (typeof c.hex !== "string" || !HEX.test(c.hex)) throw new Error(`${where}: color "${c.name}" needs a hex value like #ffffcc.`);
       return { name: c.name, hex: c.hex.toLowerCase() };

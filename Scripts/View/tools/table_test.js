@@ -1,7 +1,7 @@
 /**
- * Node tests for the table read from a background view (lib/table.js): cells, borders, gridlines, table
+ * Node tests for the table read from a view template (lib/table.js): cells, borders, gridlines, table
  * rows and table columns, cell spans, all from overlap alone; the cases come from RC00 and the
- * Informatiearchitectuur of the Applicatieservices background (GEMMA). Run from the repo root:
+ * Informatiearchitectuur of the Applicatieservices view template (GEMMA). Run from the repo root:
  *   node Scripts/View/tools/table_test.js
  */
 const path = require("path");
@@ -74,7 +74,7 @@ eq(tableOf([box("A", 0, 0, 100, 50), box("C", 0, 52, 100, 50), box("B", 110, 0, 
 eq(tableOf([box("A", 0, 0, 100, 50), box("C", 0, 52, 100, 50), box("B", 110, 0, 100, 60), box("D", 110, 62, 100, 50)]),
   { size: "3×2", cells: ["A@0,0", "B@0,1+2×1", "C@1,0+2×1", "D@2,1"] }, "a few pixels apart: a thin table row the cells span");
 
-// Informatiearchitectuur of the Applicatieservices background: four table columns (inwoners, gemeente,
+// Informatiearchitectuur of the Applicatieservices view template: four table columns (inwoners, gemeente,
 // ketenpartners, the right one), nine table rows; Applicatieontwikkeling beside seven of them, Privacy
 // over the last two, the generic services over the table rows either side of the gridline between them.
 {
@@ -109,7 +109,7 @@ eq(Object.fromEntries(Object.entries(Table.tablesOf([
 eq(tableOf([box("Only", 0, 0, 10, 10)]), { size: "1×1", cells: ["Only@0,0"] }, "one box");
 
 // Frames only: a container keeps its table when one of its children holds boxes of its own on
-// the background view; a container of leaves leaves its children to the layout.
+// the view template; a container of leaves leaves its children to the layout.
 const column = (...ids) => ({ columns: 1, rows: ids.length, cells: ids.map((id, row) => ({ ids: [id], row, column: 0, rowSpan: 1, columnSpan: 1 })) });
 const rowOf = (...ids) => ({ columns: ids.length, rows: 1, cells: ids.map((id, c) => ({ ids: [id], row: 0, column: c, rowSpan: 1, columnSpan: 1 })) });
 eq(Object.keys(Table.tablesWithContainers({

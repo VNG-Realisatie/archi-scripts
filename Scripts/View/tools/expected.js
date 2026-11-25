@@ -13,16 +13,16 @@ const EXPECTED_DIR = path.join(__dirname, "..", "test", "expected");
 /**
  * The GEMMA runs (--gemma of write_plans.js and layout_checks.js): copies of GEMMA presets (presets/Test/gemma/) on
  * the GEMMA views of the test model (Views/Test/6–8 GEMMA), each with every algorithm: the option combinations,
- * steps, filters, background view and deep nesting GEMMA uses.
+ * steps, filters, view template and deep nesting GEMMA uses.
  */
 const GEMMA_PRESET_DIR = path.join(__dirname, "..", "presets", "Test", "gemma");
 const GEMMA_RUNS = Object.freeze([
-  { preset: "Bedrijfsfuncties background", view: "6 GEMMA", action: "new_view" },
+  { preset: "Bedrijfsfuncties template", view: "6 GEMMA", action: "new_view" },
   { preset: "Bedrijfsfuncties", view: "6 GEMMA", action: "new_view" },
   { preset: "Applicatieservices", view: "6 GEMMA", action: "new_view" },
   { preset: "Bedrijfsobjecten", view: "7 GEMMA functions", action: "new_view" },
   { preset: "Bedrijfsobjecten per beleidsdomein", view: "6 GEMMA", action: "new_view" },   // Use label width, Highlight repeated
-  { preset: "Bedrijfsfuncties", view: "8 GEMMA background", action: "layout_only" },
+  { preset: "Bedrijfsfuncties", view: "8 GEMMA template", action: "layout_only" },
 ]);
 
 /**

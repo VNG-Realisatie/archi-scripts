@@ -75,16 +75,16 @@ type NestingStyleCondition = {
   propertyOf: "child" | "parent" | "relation";
   property: string;
   value: string;
-  /** Fill color: a color name of the chosen palette or a hex; "" = Type default; "same" = Same as parent; "background" = Background. */
+  /** Fill color: a color name of the chosen palette or a hex; "" = Type default; "same" = Same as parent; "template" = Template. */
   color: string;
   /** Levels darker the fill color starts at a nesting type or color change. */
   darkenStart: number;
   /** Percentage closer to white per deeper nesting level within the condition. */
   lightenPerLevel: number;
-  /** Font size (pt) of the start element; 0 = continues from the parent; "default" = Archi's default font; "background" = Background. */
-  fontSize: number | "background" | "default";
+  /** Font size (pt) of the start element; 0 = continues from the parent; "default" = Archi's default font; "template" = Template. */
+  fontSize: number | "template" | "default";
   /** Font style of the start element. */
-  fontStyle: "normal" | "bold" | "italic" | "bolditalic" | "background" | "default" | "same";
+  fontStyle: "normal" | "bold" | "italic" | "bolditalic" | "template" | "default" | "same";
   /** Points smaller per deeper nesting level within the condition, never below 9 pt. */
   fontDecreasePerLevel: number;
 };
@@ -250,17 +250,17 @@ type PresetParams = {
   labelSizing: boolean;
   labelMaxLineWidth: number;
   connectionLabelSpacing: boolean;
-  /** Tiles: the view the selection fills (lib/background.js); empty id and path = none. */
-  backgroundView: BackgroundRef;
-  /** Tiles: the leaves of the background view keep their place too; false: only its containers. */
-  backgroundLeavesInPlace: boolean;
+  /** Tiles: the view the selection fills (lib/view_template.js); empty id and path = none. */
+  viewTemplate: ViewTemplateRef;
+  /** Tiles: the leaves of the view template keep their place too; false: only its containers. */
+  templateLeavesInPlace: boolean;
 };
 
-/** A background view as a preset names it: found by id; the path (folders and name) is a label, and finds it when the id is empty; on: false = the run does not use it. */
-type BackgroundRef = { id: string; path: string; on: boolean };
+/** A view template as a preset names it: found by id; the path (folders and name) is a label, and finds it when the id is empty; on: false = the run does not use it. */
+type ViewTemplateRef = { id: string; path: string; on: boolean };
 
-/** A background view as read (selection_read.readBackground): what it puts on the view, and its table. */
-interface BackgroundSnapshot {
+/** A view template as read (selection_read.readViewTemplate): what it puts on the view, and its table. */
+interface ViewTemplateSnapshot {
   /** Path of the view, as the console names it. */
   path: string;
   elements: ArchiElement[];
@@ -274,8 +274,8 @@ interface BackgroundSnapshot {
   tables: Tables;
 }
 
-/** Background look: a visual of an element on the background view, and the element it lies in there (null: the view root). */
-interface BackgroundLook {
+/** Template look: a visual of an element on the view template, and the element it lies in there (null: the view root). */
+interface TemplateLook {
   visual: VisualObject;
   parentId: string | null;
 }
@@ -421,10 +421,10 @@ interface ObjectSet {
   diagramBlockVisualOf?: Map<string, string>;
   /** The run in which each added element joined (joinRuns); the selection and the view's elements are absent (0). */
   joinRun?: Map<string, number>;
-  /** The table of the background view's containers (Tiles); absent without a background view. */
+  /** The table of the view template's containers (Tiles); absent without a view template. */
   tables?: Tables;
-  /** Keep appearance: element id → its visuals on the background view, in view order; absent when off. */
-  backgroundLooks?: Map<string, BackgroundLook[]>;
+  /** Keep appearance: element id → its visuals on the view template, in view order; absent when off. */
+  templateLooks?: Map<string, TemplateLook[]>;
 }
 
 /** One expand-selection step's result (expandStepWithRelations). */
@@ -497,8 +497,8 @@ interface Snapshot {
   sourceVisualElements: VisualObject[];
   /** Every element visual on the target view, described (describeVisuals); [] for a new view. */
   visuals: VisualDescription[];
-  /** The preset's background view (readBackground); absent or null without one. */
-  background?: BackgroundSnapshot | null;
+  /** The preset's view template (readViewTemplate); absent or null without one. */
+  viewTemplate?: ViewTemplateSnapshot | null;
 }
 
 /** Everything inside one diagram-block, as read. */
@@ -516,8 +516,8 @@ interface ComposedObjectSet {
   filteredBaseRels: number;
   stepCounts: StepCount[];
   view: ViewCounts;
-  /** With a background view: its path, its elements, the parents brought up to it, the elements left out (lib/background.js). */
-  background?: { view: string; elements: number; parents: ArchiElement[]; dropped: ArchiElement[] };
+  /** With a view template: its path, its elements, the parents brought up to it, the elements left out (lib/view_template.js). */
+  viewTemplate?: { view: string; elements: number; parents: ArchiElement[]; dropped: ArchiElement[] };
 }
 
 /** What plan() counted for the console: the selection, the filtered base, the step adds, the view. */
@@ -719,8 +719,8 @@ interface DialogCountInput {
   visuals: VisualDescription[];
   /** What Expand view works on (readSelection); null when it is disabled. */
   expandSnapshot: Snapshot | null;
-  /** The background view in the Background field, read (readBackground); null without one, or where the algorithm has none. */
-  background: BackgroundSnapshot | null;
+  /** The view template in the View template field, read (readViewTemplate); null without one, or where the algorithm has none. */
+  viewTemplate: ViewTemplateSnapshot | null;
 }
 
 /** One step's counts in the dialog. */
@@ -771,11 +771,11 @@ interface DialogCounts {
   nestingView: NestingView;
 }
 
-/** The nesting of the predicted view: its laid-out elements, their occurrences and the background view in use. */
+/** The nesting of the predicted view: its laid-out elements, their occurrences and the view template in use. */
 interface NestingView {
   elements: ArchiElement[];
   nesting: NestingResolution;
-  background: BackgroundSnapshot | null;
+  viewTemplate: ViewTemplateSnapshot | null;
 }
 
 /** The nesting style table's counts and ⚠ per condition (nestingStyleCounts). */
@@ -1063,10 +1063,10 @@ type DialogWidgets = {
   /** "/_Generated" in front of the folder when Under _Generated is ticked, else "". */
   txtViewFolder: Swt.Text;
   btnViewFolder: Swt.Button;
-  txtBackgroundView: Swt.Text;
-  btnBackgroundView: Swt.Button;
-  chkBackgroundOn: CheckBox;
-  chkBackgroundLeavesInPlace: CheckBox;
+  txtViewTemplate: Swt.Text;
+  btnViewTemplate: Swt.Button;
+  chkViewTemplateOn: CheckBox;
+  chkTemplateLeavesInPlace: CheckBox;
   rdoMirrored: Swt.Button;
   lblMirrored: Swt.Label;
   /** "View:" and the view a Modify action changes. */
@@ -1132,14 +1132,14 @@ interface DialogContext {
   predicted?: { elements: ArchiElement[], relations: ArchiRelation[] } | null; // what the view will hold
   viewRelations?: ArchiRelation[]; // relations of the predicted view
   expandSnapshot?: Snapshot | null; // what Expand view works on (readSelection), null when it is disabled
-  background?: BackgroundSnapshot | null; // the view in the Background field, read; null when empty or not found
-  /** Read the view in the Background field again, then recount. */
-  backgroundChanged: () => void;
-  /** A background view is chosen, on and used by the algorithm: Background takes its values from it. */
-  backgroundInUse?: boolean;
+  viewTemplate?: ViewTemplateSnapshot | null; // the view in the View template field, read; null when empty or not found
+  /** Read the view in the View template field again, then recount. */
+  viewTemplateChanged: () => void;
+  /** A view template is chosen, on and used by the algorithm: Template takes its values from it. */
+  viewTemplateInUse?: boolean;
   /** The nesting style table changed: its counts and ⚠ again, from the last recount's nesting. */
   nestingStyleChanged: () => void;
-  backgroundNames: () => string[]; // every view as the background field names it, without /Views/
+  viewTemplateNames: () => string[]; // every view as the view template field names it, without /Views/
   recount: () => void; // recount after a change of the settings (marks the dialog modified)
   markModified: () => void;
   /** Read every tab into config (the preset row's Save and Save As). */

@@ -60,7 +60,7 @@ const CHUNK_SIZE = 24;
  *   every table column, the height of every table row, and per cell the index of the shape of its tile
  * @typedef {{ cells: TableCellPlan[], columns: number, rows: number, shapes: TableShape[] }} TablePlan
  * @typedef {{ tiles: Tile[], best: Shape[][][], table?: TablePlan }} Floorplan  best[i][j]: the shapes of tiles i … j;
- *   table: the floorplan is a table of the background view (tableFloorplan), the tiles its cells
+ *   table: the floorplan is a table of the view template (tableFloorplan), the tiles its cells
  */
 
 /**
@@ -288,7 +288,7 @@ function shapesOf(floorplan) {
 }
 
 /**
- * The tiles of boxes that overlap on the background view, one above the other in reading order, as
+ * The tiles of boxes that overlap on the view template, one above the other in reading order, as
  * one tile (no node of its own).
  * @param {Tile[]} tiles
  * @param {number} gap
@@ -301,7 +301,7 @@ function _stackTile(tiles, gap, widthCap) {
 }
 
 /**
- * The floorplan of a container's children in the table of the background view: every child a cell in
+ * The floorplan of a container's children in the table of the view template: every child a cell in
  * its table rows and table columns, so only the sizes are searched. Children the table does not hold
  * come last, in a table row below the rest, tiled freely; a child of the table the view does not hold
  * drops out, and a table row or table column left without cells with it.
@@ -490,7 +490,7 @@ function layout(graph) {
 
   const tables = graph.tables || {};
   /**
-   * The floorplan of a run of children: in the table of the background view when it has one for
+   * The floorplan of a run of children: in the table of the view template when it has one for
    * their container, else searched.
    * @param {string} key  the container's element id, "" for the view
    * @param {Tile[]} tiles
@@ -500,7 +500,7 @@ function layout(graph) {
   const floorplanOf = (key, tiles, finalShapes) => tables[key]
     ? tableFloorplan(tiles, tables[key], gap, goal, finalShapes)
     : buildFloorplan(tiles, gap, goal, finalShapes);
-  if (Object.keys(tables).length) log(`Tiles: ${Object.keys(tables).length} table(s) from the background view`);
+  if (Object.keys(tables).length) log(`Tiles: ${Object.keys(tables).length} table(s) from the view template`);
 
   /**
    * A node as a tile. A container's shapes come from the floorplan of its children; `child` of a shape

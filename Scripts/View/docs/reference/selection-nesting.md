@@ -123,19 +123,19 @@ Each visual's container is decided anew in every run, by the nesting conditions 
 
 The Create group never modifies the view the selection came from.
 
-## Background view
+## View template
 
-A preset names a background view by its path in the dialog; it is kept by its identity, so a rename or move keeps it, and a path not in the model stops the run with a message. Tiles only, with a nesting condition on (without one nothing can hang under it, and the console says it has no effect). The view the action runs with names it: *Layout only* follows the background view of the current settings, not the one the view was made with.
+A preset names a view template by its path in the dialog; it is kept by its identity, so a rename or move keeps it, and a path not in the model stops the run with a message. Tiles only, with a nesting condition on (without one nothing can hang under it, and the console says it has no effect). The view the action runs with names it: *Layout only* follows the view template of the current settings, not the one the view was made with.
 
 **What is on the view** (*New view*, *One view each*):
-1. Every element of the background view, with the nesting it shows, and its diagram objects (a diagram-block as one). It shows a nesting where an element lies in the box of its parent and the model has a nesting relation between them; another nesting relation between two of its elements is drawn only when the selection follows it. An element in a box the model does not nest it in lies loose.
+1. Every element of the view template, with the nesting it shows, and its diagram objects (a diagram-block as one). It shows a nesting where an element lies in the box of its parent and the model has a nesting relation between them; another nesting relation between two of its elements is drawn only when the selection follows it. An element in a box the model does not nest it in lies loose.
 2. The selection: start and steps, with the relations they followed.
-3. An element of the selection that does not hang under the background view through those relations brings its nesting parents from the model, up to an element of the background view, with the relations between them: parents only, never their other children. The elements are taken in the order they joined, so an element under an earlier one joins with it and climbs not itself.
-4. An element that reaches the background view by no path is left out: the start that only asks (a domain grouping) is typical. The console names them.
+3. An element of the selection that does not hang under the view template through those relations brings its nesting parents from the model, up to an element of the view template, with the relations between them: parents only, never their other children. The elements are taken in the order they joined, so an element under an earlier one joins with it and climbs not itself.
+4. An element that reaches the view template by no path is left out: the start that only asks (a domain grouping) is typical. The console names them.
 
-Only these relations are drawn. An element the selection put under one of its own elements does not also go under another element of the background view the model nests it in, nor does an element of the background view go under a parent other than the one it lies in there.
+Only these relations are drawn. An element the selection put under one of its own elements does not also go under another element of the view template the model nests it in, nor does an element of the view template go under a parent other than the one it lies in there.
 
-**Table.** The children of every container on the background view, and the roots of the view itself, form a table. Overlap alone decides it; no tolerance in pixels. Per container:
+**Table.** The children of every container on the view template, and the roots of the view itself, form a table. Overlap alone decides it; no tolerance in pixels. Per container:
 1. **What counts.** Every container, leaf and diagram object in it. A diagram-block (a diagram object with objects nested in it in Archi) counts as one; diagram objects that only lie over something, without nesting, count apart.
 2. **Cell and stack.** Each is a cell. Objects that overlap share one cell as a stack, in reading order.
 3. **Borders.** Two cells side by side (they overlap in height, nothing lies between) have a column border in the empty space between them; two cells one above the other (they overlap in width, nothing lies between) a row border. Two cells diagonal to each other (no overlap either way) with nothing between get both.
@@ -143,30 +143,30 @@ Only these relations are drawn. An element the selection put under one of its ow
 5. **Table rows and table columns.** The space between consecutive gridlines, numbered left to right and top to bottom.
 6. **Cell span.** A cell lies in the table columns and table rows its box overlaps, so a cell that reaches over a gridline spans both sides.
 
-A border a few pixels off gives at most a thin extra table row or table column that the neighbours span, so it costs nothing. Growth of one cell reaches the other cells of its table row and table column, also where borders interlock; to decouple them, change the background view.
+A border a few pixels off gives at most a thin extra table row or table column that the neighbours span, so it costs nothing. Growth of one cell reaches the other cells of its table row and table column, also where borders interlock; to decouple them, change the view template.
 
 Examples:
-- *Background applicatieservices*: 4 table columns (inwoners, gemeente, ketenpartners, and one on the right); table rows from Bestuur to Ondersteuning. Applicatieontwikkeling spans table rows 1–7 and Privacy 8–9 on the right; the cells of Generieke applicatieservices span table rows 7–8, Gedeelde applicatieservices table columns 1–3.
-- *Background alle referentiecomponenten*: 2 table columns, 7 table rows; the row borders left and right interlock. Primaire functies spans table rows 2–4 in table column 1; Informatiearchitectuur lies in table column 2 and has the table of the previous example inside; Buitengemeentelijke voorzieningen spans both table columns in table row 7. The legend groups are diagram-blocks: one cell each, of fixed size.
+- *Applicatieservices*: 4 table columns (inwoners, gemeente, ketenpartners, and one on the right); table rows from Bestuur to Ondersteuning. Applicatieontwikkeling spans table rows 1–7 and Privacy 8–9 on the right; the cells of Generieke applicatieservices span table rows 7–8, Gedeelde applicatieservices table columns 1–3.
+- *Alle referentiecomponenten*: 2 table columns, 7 table rows; the row borders left and right interlock. Primaire functies spans table rows 2–4 in table column 1; Informatiearchitectuur lies in table column 2 and has the table of the previous example inside; Buitengemeentelijke voorzieningen spans both table columns in table row 7. The legend groups are diagram-blocks: one cell each, of fixed size.
 
 **Places.**
-- A container has a table when one of its children on the background view is a container. With **Leaves in place** every container has one. The children of the other containers are only there: the layout places them, sorted and compact.
+- A container has a table when one of its children on the view template is a container. With **Leaves in place** every container has one. The children of the other containers are only there: the layout places them, sorted and compact.
 - A cell gets its size from the table ([table sizes](#table-sizes)). A diagram object keeps its size and stands top left in its cell.
-- A child the background view does not hold in a table comes last, in a table row below, tiled freely; a child of the table that is not on the view drops out, and a table row or table column left without cells with it.
-- An element of the background view is styled as a container (*Color and font by nesting level*), also with nothing in it.
-- A diagram object of the background view lies in the element it lies in there; in none, it lies at the view's top level.
+- A child the view template does not hold in a table comes last, in a table row below, tiled freely; a child of the table that is not on the view drops out, and a table row or table column left without cells with it.
+- An element of the view template is styled as a container (*Color and font by nesting level*), also with nothing in it.
+- A diagram object of the view template lies in the element it lies in there; in none, it lies at the view's top level.
 
-**Model and background view differ.** The model leads. A child the background view has under another parent goes where the model puts it; a child of a table that is not on the background view comes last. Both are warned on the console, with what to move on the background view.
+**Model and view template differ.** The model leads. A child the view template has under another parent goes where the model puts it; a child of a table that is not on the view template comes last. Both are warned on the console, with what to move on the view template.
 
-**Expand view, Layout only** lay out the view in the table of the background view, for the containers on it; they add and leave out nothing. Their diagram objects are matched to those of the background view by content: type, name, text and size, a diagram-block its contents too; a copy edited on the view matches nothing.
+**Expand view, Layout only** lay out the view in the table of the view template, for the containers on it; they add and leave out nothing. Their diagram objects are matched to those of the view template by content: type, name, text and size, a diagram-block its contents too; a copy edited on the view matches nothing.
 
-**Background look.** Every action gives each element of the background view the appearance it has there, as the base layer of its styling:
+**Template look.** Every action gives each element of the view template the appearance it has there, as the base layer of its styling:
 - What it takes: fill, opacity, gradient, line color, width and style, font name, size, style and color, text alignment and position, figure, icon and image. A label expression and a note's text and border are not taken.
-- Which visual: an element the background view holds more than once (a nesting condition with *every container*) takes, per occurrence, the appearance of its visual in the same container there, else of its first. An element inside a diagram-block keeps that one's own.
-- Order: it comes first; *Color and font by nesting level*, *Style by property* and *Highlight repeated* come over it. A condition overrides per appearance attribute; the value *Background* keeps the look's. Every run, *Layout only* too, takes it again from the background view as it is then; a Modify action does not reset it.
-- **Background** in a condition: each element its own value from its look, at every nesting level; *Child lighter per level* and *Child smaller per level* do not apply. An element not on the background view gets the fallback (*Type default*, 9 pt, normal) and the console says so per condition and view.
+- Which visual: an element the view template holds more than once (a nesting condition with *every container*) takes, per occurrence, the appearance of its visual in the same container there, else of its first. An element inside a diagram-block keeps that one's own.
+- Order: it comes first; *Color and font by nesting level*, *Style by property* and *Highlight repeated* come over it. A condition overrides per appearance attribute; the value *Template* keeps the look's. Every run, *Layout only* too, takes it again from the view template as it is then; a Modify action does not reset it.
+- **Template** in a condition: each element its own value from its look, at every nesting level; *Child lighter per level* and *Child smaller per level* do not apply. An element not on the view template gets the fallback (*Type default*, 9 pt, normal) and the console says so per condition and view.
 - Labels are measured in the font name, style and size it has there, with its figure and text layout, unless a condition sets another.
-- **On / off.** With the background view off (*On* on the Layout tab) the run uses nothing of it: no elements, table, diagram objects or look. The preset keeps its choices, *Background* values included; they act as the fallback and the console says once which conditions this affects.
+- **On / off.** With the view template off (*On* on the Layout tab) the run uses nothing of it: no elements, table, diagram objects or look. The preset keeps its choices, *Template* values included; they act as the fallback and the console says once which conditions this affects.
 
 ## Sizing refinements
 
@@ -213,7 +213,7 @@ One set of columns over the whole view, so columns line up top to bottom (Tiles 
 
 ### Table sizes
 
-The layout of a container with a table (Tiles, background view) searches only sizes; the places are the table's. Every container has a list of shapes (width, height), narrow and tall to wide and low, and its parent picks one.
+The layout of a container with a table (Tiles, view template) searches only sizes; the places are the table's. Every container has a list of shapes (width, height), narrow and tall to wide and low, and its parent picks one.
 1. **Width leads, height follows**, as text in a table. With the widths of the table columns given, a cell is as wide as the table columns it spans plus the *Distance* between them. Its elements are packed again at that width, in the lowest shape that fits; the white space falls at the bottom. A table row is as high as its highest cell; a cell with a cell span over table rows divides what it lacks over them, the cells over the fewest first. A leaf cell is as high as its label needs at the width it is drawn.
 2. **Start narrow.** Every table column is as wide as its narrowest cell allows; a cell spanning table columns divides its lack equally over them.
 3. **Widen step by step.** One table column at a time grows to the next shape of a cell in it; each step is a shape of the table. Two paths are followed: the cheapest step each time, and the step that gains most height per pixel.
@@ -221,7 +221,7 @@ The layout of a container with a table (Tiles, background view) searches only si
 5. **Outside in.** A cell given more width than its shape asks (another cell widened the table column) stretches its table in turn: the extra width equally over its table columns, the cells in them packed again. A diagram-block keeps its size.
 6. **Columns across containers** then puts the element columns of the whole view on one grid ([above](#columns-across-containers)); it moves x and widths only, never heights.
 
-Example, *Sociaal domein* on *Background applicatieservices*: the cells of inwoners are all as wide (2 element columns), those of gemeente too; Applicatieontwikkeling and Privacy stand right of everything; the cells of one table row are as high as the highest, and one tall cell makes its table row tall: the map comes before compactness.
+Example, *Sociaal domein* on the view template *Applicatieservices*: the cells of inwoners are all as wide (2 element columns), those of gemeente too; Applicatieontwikkeling and Privacy stand right of everything; the cells of one table row are as high as the highest, and one tall cell makes its table row tall: the map comes before compactness.
 
 ### Sort
 

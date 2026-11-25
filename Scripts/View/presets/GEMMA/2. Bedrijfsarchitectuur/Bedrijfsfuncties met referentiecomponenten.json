@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 11,
+  "schemaVersion": 12,
   "name": "GEMMA/2. Bedrijfsarchitectuur/Bedrijfsfuncties met referentiecomponenten",
   "algorithm": "Tiles",
   "params": {
@@ -40,12 +40,12 @@
     "labelSizing": false,
     "labelMaxLineWidth": 400,
     "connectionLabelSpacing": false,
-    "backgroundView": {
+    "viewTemplate": {
       "id": "id-123355daaee4455fbdbffefe921aa087",
       "path": "/Views/Beheer/View templates/Bedrijfsfunctiemodel uitvoering",
       "on": true
     },
-    "backgroundLeavesInPlace": false
+    "templateLeavesInPlace": false
   },
   "filter": {
     "conditions": [],
@@ -101,7 +101,7 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "color": "background", "darkenStart": 2, "lightenPerLevel": 30, "fontSize": 16, "fontStyle": "bold", "child": "same"},
+        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "color": "template", "darkenStart": 2, "lightenPerLevel": 30, "fontSize": 16, "fontStyle": "bold", "child": "same"},
         {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "child": "business-function", "color": "Bedrijf gedrag", "darkenStart": 2, "lightenPerLevel": 30, "fontSize": 0, "fontStyle": "bold"},
         {"parent": "business-function", "direction": "incoming", "relation": "serving-relationship", "child": "application-service", "color": "Applicatie gedrag", "darkenStart": 0, "lightenPerLevel": 30, "fontSize": 0, "fontStyle": "normal"}
       ]

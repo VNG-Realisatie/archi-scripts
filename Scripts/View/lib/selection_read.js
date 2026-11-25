@@ -437,21 +437,21 @@ function getSeedElements(uiSelection) {
   return seeds;
 }
 
-// ── Background view ───────────────────────────────────────────────────────────
+// ── View template ───────────────────────────────────────────────────────────
 
 /**
- * The background view a preset names: its elements, its diagram objects with their diagram-blocks,
- * and the table of its boxes. null when the preset names none, or the background view is off.
- * @param {BackgroundRef | undefined} ref  absent where the algorithm has no background (effectiveParams)
- * @returns {BackgroundSnapshot | null}
+ * The view template a preset names: its elements, its diagram objects with their diagram-blocks,
+ * and the table of its boxes. null when the preset names none, or the view template is off.
+ * @param {ViewTemplateRef | undefined} ref  absent where the algorithm has no view template (effectiveParams)
+ * @returns {ViewTemplateSnapshot | null}
  * @throws when the view is not in the model
  */
-function readBackground(ref) {
+function readViewTemplate(ref) {
   if (!ref || !ref.on || (!ref.id && !ref.path)) return null;
-  const view = findBackgroundView(ref);
-  if (!view) throw new Error(`Background view "${ref.path || ref.id}" is not in this model. Choose a view on the Layout tab (Background), or empty the field.`);
+  const view = findViewTemplate(ref);
+  if (!view) throw new Error(`View template "${ref.path || ref.id}" is not in this model. Choose a view on the Layout tab (View template), or empty the field.`);
   const path = viewPath(view);
-  if (ref.path && path !== ref.path) Log.debug(`  Background view found by its id; the preset names it "${ref.path}", it is now "${path}"`);
+  if (ref.path && path !== ref.path) Log.debug(`  View template found by its id; the preset names it "${ref.path}", it is now "${path}"`);
   /** @type {ArchiElement[]} */
   const elements = [];
   /** @type {Set<string>} */
@@ -471,7 +471,7 @@ function readBackground(ref) {
     parentOf.set(String(ve.id), p && p.concept && !(p.type in Defs.DIAGRAM_TYPES) ? String(p.concept.id) : null);
   }
   const tables = Table.tablesOf(_boxTree(view));
-  Log.debug(`  Background view "${path}": ${elements.length} elements, ${Object.keys(tables).length} table(s)`);
+  Log.debug(`  View template "${path}": ${elements.length} elements, ${Object.keys(tables).length} table(s)`);
   return {
     path, elements,
     diagramObjects: _expandViews($(view)).diagramObjects,
@@ -482,11 +482,11 @@ function readBackground(ref) {
 }
 
 /**
- * A background view by its id, else by its path.
- * @param {BackgroundRef} ref
+ * A view template by its id, else by its path.
+ * @param {ViewTemplateRef} ref
  * @returns {ArchiView | null}
  */
-function findBackgroundView(ref) {
+function findViewTemplate(ref) {
   // Casts: "#id" finds any object; a view is the one of type archimate-diagram-model without a .view.
   const byId = ref.id ? /** @type {ArchiView | null} */ ($(`#${ref.id}`).first()) : null;
   if (byId && byId.type === "archimate-diagram-model" && !byId.view) return byId;
@@ -498,7 +498,7 @@ function findBackgroundView(ref) {
 }
 
 /**
- * A view's path as the Background field shows it: its folders and its name, e.g. "/Views/Backgrounds/Map".
+ * A view's path as the View template field shows it: its folders and its name, e.g. "/Views/View templates/Map".
  * @param {ArchiView} view
  */
 function viewPath(view) {
@@ -553,8 +553,8 @@ function findDiagramObjects(scope, type) {
 module.exports = {
   findDiagramObjects,
   readSelection,
-  readBackground,
-  findBackgroundView,
+  readViewTemplate,
+  findViewTemplate,
   viewPath,
   readRelationIndex,
   readDiagramBlocks,

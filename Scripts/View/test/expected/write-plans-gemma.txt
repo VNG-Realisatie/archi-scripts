@@ -1,17 +1,17 @@
-Bedrijfsfuncties background Layered  6 GEMMA            new_view    f227270c4033 37n 0c 36nest 0rm
-Bedrijfsfuncties background Tree     6 GEMMA            new_view    4cdf381c30b2 37n 0c 36nest 0rm
-Bedrijfsfuncties background Stress   6 GEMMA            new_view    1ab276152706 29n 32c 0nest 0rm
-Bedrijfsfuncties background Radial   6 GEMMA            new_view    ec5af35d162b 29n 32c 0nest 0rm
-Bedrijfsfuncties background Grid     6 GEMMA            new_view    4a2ddb51699b 37n 0c 36nest 0rm
-Bedrijfsfuncties background Pack     6 GEMMA            new_view    4a2ddb51699b 37n 0c 36nest 0rm
-Bedrijfsfuncties background Tiles    6 GEMMA            new_view    5dd204587a9b 37n 0c 36nest 0rm
-Bedrijfsfuncties background Dagre    6 GEMMA            new_view    0713266e92cf 30n 16c 16nest 0rm
-Bedrijfsfuncties background Dot      6 GEMMA            new_view    bca879889440 37n 0c 36nest 0rm
-Bedrijfsfuncties background Neato    6 GEMMA            new_view    89698a3059c1 29n 32c 0nest 0rm
-Bedrijfsfuncties background FDP      6 GEMMA            new_view    -            37n 0c 36nest 0rm
-Bedrijfsfuncties background SFDP     6 GEMMA            new_view    cb97d34a9c44 29n 32c 0nest 0rm
-Bedrijfsfuncties background Twopi    6 GEMMA            new_view    e44881f55eb1 29n 32c 0nest 0rm
-Bedrijfsfuncties background Circo    6 GEMMA            new_view    858444c6125e 29n 32c 0nest 0rm
+Bedrijfsfuncties template   Layered  6 GEMMA            new_view    f227270c4033 37n 0c 36nest 0rm
+Bedrijfsfuncties template   Tree     6 GEMMA            new_view    4cdf381c30b2 37n 0c 36nest 0rm
+Bedrijfsfuncties template   Stress   6 GEMMA            new_view    1ab276152706 29n 32c 0nest 0rm
+Bedrijfsfuncties template   Radial   6 GEMMA            new_view    ec5af35d162b 29n 32c 0nest 0rm
+Bedrijfsfuncties template   Grid     6 GEMMA            new_view    4a2ddb51699b 37n 0c 36nest 0rm
+Bedrijfsfuncties template   Pack     6 GEMMA            new_view    4a2ddb51699b 37n 0c 36nest 0rm
+Bedrijfsfuncties template   Tiles    6 GEMMA            new_view    5dd204587a9b 37n 0c 36nest 0rm
+Bedrijfsfuncties template   Dagre    6 GEMMA            new_view    0713266e92cf 30n 16c 16nest 0rm
+Bedrijfsfuncties template   Dot      6 GEMMA            new_view    bca879889440 37n 0c 36nest 0rm
+Bedrijfsfuncties template   Neato    6 GEMMA            new_view    89698a3059c1 29n 32c 0nest 0rm
+Bedrijfsfuncties template   FDP      6 GEMMA            new_view    -            37n 0c 36nest 0rm
+Bedrijfsfuncties template   SFDP     6 GEMMA            new_view    cb97d34a9c44 29n 32c 0nest 0rm
+Bedrijfsfuncties template   Twopi    6 GEMMA            new_view    e44881f55eb1 29n 32c 0nest 0rm
+Bedrijfsfuncties template   Circo    6 GEMMA            new_view    858444c6125e 29n 32c 0nest 0rm
 Bedrijfsfuncties            Layered  6 GEMMA            new_view    31c9806a777d 37n 0c 36nest 0rm
 Bedrijfsfuncties            Tree     6 GEMMA            new_view    ebcee19711af 37n 0c 36nest 0rm
 Bedrijfsfuncties            Stress   6 GEMMA            new_view    80b4d1d910ff 29n 32c 0nest 0rm
@@ -68,17 +68,17 @@ Bedrijfsobjecten per beleidsdomein FDP      6 GEMMA            new_view    -    
 Bedrijfsobjecten per beleidsdomein SFDP     6 GEMMA            new_view    d63d27d155af 7n 6c 0nest 0rm
 Bedrijfsobjecten per beleidsdomein Twopi    6 GEMMA            new_view    7c03e75e889b 7n 6c 0nest 0rm
 Bedrijfsobjecten per beleidsdomein Circo    6 GEMMA            new_view    124914baea07 7n 6c 0nest 0rm
-Bedrijfsfuncties            Layered  8 GEMMA background layout_only 212f3f6266cd 20n 0c 19nest 0rm
-Bedrijfsfuncties            Tree     8 GEMMA background layout_only 525f18aa9d8b 20n 0c 19nest 0rm
-Bedrijfsfuncties            Stress   8 GEMMA background layout_only b26c430573ae 20n 19c 0nest 0rm
-Bedrijfsfuncties            Radial   8 GEMMA background layout_only 6208999f2c3f 20n 19c 0nest 0rm
-Bedrijfsfuncties            Grid     8 GEMMA background layout_only 0be8ab3500f4 20n 0c 19nest 0rm
-Bedrijfsfuncties            Pack     8 GEMMA background layout_only 0be8ab3500f4 20n 0c 19nest 0rm
-Bedrijfsfuncties            Tiles    8 GEMMA background layout_only 7b65abfbfa39 20n 0c 19nest 0rm
-Bedrijfsfuncties            Dagre    8 GEMMA background layout_only 02a5eb3b75fe 20n 9c 10nest 0rm
-Bedrijfsfuncties            Dot      8 GEMMA background layout_only 4b544faba4fc 20n 0c 19nest 0rm
-Bedrijfsfuncties            Neato    8 GEMMA background layout_only e5863b73467d 20n 19c 0nest 0rm
-Bedrijfsfuncties            FDP      8 GEMMA background layout_only -            20n 0c 19nest 0rm
-Bedrijfsfuncties            SFDP     8 GEMMA background layout_only 2a0dd1c9fc36 20n 19c 0nest 0rm
-Bedrijfsfuncties            Twopi    8 GEMMA background layout_only 3815416fe9d5 20n 19c 0nest 0rm
-Bedrijfsfuncties            Circo    8 GEMMA background layout_only e8d542c4b60b 20n 19c 0nest 0rm
+Bedrijfsfuncties            Layered  8 GEMMA template   layout_only 212f3f6266cd 20n 0c 19nest 0rm
+Bedrijfsfuncties            Tree     8 GEMMA template   layout_only 525f18aa9d8b 20n 0c 19nest 0rm
+Bedrijfsfuncties            Stress   8 GEMMA template   layout_only b26c430573ae 20n 19c 0nest 0rm
+Bedrijfsfuncties            Radial   8 GEMMA template   layout_only 6208999f2c3f 20n 19c 0nest 0rm
+Bedrijfsfuncties            Grid     8 GEMMA template   layout_only 0be8ab3500f4 20n 0c 19nest 0rm
+Bedrijfsfuncties            Pack     8 GEMMA template   layout_only 0be8ab3500f4 20n 0c 19nest 0rm
+Bedrijfsfuncties            Tiles    8 GEMMA template   layout_only 7b65abfbfa39 20n 0c 19nest 0rm
+Bedrijfsfuncties            Dagre    8 GEMMA template   layout_only 02a5eb3b75fe 20n 9c 10nest 0rm
+Bedrijfsfuncties            Dot      8 GEMMA template   layout_only 4b544faba4fc 20n 0c 19nest 0rm
+Bedrijfsfuncties            Neato    8 GEMMA template   layout_only e5863b73467d 20n 19c 0nest 0rm
+Bedrijfsfuncties            FDP      8 GEMMA template   layout_only -            20n 0c 19nest 0rm
+Bedrijfsfuncties            SFDP     8 GEMMA template   layout_only 2a0dd1c9fc36 20n 19c 0nest 0rm
+Bedrijfsfuncties            Twopi    8 GEMMA template   layout_only 3815416fe9d5 20n 19c 0nest 0rm
+Bedrijfsfuncties            Circo    8 GEMMA template   layout_only e8d542c4b60b 20n 19c 0nest 0rm

@@ -18,7 +18,7 @@
  *             accessed by functions; a flow and a data object the filters and steps leave out.
  *   7 GEMMA functions   two functions, the start of a preset that begins at the business functions (a step
  *             expands only from what the step before it added, so a start must not hold what the steps reach).
- *   8 GEMMA background   the background view of the GEMMA test presets: the root grouping with its superlayers
+ *   8 GEMMA template   the view template of the GEMMA test presets: the root grouping with its superlayers
  *             side by side, their functions nested in them, each element once, with the aggregations drawn
  *             inside as on a generated view (Layout only follows the relations drawn). Not in the baseline.
  */
@@ -125,8 +125,8 @@ const GEMMA_RELATIONS = [
   ["flow-relationship", "aanvraag", "ontvangst", "behandeling"],                                    // left out by a relation filter
   ["access-relationship", "", "magazijn", "basisregistratie", "read"],                              // left out by the steps
 ];
-// The background view: the root grouping, its superlayers side by side, each a column of nested functions.
-const GEMMA_BACKGROUND = ["model", [
+// The view template: the root grouping, its superlayers side by side, each a column of nested functions.
+const GEMMA_TEMPLATE = ["model", [
   ["sturing", [["strategie", [["beleid"], ["bewaking"]]], ["verantwoording"]]],
   ["uitvoering", [["dienstverlening", [["ontvangst"], ["behandeling", [["beoordeling"], ["besluitvorming"]]]]],
                   ["handhaving", [["toezicht"]]], ["leefomgeving"]]],
@@ -199,9 +199,9 @@ function buildLarge(folder) {
 }
 
 /**
- * Views 6–8: the GEMMA elements and relations, the start views and the background view.
+ * Views 6–8: the GEMMA elements and relations, the start views and the view template.
  * @param {Folder} folder
- * @returns {{background: ArchimateView}}
+ * @returns {{viewTemplate: ArchimateView}}
  */
 function buildGemma(folder) {
   const els = createElements(GEMMA_ELEMENTS);
@@ -210,24 +210,24 @@ function buildGemma(folder) {
   flatView("6 GEMMA", folder, [els.model], []);
   flatView("7 GEMMA functions", folder, [els.dienstverlening, els.handhaving], []);
   console.log(`GEMMA model: ${GEMMA_ELEMENTS.length} elements · ${relations.length} relations`);
-  const background = model.createArchimateView("8 GEMMA background", folder);
-  const [rootKey, superlayers] = GEMMA_BACKGROUND;
-  const rootSize = _boxSize(GEMMA_BACKGROUND, true);
-  const root = background.add(els[rootKey], GRID.x, GRID.y, rootSize.width, rootSize.height);
+  const viewTemplate = model.createArchimateView("8 GEMMA template", folder);
+  const [rootKey, superlayers] = GEMMA_TEMPLATE;
+  const rootSize = _boxSize(GEMMA_TEMPLATE, true);
+  const root = viewTemplate.add(els[rootKey], GRID.x, GRID.y, rootSize.width, rootSize.height);
   let x = BOX.padding;
   /** @type {(parent: VisualObject, child: VisualObject) => void} */
   const link = (parent, child) => {
     const rel = relations.find(r => r.type === "aggregation-relationship" && r.source.id === parent.concept.id && r.target.id === child.concept.id);
-    if (rel) background.add(rel, parent, child);
+    if (rel) viewTemplate.add(rel, parent, child);
   };
   for (const layer of superlayers) x += _addBox(root, layer, x, BOX.title, els, link).width + BOX.gap;
-  return { background };
+  return { viewTemplate };
 }
 
-const BOX = { padding: 20, title: 40, gap: 20 };   // the background view's boxes: room around and above the children
+const BOX = { padding: 20, title: 40, gap: 20 };   // the view template's boxes: room around and above the children
 
 /**
- * The size of a box of the background view: a leaf GRID.width × GRID.height; a container its children stacked
+ * The size of a box of the view template: a leaf GRID.width × GRID.height; a container its children stacked
  * (side by side for the root) with room around them.
  * @param {any[]} node  [key, children?]
  * @param {boolean} [sideBySide]
