@@ -25,6 +25,12 @@ const PROP_ID = "Object ID";
 const PROP_MANAGED_OCCURRENCE = "Managed occurrence";
 // View property with how the view was made (lib/generation_record.js).
 const PROP_GENERATION_RECORD = "View generation record";
+// Grouping properties of a view recipe (lib/view_recipe.js): its kind, the Object ID of its view, the preset
+// that makes it (information only), and the view on which the recipes record their view templates.
+const PROP_VIEW_RECIPE = "View recipe";
+const PROP_VIEW_OBJECT_ID = "View Object ID";
+const PROP_VIEW_PRESET = "View preset";
+const RECIPES_VIEW = "View recipes";
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
@@ -1215,7 +1221,7 @@ if (typeof module !== "undefined" && module.exports) {
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
     DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID, VISUAL_ATTRIBUTES,
-    PROP_ID, PROP_MANAGED_OCCURRENCE, PROP_GENERATION_RECORD,
+    PROP_ID, PROP_MANAGED_OCCURRENCE, PROP_GENERATION_RECORD, PROP_VIEW_RECIPE, PROP_VIEW_OBJECT_ID, PROP_VIEW_PRESET, RECIPES_VIEW,
     GENERATED_VIEW_FOLDER, SESSION_FILENAME, ONE_EACH_CONFIRM_ABOVE, viewFolderPath,
     SPLINE_SAMPLE_POINTS,
     DEFAULT_PRESET,

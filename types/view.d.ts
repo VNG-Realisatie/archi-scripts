@@ -554,6 +554,72 @@ interface ViewCounts {
   diagramConnections: number;
 }
 
+// ── View recipes (Scripts/View/lib/view_recipe.js, view_recipe_read.js) ───────────────────────────────
+
+/** An object as the check names it: never by id. */
+type RecipeNamed = { id: string; label: string };
+
+/** A grouping with the property View recipe, as read from the model. */
+interface RecipeGrouping {
+  id: string;
+  name: string;
+  /** Folder path and name, as the check names it. */
+  label: string;
+  /** The value of View recipe as it is: "view", "group" or something unknown. */
+  kind: string;
+  objectId: string;
+  viewObjectId: string;
+  viewPreset: string;
+  /** The elements it aggregates (outgoing aggregation relations), in relation-id order. */
+  aggregates: RecipeNamed[];
+  /** The grouping itself, for the preset's element filter. */
+  element: ArchiElement;
+}
+
+/** What the check reads from the model. */
+interface RecipeFacts {
+  groupings: RecipeGrouping[];
+  /** How many views are named View recipes. */
+  recipesViews: number;
+  /** Each visual of a recipe grouping on View recipes, with the views referenced directly inside it. */
+  visuals: { recipeId: string; templates: RecipeNamed[] }[];
+  /** Object ID → the labels of the concepts that carry it. */
+  objectIds: Map<string, string[]>;
+}
+
+/** A preset as the check reads it. */
+interface PresetLink {
+  preset: string;
+  /** The recipe link: the recipe's id, and its name as a label. */
+  recipe: { id: string; name: string } | null;
+  /** The preset uses a view template of its own. */
+  viewTemplateOn: boolean;
+  filter: FilterCondition[];
+}
+
+type RecipeKind = "view" | "group";
+
+/** A recognised recipe. */
+interface Recipe {
+  grouping: RecipeGrouping;
+  kind: RecipeKind;
+  /** View recipe group: its view recipes. */
+  members: RecipeGrouping[];
+  /** View recipe: the groups that aggregate it (one when the model is in order). */
+  groups: RecipeGrouping[];
+  /** The views referenced in its own visuals on View recipes. */
+  templates: RecipeNamed[];
+  /** Its visuals on View recipes. */
+  visuals: number;
+  /** Its view template: its own, else its group's; null when there is none or more than one. */
+  viewTemplate: RecipeNamed | null;
+}
+
+type RecipeSection = "Recipes" | "View template" | "Links" | "Duplicates";
+
+/** One inconsistency: what is wrong, what it means for generate, what the user does. */
+interface RecipeFinding { section: RecipeSection; subject: string; text: string; effect: string; action: string }
+
 // ── Write plan (Scripts/View/lib/write_plan.js → view_writer.js) ─────────────────────────────────
 
 /** A parent or connection end in a write plan: a node the plan writes, or a visual it leaves in place (inside a diagram-block). */

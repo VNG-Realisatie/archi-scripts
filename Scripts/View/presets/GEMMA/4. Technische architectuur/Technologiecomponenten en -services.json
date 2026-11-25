@@ -56,7 +56,8 @@
         "name": "",
         "repeat": "untilNothingNew",
         "conditions": [
-          {"previous": "technology-service", "direction": "outgoing", "relation": "aggregation-relationship", "added": "technology-service"}
+          {"previous": "technology-service", "direction": "outgoing", "relation": "aggregation-relationship", "added": "technology-service"},
+          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "technology-service"}
         ]
       },
       {
@@ -98,7 +99,7 @@
     "properties": [
       {
         "key": "Architectuurlaag",
-        "value": "",
+        "value": "Applicatiearchitectuur",
         "enabled": false
       },
       {
@@ -133,12 +134,12 @@
       },
       {
         "key": "Publiceren",
-        "value": "",
+        "value": "GEMMA Online en redactie",
         "enabled": false
       },
       {
         "key": "Scope",
-        "value": "",
+        "value": "Gemeente",
         "enabled": false
       },
       {

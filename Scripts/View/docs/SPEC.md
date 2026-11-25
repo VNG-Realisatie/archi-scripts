@@ -84,6 +84,12 @@ One name per concept across UI, docs, logs and code, grouped by subject.
 - **Siblings**: the views of one *One view each* run: the same start, preset and action.
 - **VisualSet**: the existing visual objects of one target view, captured before a run.
 
+**View recipes**
+- **view recipe**: a grouping whose property `View recipe` = `view` makes it the description of exactly one generated view. Its start is the grouping itself; it carries the Object ID the view gets (`View Object ID`); its view template is the view reference inside its visual on *View recipes*, or that of its group.
+- **view recipe group**: a grouping with `View recipe` = `group`. It aggregates view recipes, carries the view template for all of them and makes one view per view recipe (*One view each*). A view recipe outside a group makes one view (*New view*). The action follows from the kind.
+- **View recipes** (the folder and the view): containers in which the user finds and maintains the recipes. The view also records each recipe's view template, as a view reference inside the recipe's visual. The property makes a grouping a recipe; the folder does not.
+- **recipe link**: the link from a preset to one recipe: its identity, and its name as a label. `View preset` on the recipe names the preset, as information only.
+
 **Appearance**
 - **palette**: a named set of colors and color ranges that belong together, shared by the presets; a preset always names one, and every color of its styling comes from it, but for the fill colors a condition takes from the template look.
 - **appearance attribute**: one attribute of how an object looks: fill color, opacity, gradient, line color, width and style, font name, size, style and color, figure, icon, image, text alignment and position. Not a model property.
@@ -158,6 +164,9 @@ The conceptual entities and how they relate. Cardinalities use `1`, `0..N`, `1..
 | **VisualSet** | view | 1 → 1 | existing visuals of one target view, captured before the run |
 | **managed-occurrence record** | view | N → 1 | element + its chain of containers up to the view root; stored on the view, so it survives a view copy |
 | **LayoutGraph** | element + nesting + connection | projection | engine-facing view of the object set |
+| **view recipe group** | view recipe | 1 → 1..N | by aggregation; a view recipe is in at most one group |
+| view recipe, view recipe group | view template | N → 0..1 | a view reference inside its visual on *View recipes*; a view recipe without one takes its group's |
+| **Preset** | recipe | 0..1 → 0..1 | the recipe link; a recipe in a group is made through its group's preset |
 
 **Closed enumerations.** Element and relation types come from the modelling language; the **diagram-object types** are a fixed canvas set. Extending any of them is a deliberate change. Each relation type carries a layout weight that some algorithms use.
 
@@ -204,6 +213,14 @@ The console names the folder of every view written. An element the preset's elem
 - A view with a missing object or preset is reported and not written. A renamed preset is such a case; a new run repairs the view. A view made by a script that works on after the run is refused, naming the script.
 - A view made with unsaved settings, or changed by *Expand view* since, is marked; Regenerate says the result can differ. Each run reports what it uses and what it does not.
 - A published release does not carry generation records: they are working data.
+
+**View recipes.** A recipe and its linked preset together describe a publishable view. *Check view recipes* reports every inconsistency before anything is written, and writes nothing itself:
+- *Recipes*: an unknown kind; a recipe without an Object ID; a view recipe in more than one group; a group without view recipes, or aggregating something that is no view recipe; a view recipe that the element filter of its group's preset drops.
+- *View template*: no view *View recipes*, or more than one; a recipe not on it, or on it more than once; more than one view reference; none, while the linked preset uses a view template.
+- *Links*: a preset whose recipe is not in the model; a recipe linked from several presets, or from none; a preset linked to a view recipe that its group makes; a label that no longer matches the recipe's name; `View preset` differing from the linked preset.
+- *Duplicates*: a recipe's Object ID that another concept carries; a `View Object ID` on two recipes, or equal to a concept's Object ID.
+
+Each finding names objects by folder path and name, never by identity, and says its effect and what to do. One cause gives one finding: a missing *View recipes* view, an ambiguous view template, or a view recipe in several groups is not reported again per consequence, and while no preset is linked at all that is one finding.
 
 **Many views.** Before *One view each* writes more than 20 views, the entry point asks the user to confirm; the count is what passes the filter. Selected elements of more than one type give a warning on the console; the run goes on.
 

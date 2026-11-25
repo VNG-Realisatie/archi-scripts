@@ -10,7 +10,7 @@
  *        [--write-plan]          print the write plan as JSON instead of the summary
  *        [--in-process]          the adapter runs in this process, not in a Node layout process (debugging, speed)
  *
- * As a module: loadModel, findView, readSnapshot, readViewTemplate, relationIndex, layoutRuntime, planView, planEach, writePlanJson
+ * As a module: loadModel, findView, readSnapshot, readViewTemplate, readRecipeFacts, relationIndex, layoutRuntime, planView, planEach, writePlanJson
  * and the parsers (see below).
  */
 const fs   = require("fs");
@@ -82,8 +82,9 @@ function _bounds(node) {
 }
 
 /**
- * Model objects shaped like jArchi's: element { id, type, name, prop(k) },
- * relation { id, type, name, source, target, prop(k) }, view { id, name, path, node }.
+ * Model objects shaped like jArchi's: element { id, type, name, folder, prop(k) },
+ * relation { id, type, name, folder, source, target, prop(k) }, view { id, name, path, node }.
+ * folder is the folder path as printFolderPath gives it ("/Other/Sub/").
  */
 function loadModel(file) {
   const root = parseXml(fs.readFileSync(file, "utf8"));
@@ -95,7 +96,7 @@ function loadModel(file) {
       if (c.tag !== "element") { if (c.tag.endsWith("model")) walk(c, folders); continue; }
       const type = jarchiType(c.attrs["xsi:type"]);
       const props = _props(c);
-      const obj = { id: c.attrs.id, type, name: c.attrs.name || "", prop: k => props[k] };
+      const obj = { id: c.attrs.id, type, name: c.attrs.name || "", folder: `/${folders.map(f => f + "/").join("")}`, prop: k => props[k] };
       if (type === "archimate-diagram-model" || type === "sketch-model") {
         views.push({ id: obj.id, name: obj.name, path: [...folders, obj.name].join("/"), node: c });
       } else if (type.endsWith("-relationship")) {
@@ -329,12 +330,51 @@ function _boxTree(model, node) {
 }
 
 /** A write plan as JSON: elements and relations by id. */
+/**
+ * The facts view_recipe.js checks, as view_recipe_read.readFacts gives them in Archi.
+ */
+function readRecipeFacts(model) {
+  const label = o => o.folder + o.name;
+  const viewLabel = v => "/" + v.path;
+  const viewsById = new Map(model.views.map(v => [v.id, v]));
+  const groupings = [];
+  for (const g of model.elements.values()) {
+    const kind = g.prop(Defs.PROP_VIEW_RECIPE);
+    if (g.type !== "grouping" || kind === undefined) continue;
+    const aggregates = [...model.relations.values()]
+      .filter(r => r.type === "aggregation-relationship" && r.source === g && r.target)
+      .sort((a, b) => Defs.compareIds(a.id, b.id)).map(r => ({ id: r.target.id, label: label(r.target) }));
+    groupings.push({ id: g.id, name: g.name, label: label(g), kind, objectId: g.prop(Defs.PROP_ID) || "",
+      viewObjectId: g.prop(Defs.PROP_VIEW_OBJECT_ID) || "", viewPreset: g.prop(Defs.PROP_VIEW_PRESET) || "", aggregates, element: g });
+  }
+  const ids = new Set(groupings.map(g => g.id));
+  const views = model.views.filter(v => v.name === Defs.RECIPES_VIEW);
+  const visuals = [];
+  const walk = node => {
+    for (const c of node.children) {
+      if (c.tag !== "child") continue;
+      if (ids.has(c.attrs.archimateElement))
+        visuals.push({ recipeId: c.attrs.archimateElement, templates: c.children
+          .filter(r => r.tag === "child" && jarchiType(r.attrs["xsi:type"]) === "diagram-model-reference" && viewsById.has(r.attrs.model))
+          .map(r => ({ id: r.attrs.model, label: viewLabel(viewsById.get(r.attrs.model)) })) });
+      walk(c);
+    }
+  };
+  if (views.length === 1) walk(views[0].node);
+  const objectIds = new Map();
+  for (const c of [...model.elements.values(), ...model.relations.values()]) {
+    const id = c.prop(Defs.PROP_ID);
+    if (id) objectIds.set(id, [...(objectIds.get(id) || []), label(c)]);
+  }
+  return { groupings, recipesViews: views.length, visuals, objectIds };
+}
+
 function writePlanJson(writePlan) {
   return JSON.stringify(writePlan, (k, v) => ((k === "element" || k === "relation" || k === "source") && v && v.id ? v.id : v), 1);
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { parseXml, jarchiType, loadModel, findView, readSnapshot, readViewTemplate, relationIndex, layoutRuntime, planView, planEach, writePlanJson };
+  module.exports = { parseXml, jarchiType, loadModel, findView, readSnapshot, readViewTemplate, readRecipeFacts, relationIndex, layoutRuntime, planView, planEach, writePlanJson };
 }
 
 // ── CLI ───────────────────────────────────────────────────────────────────────
