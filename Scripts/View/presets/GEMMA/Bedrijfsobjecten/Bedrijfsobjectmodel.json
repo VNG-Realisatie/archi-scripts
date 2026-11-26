@@ -1,6 +1,7 @@
 {
   "schemaVersion": 12,
   "name": "GEMMA/Bedrijfsobjecten/Bedrijfsobjectmodel",
+  "recipe": null,
   "algorithm": "Layered",
   "params": {
     "direction": "Right",
@@ -12,7 +13,8 @@
     "acyclicer": "Default",
     "reverseConditions": [
       {"relation": "realization-relationship"},
-      {"relation": "serving-relationship"}
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
     ],
     "nestingConditions": [
       {"relation": "aggregation-relationship", "everyContainer": true}
@@ -33,7 +35,7 @@
     "elementWidth": 240,
     "elementHeight": 60,
     "maxWidth": 0,
-    "aspectRatio": 2,
+    "aspectRatio": 1,
     "viewSizeMode": "none",
     "labelSizing": false,
     "labelMaxLineWidth": 400,
@@ -41,7 +43,7 @@
     "viewTemplate": {
       "id": "",
       "path": "",
-      "on": true
+      "on": false
     },
     "templateLeavesInPlace": false
   },
@@ -104,8 +106,7 @@
   },
   "engineParams": {
     "ELK": {
-      "elk.spacing.nodeSelfLoop": 20,
-      "org.eclipse.elk.portConstraints": "FIXED_SIDE"
+      "elk.spacing.nodeSelfLoop": 20
     }
   },
   "viewProperties": {
@@ -153,7 +154,7 @@
       },
       {
         "key": "Scope",
-        "value": "",
+        "value": "Gemeente",
         "enabled": false
       },
       {
